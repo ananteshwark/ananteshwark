@@ -13,12 +13,13 @@ export const apiClient: AxiosInstance = axios.create({
 // Request interceptor: add auth token and tenant header
 apiClient.interceptors.request.use(
   (config) => {
-    const { accessToken, tenant } = useAuthStore.getState();
+    const { accessToken, tenant, user } = useAuthStore.getState();
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
-    if (tenant?.id) {
-      config.headers['X-Tenant-ID'] = tenant.id;
+    const tenantId = tenant?.id ?? user?.tenantId;
+    if (tenantId) {
+      config.headers['X-Tenant-ID'] = tenantId;
     }
     return config;
   },

@@ -67,7 +67,9 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto.email, dto.password, dto.tenantSlug);
     if (!user) throw new UnauthorizedException('Invalid credentials');
-    return this.generateTokens(user);
+    const tokens = await this.generateTokens(user);
+    const tenant = await this.tenantsService.findById(user.tenantId);
+    return { ...tokens, tenant };
   }
 
   async register(dto: RegisterDto) {
