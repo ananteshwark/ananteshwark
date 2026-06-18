@@ -43,15 +43,23 @@ A production-grade, multi-tenant Enterprise ERP platform built with NestJS, Reac
 
 ### Option 1: Docker Compose (recommended)
 
-```bash
-# Start all services
-docker-compose up -d
+Requires only **Docker Desktop** (no Node, PostgreSQL, or Redis install needed).
 
-# Access:
+```bash
+# Build and start all services (first run builds images, ~3-5 min)
+docker-compose up
+
+# Access in your browser:
 # Web UI: http://localhost:5173
 # API:    http://localhost:3000
 # Docs:   http://localhost:3000/api/docs
 ```
+
+The `api` container automatically creates the database schema and seeds demo
+data (idempotent) on startup — no `.env` file or manual seed step required.
+
+On the login page, sign in with the demo credentials below and enter the
+**tenant slug** `demo`.
 
 ### Option 2: Local Development
 

@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.4
 
 COPY package.json ./
 RUN pnpm install
@@ -11,4 +11,4 @@ COPY . .
 RUN pnpm build
 
 EXPOSE 3000
-CMD ["node", "dist/main"]
+CMD ["node", "dist/main.js"]

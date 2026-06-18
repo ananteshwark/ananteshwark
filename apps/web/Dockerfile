@@ -2,7 +2,7 @@ FROM node:20-alpine as build
 
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.4
 
 COPY package.json ./
 RUN pnpm install
