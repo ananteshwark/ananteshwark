@@ -1,0 +1,128 @@
+{
+  "common": {
+    "search": "खोजें...",
+    "loading": "लोड हो रहा है...",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "create": "बनाएं",
+    "submit": "जमा करें",
+    "confirm": "पुष्टि करें",
+    "back": "वापस",
+    "next": "अगला",
+    "finish": "समाप्त",
+    "yes": "हां",
+    "no": "नहीं",
+    "all": "सभी",
+    "none": "कोई नहीं",
+    "noData": "कोई डेटा नहीं मिला",
+    "error": "एक त्रुटि हुई",
+    "success": "ऑपरेशन सफल",
+    "required": "यह फ़ील्ड आवश्यक है",
+    "actions": "कार्रवाई"
+  },
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "users": "उपयोगकर्ता",
+    "roles": "भूमिकाएं और अनुमतियां",
+    "workflows": "वर्कफ्लो",
+    "notifications": "सूचनाएं",
+    "audit": "ऑडिट लॉग",
+    "settings": "सेटिंग्स",
+    "hr": "मानव संसाधन",
+    "finance": "वित्त",
+    "payroll": "पेरोल",
+    "procurement": "खरीद"
+  },
+  "auth": {
+    "login": "साइन इन करें",
+    "logout": "साइन आउट करें",
+    "register": "खाता बनाएं",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "rememberMe": "मुझे याद रखें",
+    "noAccount": "खाता नहीं है?",
+    "hasAccount": "पहले से खाता है?",
+    "welcomeBack": "वापस स्वागत है",
+    "signInSubtitle": "अपने ERP खाते में साइन इन करें"
+  },
+  "users": {
+    "title": "उपयोगकर्ता",
+    "description": "उपयोगकर्ताओं और उनकी पहुंच का प्रबंधन करें",
+    "invite": "उपयोगकर्ता को आमंत्रित करें",
+    "name": "नाम",
+    "email": "ईमेल",
+    "role": "भूमिका",
+    "status": "स्थिति",
+    "lastLogin": "अंतिम लॉगिन",
+    "joined": "शामिल हुए",
+    "deactivate": "निष्क्रिय करें",
+    "resendInvite": "निमंत्रण पुनः भेजें",
+    "noUsers": "कोई उपयोगकर्ता नहीं मिला",
+    "inviteDescription": "अपने संगठन में शामिल होने के लिए टीम के सदस्यों को आमंत्रित करें"
+  },
+  "roles": {
+    "title": "भूमिकाएं और अनुमतियां",
+    "create": "भूमिका बनाएं",
+    "name": "भूमिका का नाम",
+    "description": "विवरण",
+    "permissions": "अनुमतियां",
+    "systemRole": "सिस्टम भूमिका",
+    "noRoles": "कोई भूमिका नहीं मिली"
+  },
+  "workflow": {
+    "title": "वर्कफ्लो",
+    "definitions": "परिभाषाएं",
+    "pending": "लंबित अनुमोदन",
+    "approve": "अनुमोदित करें",
+    "reject": "अस्वीकार करें",
+    "comment": "टिप्पणी",
+    "noPending": "कोई लंबित अनुमोदन नहीं",
+    "allCaughtUp": "सब कुछ अपडेट है!"
+  },
+  "notifications": {
+    "title": "सूचनाएं",
+    "markAllRead": "सभी पढ़ा चिह्नित करें",
+    "noNotifications": "कोई सूचना नहीं",
+    "allCaughtUp": "सब कुछ अपडेट है!"
+  },
+  "audit": {
+    "title": "ऑडिट लॉग",
+    "description": "सभी सिस्टम क्रियाओं का अपरिवर्तनीय रिकॉर्ड",
+    "user": "उपयोगकर्ता",
+    "action": "क्रिया",
+    "resource": "संसाधन",
+    "timestamp": "समय",
+    "noLogs": "कोई ऑडिट लॉग नहीं मिला"
+  },
+  "settings": {
+    "general": "सामान्य सेटिंग्स",
+    "modules": "मॉड्यूल सेटिंग्स",
+    "branding": "ब्रांडिंग",
+    "primaryColor": "प्राथमिक रंग",
+    "logoUrl": "लोगो URL",
+    "companyInfo": "कंपनी जानकारी"
+  },
+  "dashboard": {
+    "title": "डैशबोर्ड",
+    "welcome": "शुभ प्रभात",
+    "totalUsers": "कुल उपयोगकर्ता",
+    "pendingApprovals": "लंबित अनुमोदन",
+    "unreadNotifications": "अपठित सूचनाएं",
+    "systemStatus": "सिस्टम स्थिति",
+    "quickActions": "त्वरित क्रियाएं",
+    "myPendingApprovals": "मेरे लंबित अनुमोदन"
+  },
+  "onboarding": {
+    "title": "अपना ERP स्थापित करें",
+    "subtitle": "शुरू करने के लिए कुछ आसान कदम",
+    "companyInfo": "कंपनी की जानकारी",
+    "fiscalYear": "वित्तीय वर्ष और मुद्रा",
+    "modules": "मॉड्यूल चुनें",
+    "adminAccount": "एडमिन खाता",
+    "done": "हो गया",
+    "ready": "आपका ERP तैयार है!"
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "common": {
+    "search": "Search...",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "yes": "Yes",
+    "no": "No",
+    "all": "All",
+    "none": "None",
+    "noData": "No data found",
+    "error": "An error occurred",
+    "success": "Operation successful",
+    "required": "This field is required",
+    "actions": "Actions"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "roles": "Roles & Permissions",
+    "workflows": "Workflows",
+    "notifications": "Notifications",
+    "audit": "Audit Log",
+    "settings": "Settings",
+    "hr": "HR",
+    "finance": "Finance",
+    "payroll": "Payroll",
+    "procurement": "Procurement"
+  },
+  "auth": {
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "register": "Create Account",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "rememberMe": "Remember me",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "welcomeBack": "Welcome back",
+    "signInSubtitle": "Sign in to your ERP account"
+  },
+  "users": {
+    "title": "Users",
+    "description": "Manage users and their access",
+    "invite": "Invite User",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "status": "Status",
+    "lastLogin": "Last Login",
+    "joined": "Joined",
+    "deactivate": "Deactivate",
+    "resendInvite": "Resend Invite",
+    "noUsers": "No users found",
+    "inviteDescription": "Invite team members to join your organization"
+  },
+  "roles": {
+    "title": "Roles & Permissions",
+    "create": "Create Role",
+    "name": "Role Name",
+    "description": "Description",
+    "permissions": "Permissions",
+    "systemRole": "System Role",
+    "noRoles": "No roles found"
+  },
+  "workflow": {
+    "title": "Workflows",
+    "definitions": "Definitions",
+    "pending": "Pending Approvals",
+    "approve": "Approve",
+    "reject": "Reject",
+    "comment": "Comment",
+    "noPending": "No pending approvals",
+    "allCaughtUp": "You're all caught up!"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "noNotifications": "No notifications",
+    "allCaughtUp": "You're all caught up!"
+  },
+  "audit": {
+    "title": "Audit Log",
+    "description": "Immutable record of all system actions",
+    "user": "User",
+    "action": "Action",
+    "resource": "Resource",
+    "timestamp": "Timestamp",
+    "noLogs": "No audit logs found"
+  },
+  "settings": {
+    "general": "General Settings",
+    "modules": "Module Settings",
+    "branding": "Branding",
+    "primaryColor": "Primary Color",
+    "logoUrl": "Logo URL",
+    "companyInfo": "Company Info"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Good morning",
+    "totalUsers": "Total Users",
+    "pendingApprovals": "Pending Approvals",
+    "unreadNotifications": "Unread Notifications",
+    "systemStatus": "System Status",
+    "quickActions": "Quick Actions",
+    "myPendingApprovals": "My Pending Approvals"
+  },
+  "onboarding": {
+    "title": "Set up your ERP",
+    "subtitle": "Just a few steps to get started",
+    "companyInfo": "Company Information",
+    "fiscalYear": "Fiscal Year & Currency",
+    "modules": "Select Modules",
+    "adminAccount": "Admin Account",
+    "done": "Done",
+    "ready": "Your ERP is ready!"
+  }
+}
