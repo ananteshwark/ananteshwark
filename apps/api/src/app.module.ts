@@ -13,6 +13,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { HealthModule } from './modules/health/health.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HrModule } from './modules/hr/hr.module';
+import { PayrollModule } from './modules/payroll/payroll.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -43,6 +44,7 @@ import { getDatabaseConfig } from './config/database.config';
     HealthModule,
     FinanceModule,
     HrModule,
+    PayrollModule,
   ],
 })
 export class AppModule {

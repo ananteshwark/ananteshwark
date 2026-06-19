@@ -1,0 +1,6 @@
+export { default as PayComponentsPage } from './PayComponentsPage';
+export { default as EmployeeSalaryPage } from './EmployeeSalaryPage';
+export { default as PayrollRunsPage } from './PayrollRunsPage';
+export { default as PayrollRunDetailPage } from './PayrollRunDetailPage';
+export { default as PayslipPage } from './PayslipPage';
+export { default as StatutoryPage } from './StatutoryPage';

@@ -13,6 +13,17 @@ import { AttendanceService } from '../modules/hr/attendance/attendance.service';
 import { LeaveService } from '../modules/hr/leave/leave.service';
 import { AttendanceSource, AttendanceStatus } from '../modules/hr/attendance/entities/attendance-record.entity';
 import { AccrualType } from '../modules/hr/leave/entities/leave-type.entity';
+import { ComponentService } from '../modules/payroll/components/component.service';
+import { StatutoryService } from '../modules/payroll/statutory/statutory.service';
+import {
+  PayComponentType,
+  CalculationType,
+  StatutoryType,
+} from '../modules/payroll/components/entities/pay-component.entity';
+import { TaxRegime } from '../modules/payroll/statutory/entities/tax-slab.entity';
+import { ComplianceType, ComplianceFrequency } from '../modules/payroll/statutory/entities/compliance-calendar-item.entity';
+import { DataSource } from 'typeorm';
+import { TaxSlab } from '../modules/payroll/statutory/entities/tax-slab.entity';
 
 async function seed() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -166,6 +177,12 @@ async function seed() {
     { code: '2100', name: 'Tax Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
     { code: '2200', name: 'Accrued Liabilities', type: 'LIABILITY', normalBalance: 'CREDIT' },
     { code: '2300', name: 'Short-term Loans', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    // Payroll statutory payables
+    { code: '2110', name: 'PF Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    { code: '2120', name: 'ESI Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    { code: '2130', name: 'PT Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    { code: '2140', name: 'TDS Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    { code: '2150', name: 'Salaries Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
     // Equity
     { code: '3000', name: 'Common Stock', type: 'EQUITY', normalBalance: 'CREDIT' },
     { code: '3100', name: 'Retained Earnings', type: 'EQUITY', normalBalance: 'CREDIT' },
@@ -182,6 +199,9 @@ async function seed() {
     { code: '6400', name: 'Office Expenses', type: 'EXPENSE', normalBalance: 'DEBIT' },
     { code: '6500', name: 'Depreciation', type: 'EXPENSE', normalBalance: 'DEBIT' },
     { code: '6600', name: 'Interest Expense', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    // Payroll employer contribution expenses
+    { code: '6010', name: 'Employer PF Contribution', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6020', name: 'Employer ESI Contribution', type: 'EXPENSE', normalBalance: 'DEBIT' },
   ];
 
   for (const acc of accounts) {
@@ -463,6 +483,133 @@ async function seed() {
         console.log(`Attendance already exists for ${emp.employeeCode} on ${dateStr}`);
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // PAYROLL seed data (Phase 4)
+  // ---------------------------------------------------------------------------
+  console.log('\nSeeding Payroll data...');
+  const componentService = app.get(ComponentService);
+  const statutoryService = app.get(StatutoryService);
+
+  const payComponents = [
+    { code: 'BASIC', name: 'Basic', type: PayComponentType.EARNING, calculationType: CalculationType.PERCENTAGE, percentageOf: 'CTC', isTaxable: true, glAccountCode: '6000', displayOrder: 1 },
+    { code: 'HRA', name: 'House Rent Allowance', type: PayComponentType.EARNING, calculationType: CalculationType.PERCENTAGE, percentageOf: 'BASIC', isTaxable: true, glAccountCode: '6000', displayOrder: 2 },
+    { code: 'SPECIAL_ALLOWANCE', name: 'Special Allowance', type: PayComponentType.EARNING, calculationType: CalculationType.FORMULA, isTaxable: true, glAccountCode: '6000', displayOrder: 3 },
+    { code: 'PF_EMPLOYEE', name: 'Provident Fund (Employee)', type: PayComponentType.DEDUCTION, calculationType: CalculationType.PERCENTAGE, percentageOf: 'BASIC', isStatutory: true, statutoryType: StatutoryType.PF, glAccountCode: '2110', displayOrder: 10 },
+    { code: 'ESI_EMPLOYEE', name: 'ESI (Employee)', type: PayComponentType.DEDUCTION, calculationType: CalculationType.PERCENTAGE, percentageOf: 'GROSS', isStatutory: true, statutoryType: StatutoryType.ESI, glAccountCode: '2120', displayOrder: 11 },
+    { code: 'PT', name: 'Professional Tax', type: PayComponentType.DEDUCTION, calculationType: CalculationType.SLAB, isStatutory: true, statutoryType: StatutoryType.PT, glAccountCode: '2130', displayOrder: 12 },
+    { code: 'TDS', name: 'Income Tax (TDS)', type: PayComponentType.DEDUCTION, calculationType: CalculationType.SLAB, isStatutory: true, statutoryType: StatutoryType.TDS, glAccountCode: '2140', displayOrder: 13 },
+    { code: 'PF_EMPLOYER', name: 'Provident Fund (Employer)', type: PayComponentType.EMPLOYER_CONTRIBUTION, calculationType: CalculationType.PERCENTAGE, percentageOf: 'BASIC', isStatutory: true, statutoryType: StatutoryType.PF, glAccountCode: '6010', displayOrder: 20 },
+    { code: 'ESI_EMPLOYER', name: 'ESI (Employer)', type: PayComponentType.EMPLOYER_CONTRIBUTION, calculationType: CalculationType.PERCENTAGE, percentageOf: 'GROSS', isStatutory: true, statutoryType: StatutoryType.ESI, glAccountCode: '6020', displayOrder: 21 },
+  ];
+  const componentMap: Record<string, any> = {};
+  for (const pc of payComponents) {
+    try {
+      const created = await componentService.createComponent(tenant.id, pc as any);
+      componentMap[pc.code] = created;
+      console.log('Created pay component:', pc.code);
+    } catch (e) {
+      console.log('Pay component already exists:', pc.code);
+      const list = await componentService.findComponents(tenant.id, { page: 1, limit: 100 });
+      const found = list.items.find((c: any) => c.code === pc.code);
+      if (found) componentMap[pc.code] = found;
+    }
+  }
+
+  // Salary structure "Standard India"
+  let standardStructure: any;
+  try {
+    const structureComps = [
+      { componentId: componentMap['BASIC']?.id, percentage: 40, sequence: 1 },
+      { componentId: componentMap['HRA']?.id, percentage: 50, sequence: 2 },
+      { componentId: componentMap['SPECIAL_ALLOWANCE']?.id, sequence: 3 },
+    ].filter((c) => c.componentId);
+    standardStructure = await componentService.createStructure(tenant.id, {
+      name: 'Standard India',
+      description: 'Default India salary structure (Basic 40% CTC, HRA 50% Basic, Special balancing)',
+      components: structureComps as any,
+    });
+    console.log('Created salary structure: Standard India');
+  } catch (e) {
+    console.log('Salary structure error / exists:', e.message);
+    const structures = await componentService.findStructures(tenant.id);
+    standardStructure = structures.find((s: any) => s.name === 'Standard India');
+  }
+
+  // Employee salaries
+  const salaryAssignments = [
+    { emp: emp1, ctc: 1200000 },
+    { emp: emp2, ctc: 800000 },
+    { emp: emp3, ctc: 600000 },
+  ].filter((a) => a.emp);
+  for (const a of salaryAssignments) {
+    try {
+      const existing = await componentService.getEmployeeSalary(tenant.id, a.emp.id, '2026-01-01');
+      if (existing) {
+        console.log(`Salary already assigned for ${a.emp.employeeCode}`);
+        continue;
+      }
+      await componentService.assignSalary(tenant.id, {
+        employeeId: a.emp.id,
+        structureId: standardStructure?.id,
+        ctc: a.ctc,
+        effectiveFrom: '2026-01-01',
+      });
+      console.log(`Assigned salary CTC ${a.ctc} to ${a.emp.employeeCode}`);
+    } catch (e) {
+      console.log(`Salary assignment error for ${a.emp.employeeCode}:`, e.message);
+    }
+  }
+
+  // Statutory configs (India defaults)
+  const statConfigs = [
+    { type: StatutoryType.PF, config: { rate: 0.12, wageCeiling: 15000 } },
+    { type: StatutoryType.ESI, config: { employeeRate: 0.0075, employerRate: 0.0325, grossThreshold: 21000 } },
+    { type: StatutoryType.PT, config: { state: 'Maharashtra', slabs: [{ upTo: 7500, amount: 0 }, { upTo: 10000, amount: 175 }, { upTo: null, amount: 200 }], februaryExtra: 100 } },
+    { type: StatutoryType.TDS, config: { standardDeduction: 75000, rebate87ALimit: 700000, cess: 0.04 } },
+  ];
+  for (const sc of statConfigs) {
+    try {
+      await statutoryService.upsertStatutoryConfig(tenant.id, { type: sc.type, isEnabled: true, config: sc.config, effectiveFrom: '2025-04-01' } as any);
+      console.log('Statutory config seeded:', sc.type);
+    } catch (e) {
+      console.log('Statutory config error:', sc.type, e.message);
+    }
+  }
+
+  // Tax slabs (NEW regime FY2025-26)
+  try {
+    const ds = app.get(DataSource);
+    const slabRepo = ds.getRepository(TaxSlab);
+    const existingSlabs = await slabRepo.count({ where: { tenantId: tenant.id, regime: TaxRegime.NEW, financialYear: '2025-26' } });
+    if (existingSlabs === 0) {
+      const slabRows = [
+        { from: 0, to: 300000, rate: 0 },
+        { from: 300000, to: 700000, rate: 5 },
+        { from: 700000, to: 1000000, rate: 10 },
+        { from: 1000000, to: 1200000, rate: 15 },
+        { from: 1200000, to: 1500000, rate: 20 },
+        { from: 1500000, to: null, rate: 30 },
+      ];
+      for (const r of slabRows) {
+        await slabRepo.save(slabRepo.create({ tenantId: tenant.id, regime: TaxRegime.NEW, financialYear: '2025-26', fromAmount: r.from, toAmount: r.to, rate: r.rate, surcharge: 0 }));
+      }
+      console.log('Tax slabs seeded (NEW FY2025-26)');
+    } else {
+      console.log('Tax slabs already exist');
+    }
+  } catch (e) {
+    console.log('Tax slab seed error:', e.message);
+  }
+
+  // Compliance calendar for current month
+  try {
+    const now = new Date();
+    await statutoryService.generateMonthlyComplianceItems(tenant.id, now.getMonth() + 1, now.getFullYear());
+    console.log('Compliance calendar items generated');
+  } catch (e) {
+    console.log('Compliance calendar error:', e.message);
   }
 
   console.log('\nSeed complete!');

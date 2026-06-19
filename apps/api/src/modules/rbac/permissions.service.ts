@@ -22,7 +22,10 @@ export const ALL_PERMISSIONS = [
   'finance:reports:read',
   // Payroll module
   'payroll:payroll_run:read', 'payroll:payroll_run:create', 'payroll:payroll_run:execute',
+  'payroll:runs:read', 'payroll:runs:process', 'payroll:runs:approve',
   'payroll:payslips:read',
+  'payroll:components:read', 'payroll:components:manage',
+  'payroll:statutory:read', 'payroll:statutory:manage',
   // Procurement
   'procurement:purchase_orders:read', 'procurement:purchase_orders:create',
   'procurement:purchase_orders:approve',
@@ -79,6 +82,7 @@ export const SYSTEM_ROLES = {
       'hr:attendance:read',
       'hr:employees:read',
       'hr:timesheets:read',
+      'payroll:payslips:read',
     ],
   },
   RECRUITER: {

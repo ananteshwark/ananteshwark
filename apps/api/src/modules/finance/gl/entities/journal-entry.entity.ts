@@ -13,6 +13,7 @@ export enum JournalSource {
   AR = 'AR',
   AP = 'AP',
   BANK = 'BANK',
+  PAYROLL = 'PAYROLL',
   SYSTEM = 'SYSTEM',
 }
 
