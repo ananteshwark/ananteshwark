@@ -27,8 +27,10 @@ export const ALL_PERMISSIONS = [
   'payroll:components:read', 'payroll:components:manage',
   'payroll:statutory:read', 'payroll:statutory:manage',
   // Procurement
-  'procurement:purchase_orders:read', 'procurement:purchase_orders:create',
-  'procurement:purchase_orders:approve',
+  'procurement:requisitions:read', 'procurement:requisitions:create', 'procurement:requisitions:approve',
+  'procurement:rfq:read', 'procurement:rfq:manage',
+  'procurement:po:read', 'procurement:po:create', 'procurement:po:approve',
+  'procurement:grn:read', 'procurement:grn:create',
   // Users & RBAC
   'users:users:read', 'users:users:create', 'users:users:update', 'users:users:delete',
   'rbac:roles:read', 'rbac:roles:create', 'rbac:roles:update', 'rbac:roles:delete',
@@ -56,6 +58,8 @@ export const SYSTEM_ROLES = {
       'users:users:read',
       'workflow:instances:approve',
       'workflow:instances:read',
+      'procurement:requisitions:read',
+      'procurement:requisitions:create',
     ],
   },
   FINANCE_MANAGER: {
@@ -71,6 +75,9 @@ export const SYSTEM_ROLES = {
       'finance:ar:read', 'finance:ar:create', 'finance:ar:post',
       'finance:bank:read', 'finance:bank:create', 'finance:bank:reconcile',
       'finance:reports:read',
+      'procurement:po:approve',
+      'procurement:po:read',
+      'procurement:grn:read',
     ],
   },
   EMPLOYEE: {
@@ -94,6 +101,11 @@ export const SYSTEM_ROLES = {
     name: 'Payroll Admin',
     description: 'Payroll module access',
     permissions: ALL_PERMISSIONS.filter(p => p.startsWith('payroll:')),
+  },
+  PROCUREMENT_MANAGER: {
+    name: 'Procurement Manager',
+    description: 'Full procurement module access',
+    permissions: ALL_PERMISSIONS.filter(p => p.startsWith('procurement:')),
   },
 };
 

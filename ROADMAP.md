@@ -31,7 +31,7 @@ container loses nothing — just re-clone and continue.
       components/structures, payroll runs (multi-currency, arrears, off-cycle),
       payslips, bank files; India pack: PF/ESI/PT/TDS (24Q/Form 16)/gratuity,
       compliance calendar. GL postings to finance.
-- [ ] **Phase 5 — Procurement (S2P)**: vendors, requisitions → RFQ → PO,
+- [x] **Phase 5 — Procurement (S2P)**: vendors, requisitions → RFQ → PO,
       approval matrices, GRN, 3-way match into AP.
 - [ ] **Phase 6 — Talent + Goal/Performance**: ATS, onboarding, L&D,
       succession; OKRs/goals, reviews, appraisal cycles, calibration.

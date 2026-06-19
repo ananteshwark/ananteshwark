@@ -3,6 +3,9 @@ import { AppModule } from '../app.module';
 import { TenantsService } from '../modules/tenants/tenants.service';
 import { UsersService } from '../modules/users/users.service';
 import { RbacService } from '../modules/rbac/rbac.service';
+import { RequisitionService } from '../modules/procurement/requisition/requisition.service';
+import { PoService } from '../modules/procurement/po/po.service';
+import { GrnService } from '../modules/procurement/grn/grn.service';
 import { WorkflowService } from '../modules/workflow/workflow.service';
 import { TenantPlan, TenantStatus } from '../modules/tenants/entities/tenant.entity';
 import { GlService } from '../modules/finance/gl/gl.service';
@@ -610,6 +613,118 @@ async function seed() {
     console.log('Compliance calendar items generated');
   } catch (e) {
     console.log('Compliance calendar error:', e.message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PROCUREMENT seed data (Phase 5)
+  // ---------------------------------------------------------------------------
+  console.log('\nSeeding Procurement data...');
+  const requisitionService = app.get(RequisitionService);
+  const poService = app.get(PoService);
+  const grnService = app.get(GrnService);
+
+  // Get admin user for requestedByUserId
+  let adminUserId: string | null = null;
+  try {
+    const adminUser = await usersService.findByEmail('admin@demo.com', tenant.id);
+    adminUserId = adminUser?.id || null;
+  } catch (e) {
+    console.log('Could not find admin user for procurement seed');
+  }
+
+  // Get a vendor (VENDOR-001)
+  let procVendor: any = null;
+  try {
+    const vList = await apService.findVendors(tenant.id, { page: 1, limit: 10 }, 'Acme');
+    procVendor = vList.items[0] || null;
+  } catch (e) {
+    console.log('Could not find vendor for procurement seed');
+  }
+
+  // Sample requisition 1 — DRAFT
+  let req1: any;
+  try {
+    req1 = await requisitionService.createRequisition(tenant.id, adminUserId || '', {
+      title: 'Office Supplies Q3 2026',
+      description: 'Quarterly office supplies requisition',
+      priority: 'MEDIUM' as any,
+      requiredBy: '2026-07-31',
+      lines: [
+        { description: 'A4 Paper Reams', quantity: 50, unitPrice: 500, uom: 'REAM' },
+        { description: 'Ball Pens Box', quantity: 10, unitPrice: 200, uom: 'BOX' },
+      ],
+    });
+    console.log('Created DRAFT requisition:', req1.reqNumber);
+  } catch (e) {
+    console.log('DRAFT requisition seed error:', e.message);
+  }
+
+  // Sample requisition 2 — APPROVED
+  let req2: any;
+  try {
+    const r = await requisitionService.createRequisition(tenant.id, adminUserId || '', {
+      title: 'Laptop Purchase for Engineering',
+      description: 'New laptops for engineering team expansion',
+      priority: 'HIGH' as any,
+      requiredBy: '2026-07-15',
+      lines: [
+        { description: 'Dell Laptop 15"', quantity: 3, unitPrice: 85000, uom: 'PCS' },
+        { description: 'Laptop Bag', quantity: 3, unitPrice: 2000, uom: 'PCS' },
+      ],
+    });
+    await requisitionService.submitRequisition(tenant.id, r.id);
+    req2 = await requisitionService.approveRequisition(tenant.id, r.id, adminUserId || '');
+    console.log('Created APPROVED requisition:', req2.reqNumber);
+  } catch (e) {
+    console.log('APPROVED requisition seed error:', e.message);
+  }
+
+  // Sample PO linked to approved requisition
+  let po1: any;
+  if (procVendor && req2) {
+    try {
+      const created = await poService.createPo(tenant.id, {
+        vendorId: procVendor.id,
+        vendorName: procVendor.name,
+        requisitionId: req2.id,
+        poDate: '2026-06-19',
+        deliveryDate: '2026-07-10',
+        currency: 'INR',
+        notes: 'Urgent delivery required',
+        lines: [
+          { description: 'Dell Laptop 15"', quantity: 3, unitPrice: 85000, uom: 'PCS', taxRate: 18 },
+          { description: 'Laptop Bag', quantity: 3, unitPrice: 2000, uom: 'PCS', taxRate: 18 },
+        ],
+      });
+      po1 = await poService.approvePo(tenant.id, created.id, adminUserId || '');
+      console.log('Created APPROVED PO:', po1.poNumber);
+    } catch (e) {
+      console.log('PO seed error:', e.message);
+    }
+  }
+
+  // Sample GRN against the PO
+  if (po1) {
+    try {
+      const sent = await poService.sendPo(tenant.id, po1.id);
+      const poDetail = await poService.findOne(tenant.id, sent.id);
+      const poLines = poDetail.lines as any[];
+      const grn = await grnService.createGrn(tenant.id, {
+        poId: po1.id,
+        receiptDate: '2026-06-25',
+        notes: 'All items received in good condition',
+        lines: poLines.map((l: any) => ({
+          poLineId: l.id,
+          quantityReceived: l.quantity,
+          quantityAccepted: l.quantity,
+          quantityRejected: 0,
+        })),
+      });
+      console.log('Created DRAFT GRN:', grn.grnNumber);
+      // Note: confirmGrn requires a running transaction with GL; skip auto-confirm in seed
+    } catch (e) {
+      console.log('GRN seed error:', e.message);
+    }
   }
 
   console.log('\nSeed complete!');

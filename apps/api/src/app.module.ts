@@ -14,6 +14,7 @@ import { HealthModule } from './modules/health/health.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HrModule } from './modules/hr/hr.module';
 import { PayrollModule } from './modules/payroll/payroll.module';
+import { ProcurementModule } from './modules/procurement/procurement.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -45,6 +46,7 @@ import { getDatabaseConfig } from './config/database.config';
     FinanceModule,
     HrModule,
     PayrollModule,
+    ProcurementModule,
   ],
 })
 export class AppModule {

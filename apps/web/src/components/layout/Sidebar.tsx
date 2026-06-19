@@ -71,7 +71,10 @@ const navItems: NavItem[] = [
     icon: <ShoppingCart className="h-4 w-4" />,
     module: 'procurement',
     children: [
-      { label: 'Purchase Orders', path: '/procurement/po' },
+      { label: 'Requisitions', path: '/procurement/requisitions' },
+      { label: 'RFQ', path: '/procurement/rfq' },
+      { label: 'Purchase Orders', path: '/procurement/purchase-orders' },
+      { label: 'Goods Receipts', path: '/procurement/grn' },
     ],
   },
   { label: 'Users', icon: <Users className="h-4 w-4" />, path: '/users' },

@@ -38,6 +38,12 @@ import {
   PayslipPage,
   StatutoryPage,
 } from './pages/payroll';
+import {
+  RequisitionsPage,
+  RFQPage,
+  PurchaseOrdersPage,
+  GRNPage,
+} from './pages/procurement';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -85,6 +91,10 @@ export default function App() {
         <Route path="payroll/runs/:id" element={<PayrollRunDetailPage />} />
         <Route path="payroll/payslips/:id" element={<PayslipPage />} />
         <Route path="payroll/statutory" element={<StatutoryPage />} />
+        <Route path="procurement/requisitions" element={<RequisitionsPage />} />
+        <Route path="procurement/rfq" element={<RFQPage />} />
+        <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />
+        <Route path="procurement/grn" element={<GRNPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
