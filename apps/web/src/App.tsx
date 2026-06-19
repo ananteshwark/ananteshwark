@@ -22,6 +22,14 @@ import {
   InvoicesPage,
   FinanceReportsPage,
 } from './pages/finance';
+import {
+  EmployeesPage,
+  DepartmentsPage,
+  AttendancePage,
+  TimesheetPage,
+  LeavePage,
+  LeaveApprovalsPage,
+} from './pages/hr';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -50,6 +58,12 @@ export default function App() {
         <Route path="audit" element={<AuditPage />} />
         <Route path="settings/general" element={<GeneralSettingsPage />} />
         <Route path="settings/modules" element={<ModulesSettingsPage />} />
+        <Route path="hr/employees" element={<EmployeesPage />} />
+        <Route path="hr/departments" element={<DepartmentsPage />} />
+        <Route path="hr/attendance" element={<AttendancePage />} />
+        <Route path="hr/timesheets" element={<TimesheetPage />} />
+        <Route path="hr/leave" element={<LeavePage />} />
+        <Route path="hr/leave/approvals" element={<LeaveApprovalsPage />} />
         <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
         <Route path="finance/journals" element={<JournalEntriesPage />} />
         <Route path="finance/vendors" element={<VendorsPage />} />

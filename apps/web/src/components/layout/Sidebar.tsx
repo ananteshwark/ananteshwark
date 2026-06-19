@@ -36,8 +36,11 @@ const navItems: NavItem[] = [
     module: 'hr',
     children: [
       { label: 'Employees', path: '/hr/employees' },
+      { label: 'Departments', path: '/hr/departments' },
       { label: 'Attendance', path: '/hr/attendance' },
+      { label: 'Timesheets', path: '/hr/timesheets' },
       { label: 'Leave', path: '/hr/leave' },
+      { label: 'Leave Approvals', path: '/hr/leave/approvals' },
     ],
   },
   {

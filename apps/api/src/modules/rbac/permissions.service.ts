@@ -7,8 +7,10 @@ import { Role } from './entities/role.entity';
 export const ALL_PERMISSIONS = [
   // HR module
   'hr:employees:read', 'hr:employees:create', 'hr:employees:update', 'hr:employees:delete',
-  'hr:attendance:read', 'hr:attendance:create', 'hr:attendance:update',
-  'hr:leave:read', 'hr:leave:create', 'hr:leave:approve',
+  'hr:org:manage',
+  'hr:attendance:read', 'hr:attendance:create', 'hr:attendance:approve',
+  'hr:leave:read', 'hr:leave:apply', 'hr:leave:approve',
+  'hr:timesheets:read', 'hr:timesheets:approve',
   // Finance module
   'finance:gl:read', 'finance:gl:create', 'finance:gl:update',
   'finance:invoices:read', 'finance:invoices:create', 'finance:invoices:update',
@@ -72,10 +74,11 @@ export const SYSTEM_ROLES = {
     name: 'Employee',
     description: 'Basic employee access',
     permissions: [
-      'hr:leave:create',
+      'hr:leave:apply',
       'hr:leave:read',
       'hr:attendance:read',
       'hr:employees:read',
+      'hr:timesheets:read',
     ],
   },
   RECRUITER: {

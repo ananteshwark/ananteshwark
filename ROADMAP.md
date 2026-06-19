@@ -24,7 +24,7 @@ container loses nothing — just re-clone and continue.
       double-entry, periods/close), AP (vendors, bills, payments), AR (customers,
       invoices, receipts), bank & reconciliation, financial reports (trial
       balance, P&L, balance sheet, GL detail, cash flow).
-- [ ] **Phase 3 — HR core + Attendance + Leave**: employee master & lifecycle,
+- [x] **Phase 3 — HR core + Attendance + Leave**: employee master & lifecycle,
       org structure, ESS/MSS, shifts/rosters/holidays, time capture, leave types
       & accruals & approvals, timesheets.
 - [ ] **Phase 4 — Payroll + Statutory Compliance (India first)**: pay

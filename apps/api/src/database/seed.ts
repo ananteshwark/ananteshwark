@@ -8,6 +8,11 @@ import { TenantPlan, TenantStatus } from '../modules/tenants/entities/tenant.ent
 import { GlService } from '../modules/finance/gl/gl.service';
 import { ApService } from '../modules/finance/ap/ap.service';
 import { ArService } from '../modules/finance/ar/ar.service';
+import { EmployeeService } from '../modules/hr/employees/employee.service';
+import { AttendanceService } from '../modules/hr/attendance/attendance.service';
+import { LeaveService } from '../modules/hr/leave/leave.service';
+import { AttendanceSource, AttendanceStatus } from '../modules/hr/attendance/entities/attendance-record.entity';
+import { AccrualType } from '../modules/hr/leave/entities/leave-type.entity';
 
 async function seed() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -254,6 +259,210 @@ async function seed() {
     console.log('Customer CUST-002 created');
   } catch (e) {
     console.log('Customer CUST-002 already exists');
+  }
+
+  // HR seed data
+  console.log('\nSeeding HR data...');
+  const employeeService = app.get(EmployeeService);
+  const attendanceService = app.get(AttendanceService);
+  const leaveService = app.get(LeaveService);
+
+  // Departments
+  let engDept: any, hrDept: any;
+  try {
+    engDept = await employeeService.createDepartment(tenant.id, { code: 'ENG', name: 'Engineering' });
+    console.log('Created Engineering department');
+  } catch (e) {
+    console.log('Engineering department already exists');
+    const depts = await employeeService.findDepartments(tenant.id, { page: 1, limit: 100 });
+    engDept = depts.items.find((d: any) => d.code === 'ENG');
+  }
+  try {
+    hrDept = await employeeService.createDepartment(tenant.id, { code: 'HR-DEPT', name: 'Human Resources' });
+    console.log('Created HR department');
+  } catch (e) {
+    console.log('HR department already exists');
+    const depts = await employeeService.findDepartments(tenant.id, { page: 1, limit: 100 });
+    hrDept = depts.items.find((d: any) => d.code === 'HR-DEPT');
+  }
+
+  // Designations
+  let seDesig: any, hrmDesig: any;
+  try {
+    seDesig = await employeeService.createDesignation(tenant.id, { code: 'SE', name: 'Software Engineer', level: 3 });
+    console.log('Created Software Engineer designation');
+  } catch (e) {
+    console.log('Software Engineer designation already exists');
+    const desigs = await employeeService.findDesignations(tenant.id, { page: 1, limit: 100 });
+    seDesig = desigs.items.find((d: any) => d.code === 'SE');
+  }
+  try {
+    hrmDesig = await employeeService.createDesignation(tenant.id, { code: 'HRM', name: 'HR Manager', level: 5 });
+    console.log('Created HR Manager designation');
+  } catch (e) {
+    console.log('HR Manager designation already exists');
+    const desigs = await employeeService.findDesignations(tenant.id, { page: 1, limit: 100 });
+    hrmDesig = desigs.items.find((d: any) => d.code === 'HRM');
+  }
+
+  // Location
+  try {
+    await employeeService.createLocation(tenant.id, { code: 'HO', name: 'Head Office', city: 'Mumbai', state: 'Maharashtra', country: 'India', timezone: 'Asia/Kolkata' });
+    console.log('Created Head Office location');
+  } catch (e) {
+    console.log('Head Office location already exists');
+  }
+
+  // Employees
+  let emp1: any, emp2: any, emp3: any;
+  try {
+    emp1 = await employeeService.createEmployee(tenant.id, {
+      employeeCode: 'EMP-001',
+      firstName: 'Sarah',
+      lastName: 'HR',
+      email: 'hr.emp@demo.com',
+      dateOfJoining: '2024-01-01',
+      designationId: hrmDesig?.id,
+      departmentId: hrDept?.id,
+      employmentType: 'FULL_TIME' as any,
+    });
+    console.log('Created employee EMP-001');
+  } catch (e) {
+    console.log('Employee EMP-001 already exists');
+    const emps = await employeeService.findEmployees(tenant.id, { page: 1, limit: 100 }, { search: 'EMP-001' });
+    emp1 = emps.items[0];
+  }
+  try {
+    emp2 = await employeeService.createEmployee(tenant.id, {
+      employeeCode: 'EMP-002',
+      firstName: 'John',
+      lastName: 'Developer',
+      email: 'dev1@demo.com',
+      dateOfJoining: '2024-03-01',
+      designationId: seDesig?.id,
+      departmentId: engDept?.id,
+      employmentType: 'FULL_TIME' as any,
+    });
+    console.log('Created employee EMP-002');
+  } catch (e) {
+    console.log('Employee EMP-002 already exists');
+    const emps = await employeeService.findEmployees(tenant.id, { page: 1, limit: 100 }, { search: 'EMP-002' });
+    emp2 = emps.items[0];
+  }
+  try {
+    emp3 = await employeeService.createEmployee(tenant.id, {
+      employeeCode: 'EMP-003',
+      firstName: 'Jane',
+      lastName: 'Developer',
+      email: 'dev2@demo.com',
+      dateOfJoining: '2024-06-01',
+      designationId: seDesig?.id,
+      departmentId: engDept?.id,
+      managerId: emp2?.id,
+      employmentType: 'FULL_TIME' as any,
+    });
+    console.log('Created employee EMP-003');
+  } catch (e) {
+    console.log('Employee EMP-003 already exists');
+    const emps = await employeeService.findEmployees(tenant.id, { page: 1, limit: 100 }, { search: 'EMP-003' });
+    emp3 = emps.items[0];
+  }
+
+  // Leave Types
+  let annualLeave: any, sickLeave: any, casualLeave: any;
+  try {
+    annualLeave = await leaveService.createLeaveType(tenant.id, {
+      code: 'AL',
+      name: 'Annual Leave',
+      accrualType: AccrualType.MONTHLY,
+      accrualRate: 1.5,
+      maxBalance: 18,
+      maxCarryForward: 5,
+      isPaid: true,
+    });
+    console.log('Created Annual Leave type');
+  } catch (e) {
+    console.log('Annual Leave type already exists');
+    const types = await leaveService.listLeaveTypes(tenant.id);
+    annualLeave = types.find((t: any) => t.code === 'AL');
+  }
+  try {
+    sickLeave = await leaveService.createLeaveType(tenant.id, {
+      code: 'SL',
+      name: 'Sick Leave',
+      accrualType: AccrualType.MONTHLY,
+      accrualRate: 1,
+      maxBalance: 12,
+      maxCarryForward: 0,
+      isPaid: true,
+    });
+    console.log('Created Sick Leave type');
+  } catch (e) {
+    console.log('Sick Leave type already exists');
+    const types = await leaveService.listLeaveTypes(tenant.id);
+    sickLeave = types.find((t: any) => t.code === 'SL');
+  }
+  try {
+    casualLeave = await leaveService.createLeaveType(tenant.id, {
+      code: 'CL',
+      name: 'Casual Leave',
+      accrualType: AccrualType.MANUAL,
+      accrualRate: 6,
+      maxBalance: 6,
+      maxCarryForward: 0,
+      isPaid: true,
+    });
+    console.log('Created Casual Leave type');
+  } catch (e) {
+    console.log('Casual Leave type already exists');
+    const types = await leaveService.listLeaveTypes(tenant.id);
+    casualLeave = types.find((t: any) => t.code === 'CL');
+  }
+
+  // Leave Balances for demo employees
+  const leaveYear = 2026;
+  const employees_for_leave = [emp1, emp2, emp3].filter(Boolean);
+  for (const emp of employees_for_leave) {
+    for (const lt of [annualLeave, sickLeave, casualLeave].filter(Boolean)) {
+      try {
+        await leaveService.accrueLeave(tenant.id, emp.id, lt.id, lt.accrualRate * 6, `${leaveYear}-06-01`);
+        console.log(`Accrued ${lt.code} for ${emp.employeeCode}`);
+      } catch (e) {
+        console.log(`Leave balance already exists for ${emp.employeeCode} / ${lt.code}`);
+      }
+    }
+  }
+
+  // Attendance records for current week
+  const today = new Date();
+  const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+
+  for (const emp of employees_for_leave) {
+    for (let i = 0; i < 5; i++) {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      if (day > today) break;
+      const dateStr = day.toISOString().split('T')[0];
+      const checkIn = new Date(day);
+      checkIn.setHours(9, 0, 0, 0);
+      const checkOut = new Date(day);
+      checkOut.setHours(18, 0, 0, 0);
+      try {
+        await attendanceService.markAttendance(tenant.id, {
+          employeeId: emp.id,
+          date: dateStr,
+          checkIn: checkIn.toISOString(),
+          checkOut: checkOut.toISOString(),
+          source: AttendanceSource.MANUAL,
+          status: AttendanceStatus.PRESENT,
+        });
+        console.log(`Attendance marked for ${emp.employeeCode} on ${dateStr}`);
+      } catch (e) {
+        console.log(`Attendance already exists for ${emp.employeeCode} on ${dateStr}`);
+      }
+    }
   }
 
   console.log('\nSeed complete!');
