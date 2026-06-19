@@ -42,6 +42,14 @@ export const ALL_PERMISSIONS = [
   // Settings
   'settings:general:read', 'settings:general:update',
   'settings:modules:read', 'settings:modules:update',
+  // Talent module
+  'talent:ats:read', 'talent:ats:manage', 'talent:ats:hire',
+  'talent:onboarding:read', 'talent:onboarding:manage',
+  'talent:learning:read', 'talent:learning:manage',
+  'talent:succession:read', 'talent:succession:manage',
+  'talent:goals:read', 'talent:goals:create', 'talent:goals:manage',
+  'talent:performance:read', 'talent:performance:submit', 'talent:performance:manage', 'talent:performance:calibrate',
+  'talent:appraisal:read', 'talent:appraisal:manage',
 ];
 
 export const SYSTEM_ROLES = {
@@ -55,6 +63,7 @@ export const SYSTEM_ROLES = {
     description: 'HR module full access',
     permissions: [
       ...ALL_PERMISSIONS.filter(p => p.startsWith('hr:')),
+      ...ALL_PERMISSIONS.filter(p => p.startsWith('talent:')),
       'users:users:read',
       'workflow:instances:approve',
       'workflow:instances:read',
@@ -90,6 +99,12 @@ export const SYSTEM_ROLES = {
       'hr:employees:read',
       'hr:timesheets:read',
       'payroll:payslips:read',
+      'talent:goals:read',
+      'talent:goals:create',
+      'talent:performance:read',
+      'talent:performance:submit',
+      'talent:ats:read',
+      'talent:learning:read',
     ],
   },
   RECRUITER: {

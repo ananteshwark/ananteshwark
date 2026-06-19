@@ -44,6 +44,14 @@ import {
   PurchaseOrdersPage,
   GRNPage,
 } from './pages/procurement';
+import {
+  AtsPage,
+  OnboardingPage as TalentOnboardingPage,
+  LearningPage,
+  GoalsPage,
+  PerformancePage,
+  AppraisalPage,
+} from './pages/talent';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -95,6 +103,12 @@ export default function App() {
         <Route path="procurement/rfq" element={<RFQPage />} />
         <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />
         <Route path="procurement/grn" element={<GRNPage />} />
+        <Route path="talent/ats" element={<AtsPage />} />
+        <Route path="talent/onboarding" element={<TalentOnboardingPage />} />
+        <Route path="talent/learning" element={<LearningPage />} />
+        <Route path="talent/goals" element={<GoalsPage />} />
+        <Route path="talent/performance" element={<PerformancePage />} />
+        <Route path="talent/appraisal" element={<AppraisalPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
