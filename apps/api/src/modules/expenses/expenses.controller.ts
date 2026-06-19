@@ -102,7 +102,7 @@ export class ExpensesController {
   @RequirePermission('expenses:claims:approve')
   @ApiOperation({ summary: 'Mark expense claim as paid' })
   markPaid(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.service.markPaid(user.tenantId, id);
+    return this.service.markPaid(user.tenantId, id, user.id);
   }
 
   // ─── Policies ─────────────────────────────────────────────────

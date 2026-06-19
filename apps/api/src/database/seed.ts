@@ -47,7 +47,7 @@ async function seed() {
     await tenantsService.update(tenant.id, {
       status: TenantStatus.ACTIVE,
       settings: {
-        enabledModules: ['hr', 'finance', 'payroll', 'procurement', 'inventory', 'crm'],
+        enabledModules: ['hr', 'finance', 'payroll', 'procurement', 'inventory', 'crm', 'projects', 'expenses', 'talent'],
         locale: 'en',
         timezone: 'UTC',
         baseCurrency: 'USD',

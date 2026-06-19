@@ -64,6 +64,7 @@ export const talentApi = {
   launchReviews: (id: string, data: any) => apiClient.post(`/talent/performance/cycles/${id}/launch`, data),
   getReviewForms: (params?: any) => apiClient.get('/talent/performance/forms', { params }),
   submitReview: (id: string, data: any) => apiClient.post(`/talent/performance/forms/${id}/submit`, data),
+  listCalibrations: () => apiClient.get('/talent/performance/calibrations'),
   createCalibration: (data: any) => apiClient.post('/talent/performance/calibrations', data),
   recordCalibration: (id: string, data: any) => apiClient.post(`/talent/performance/calibrations/${id}/record`, data),
   completeCalibration: (id: string) => apiClient.post(`/talent/performance/calibrations/${id}/complete`),

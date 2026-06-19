@@ -7,11 +7,13 @@ import { ExpensePolicy } from './entities/expense-policy.entity';
 import { ExpensesService } from './expenses.service';
 import { ExpensesController } from './expenses.controller';
 import { RbacModule } from '../rbac/rbac.module';
+import { GlModule } from '../finance/gl/gl.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ExpenseCategory, ExpenseClaim, ExpenseLine, ExpensePolicy]),
     RbacModule,
+    GlModule,
   ],
   controllers: [ExpensesController],
   providers: [ExpensesService],

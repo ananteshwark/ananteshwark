@@ -10,6 +10,7 @@ import { ProjectMember } from './entities/project-member.entity';
 import { Task, TaskStatus } from './entities/task.entity';
 import { ProjectExpense } from './entities/project-expense.entity';
 import { ProjectTimeEntry } from './entities/project-time-entry.entity';
+import { Milestone, MilestoneStatus } from './entities/milestone.entity';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 
 @Injectable()
@@ -25,6 +26,8 @@ export class ProjectsService {
     private readonly expenseRepo: Repository<ProjectExpense>,
     @InjectRepository(ProjectTimeEntry)
     private readonly timeEntryRepo: Repository<ProjectTimeEntry>,
+    @InjectRepository(Milestone)
+    private readonly milestoneRepo: Repository<Milestone>,
   ) {}
 
   // ─── Projects ─────────────────────────────────────────────────
@@ -262,5 +265,37 @@ export class ProjectsService {
   async deleteProjectExpense(tenantId: string, projectId: string, id: string): Promise<void> {
     const expense = await this.findProjectExpense(tenantId, projectId, id);
     await this.expenseRepo.remove(expense);
+  }
+
+  // ─── Milestones ───────────────────────────────────────────────
+
+  async listMilestones(tenantId: string, projectId: string): Promise<Milestone[]> {
+    return this.milestoneRepo.find({ where: { tenantId, projectId }, order: { dueDate: 'ASC' } });
+  }
+
+  async createMilestone(tenantId: string, projectId: string, dto: Partial<Milestone>): Promise<Milestone> {
+    await this.findProject(tenantId, projectId);
+    const milestone = this.milestoneRepo.create({ ...dto, tenantId, projectId });
+    return this.milestoneRepo.save(milestone);
+  }
+
+  async updateMilestone(tenantId: string, projectId: string, id: string, dto: Partial<Milestone>): Promise<Milestone> {
+    const milestone = await this.milestoneRepo.findOne({ where: { id, tenantId, projectId } });
+    if (!milestone) throw new NotFoundException(`Milestone ${id} not found`);
+    Object.assign(milestone, dto);
+    return this.milestoneRepo.save(milestone);
+  }
+
+  async completeMilestone(tenantId: string, projectId: string, id: string): Promise<Milestone> {
+    return this.updateMilestone(tenantId, projectId, id, {
+      status: MilestoneStatus.COMPLETED,
+      completedDate: new Date().toISOString().split('T')[0],
+    });
+  }
+
+  async deleteMilestone(tenantId: string, projectId: string, id: string): Promise<void> {
+    const milestone = await this.milestoneRepo.findOne({ where: { id, tenantId, projectId } });
+    if (!milestone) throw new NotFoundException(`Milestone ${id} not found`);
+    await this.milestoneRepo.remove(milestone);
   }
 }

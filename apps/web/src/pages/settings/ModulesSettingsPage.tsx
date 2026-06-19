@@ -14,6 +14,7 @@ const ALL_MODULES = [
   { id: 'inventory', label: 'Inventory', description: 'Stock management and tracking', icon: '📦' },
   { id: 'crm', label: 'CRM', description: 'Customer relationship management', icon: '🤝' },
   { id: 'projects', label: 'Projects', description: 'Project tracking and timesheets', icon: '📋' },
+  { id: 'expenses', label: 'Expenses', description: 'Expense claims and reimbursements', icon: '🧾' },
 ];
 
 export default function ModulesSettingsPage() {

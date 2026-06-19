@@ -52,6 +52,7 @@ import {
   GoalsPage,
   PerformancePage,
   AppraisalPage,
+  SuccessionPage,
 } from './pages/talent';
 import { InventoryPage } from './pages/inventory';
 import { ProjectsPage } from './pages/projects';
@@ -115,6 +116,7 @@ export default function App() {
         <Route path="talent/goals" element={<GoalsPage />} />
         <Route path="talent/performance" element={<PerformancePage />} />
         <Route path="talent/appraisal" element={<AppraisalPage />} />
+        <Route path="talent/succession" element={<SuccessionPage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="expenses" element={<ExpensesPage />} />

@@ -297,4 +297,46 @@ export class ProjectsController {
   ) {
     return this.service.deleteProjectExpense(user.tenantId, projectId, id);
   }
+
+  // ─── Milestones ───────────────────────────────────────────────
+
+  @Get(':projectId/milestones')
+  @RequirePermission('projects:read')
+  @ApiOperation({ summary: 'List project milestones' })
+  listMilestones(@CurrentUser() user: any, @Param('projectId') projectId: string) {
+    return this.service.listMilestones(user.tenantId, projectId);
+  }
+
+  @Post(':projectId/milestones')
+  @RequirePermission('projects:update')
+  @ApiOperation({ summary: 'Create project milestone' })
+  createMilestone(@CurrentUser() user: any, @Param('projectId') projectId: string, @Body() dto: any) {
+    return this.service.createMilestone(user.tenantId, projectId, dto);
+  }
+
+  @Patch(':projectId/milestones/:id')
+  @RequirePermission('projects:update')
+  @ApiOperation({ summary: 'Update project milestone' })
+  updateMilestone(
+    @CurrentUser() user: any,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    return this.service.updateMilestone(user.tenantId, projectId, id, dto);
+  }
+
+  @Post(':projectId/milestones/:id/complete')
+  @RequirePermission('projects:update')
+  @ApiOperation({ summary: 'Mark milestone as completed' })
+  completeMilestone(@CurrentUser() user: any, @Param('projectId') projectId: string, @Param('id') id: string) {
+    return this.service.completeMilestone(user.tenantId, projectId, id);
+  }
+
+  @Delete(':projectId/milestones/:id')
+  @RequirePermission('projects:manage')
+  @ApiOperation({ summary: 'Delete project milestone' })
+  deleteMilestone(@CurrentUser() user: any, @Param('projectId') projectId: string, @Param('id') id: string) {
+    return this.service.deleteMilestone(user.tenantId, projectId, id);
+  }
 }

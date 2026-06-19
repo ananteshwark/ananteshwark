@@ -68,6 +68,10 @@ export class PerformanceService {
     return new PaginatedResponseDto(items, total, page, limit);
   }
 
+  async listCalibrationSessions(tenantId: string): Promise<CalibrationSession[]> {
+    return this.calibrationRepo.find({ where: { tenantId }, order: { sessionDate: 'DESC' } });
+  }
+
   async createCalibrationSession(tenantId: string, dto: CreateCalibrationDto): Promise<CalibrationSession> {
     const session = this.calibrationRepo.create({ ...dto, tenantId, status: CalibrationStatus.PLANNED, ratings: {}, recommendations: {} });
     return this.calibrationRepo.save(session);

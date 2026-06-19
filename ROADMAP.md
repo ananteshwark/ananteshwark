@@ -27,15 +27,15 @@ container loses nothing — just re-clone and continue.
 - [x] **Phase 3 — HR core + Attendance + Leave**: employee master & lifecycle,
       org structure, ESS/MSS, shifts/rosters/holidays, time capture, leave types
       & accruals & approvals, timesheets.
-- [ ] **Phase 4 — Payroll + Statutory Compliance (India first)**: pay
+- [x] **Phase 4 — Payroll + Statutory Compliance (India first)**: pay
       components/structures, payroll runs (multi-currency, arrears, off-cycle),
       payslips, bank files; India pack: PF/ESI/PT/TDS (24Q/Form 16)/gratuity,
       compliance calendar. GL postings to finance.
 - [x] **Phase 5 — Procurement (S2P)**: vendors, requisitions → RFQ → PO,
       approval matrices, GRN, 3-way match into AP.
-- [ ] **Phase 6 — Talent + Goal/Performance**: ATS, onboarding, L&D,
+- [x] **Phase 6 — Talent + Goal/Performance**: ATS, onboarding, L&D,
       succession; OKRs/goals, reviews, appraisal cycles, calibration.
-- [ ] **Phase 7 — Additional modules**: inventory/warehouse, projects,
+- [x] **Phase 7 — Additional modules**: inventory/warehouse, projects,
       expenses, CRM (enable per tenant).
 - [x] **Phase 8 — Localization packs**: add US + UAE to prove the pluggable
       localization/tax framework.

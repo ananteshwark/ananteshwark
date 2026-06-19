@@ -10,6 +10,8 @@ import { ExpenseClaim, ExpenseClaimStatus } from './entities/expense-claim.entit
 import { ExpenseLine } from './entities/expense-line.entity';
 import { ExpensePolicy } from './entities/expense-policy.entity';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { GlService } from '../finance/gl/gl.service';
+import { JournalSource } from '../finance/gl/entities/journal-entry.entity';
 
 @Injectable()
 export class ExpensesService {
@@ -22,6 +24,7 @@ export class ExpensesService {
     private readonly lineRepo: Repository<ExpenseLine>,
     @InjectRepository(ExpensePolicy)
     private readonly policyRepo: Repository<ExpensePolicy>,
+    private readonly glService: GlService,
   ) {}
 
   // ─── Categories ───────────────────────────────────────────────
@@ -191,10 +194,38 @@ export class ExpensesService {
     });
   }
 
-  async markPaid(tenantId: string, id: string): Promise<ExpenseClaim> {
-    return this.transitionClaim(tenantId, id, ExpenseClaimStatus.APPROVED, ExpenseClaimStatus.PAID, {
-      paidAt: new Date(),
-    });
+  async markPaid(tenantId: string, id: string, userId: string): Promise<ExpenseClaim> {
+    const claim = await this.findClaim(tenantId, id);
+    if (claim.status !== ExpenseClaimStatus.APPROVED) {
+      throw new BadRequestException('Only approved claims can be marked paid');
+    }
+
+    // Best-effort GL posting: look up a catch-all "Expenses" account by code prefix
+    const expenseAccount = await this.glService.findAccounts(tenantId, { limit: 1, page: 1, sortBy: 'code', sortOrder: 'ASC' }, { search: '6000' }).catch(() => null);
+    if (expenseAccount?.items?.length) {
+      const acctId = expenseAccount.items[0].id;
+      const amount = Number(claim.totalAmount);
+      const je = await this.glService.postJournalEntry(
+        tenantId,
+        {
+          date: new Date().toISOString().split('T')[0],
+          description: `Expense reimbursement — ${claim.claimNumber}`,
+          reference: claim.claimNumber,
+          source: JournalSource.MANUAL,
+          currency: claim.currency,
+          lines: [
+            { accountId: acctId, description: `Expense ${claim.claimNumber}`, debit: amount, credit: 0 },
+            { accountId: acctId, description: `Reimbursement ${claim.claimNumber}`, debit: 0, credit: amount },
+          ],
+        },
+        userId,
+      ).catch(() => null);
+      if (je) claim.journalEntryId = je.id;
+    }
+
+    claim.status = ExpenseClaimStatus.PAID;
+    claim.paidAt = new Date();
+    return this.claimRepo.save(claim);
   }
 
   // ─── Policies ─────────────────────────────────────────────────

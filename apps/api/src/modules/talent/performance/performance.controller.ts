@@ -52,6 +52,12 @@ export class PerformanceController {
     return this.service.submitReview(user.tenantId, id, dto);
   }
 
+  @Get('calibrations')
+  @RequirePermission('talent:performance:read')
+  listCalibrations(@CurrentUser() user: any) {
+    return this.service.listCalibrationSessions(user.tenantId);
+  }
+
   @Post('calibrations')
   @RequirePermission('talent:performance:calibrate')
   createCalibration(@CurrentUser() user: any, @Body() dto: CreateCalibrationDto) {
