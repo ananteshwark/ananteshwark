@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PurchaseOrder, PoStatus } from './entities/purchase-order.entity';
 import { PoLine } from './entities/po-line.entity';
+import { ApprovalMatrix } from '../entities/approval-matrix.entity';
 import { CreatePoDto, UpdatePoDto } from './dto/po.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 
@@ -17,6 +18,7 @@ export class PoService {
   constructor(
     @InjectRepository(PurchaseOrder) private readonly poRepo: Repository<PurchaseOrder>,
     @InjectRepository(PoLine) private readonly lineRepo: Repository<PoLine>,
+    @InjectRepository(ApprovalMatrix) private readonly matrixRepo: Repository<ApprovalMatrix>,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -181,5 +183,33 @@ export class PoService {
       line.quantityReceived = round2(line.quantityReceived + additionalQty);
       await this.lineRepo.save(line);
     }
+  }
+
+  // ─── Approval Matrix ──────────────────────────────────────────
+
+  async listApprovalMatrices(tenantId: string): Promise<ApprovalMatrix[]> {
+    return this.matrixRepo.find({ where: { tenantId, isActive: true }, order: { createdAt: 'ASC' } });
+  }
+
+  async createApprovalMatrix(tenantId: string, dto: Partial<ApprovalMatrix>): Promise<ApprovalMatrix> {
+    const matrix = this.matrixRepo.create({ ...dto, tenantId });
+    return this.matrixRepo.save(matrix);
+  }
+
+  async updateApprovalMatrix(tenantId: string, id: string, dto: Partial<ApprovalMatrix>): Promise<ApprovalMatrix> {
+    const matrix = await this.matrixRepo.findOne({ where: { id, tenantId } });
+    if (!matrix) throw new NotFoundException(`Approval matrix ${id} not found`);
+    Object.assign(matrix, dto);
+    return this.matrixRepo.save(matrix);
+  }
+
+  async getRequiredApprovalLevels(tenantId: string, poTotal: number): Promise<{ level: number; approverRole: string; label: string }[]> {
+    const matrix = await this.matrixRepo.findOne({ where: { tenantId, isActive: true }, order: { createdAt: 'ASC' } });
+    if (!matrix) return [];
+    return matrix.levels.filter(l => {
+      if (poTotal < l.minAmount) return false;
+      if (l.maxAmount !== null && poTotal >= l.maxAmount) return false;
+      return true;
+    });
   }
 }

@@ -80,4 +80,36 @@ export class PoController {
   cancel(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.cancelPo(user.tenantId, id);
   }
+
+  // ─── Approval Matrix ──────────────────────────────────────────
+
+  @Get('approval-matrix')
+  @RequirePermission('procurement:po:read')
+  @ApiOperation({ summary: 'List approval matrices' })
+  listMatrices(@CurrentUser() user: any) {
+    return this.service.listApprovalMatrices(user.tenantId);
+  }
+
+  @Post('approval-matrix')
+  @RequirePermission('procurement:po:approve')
+  @ApiOperation({ summary: 'Create approval matrix' })
+  createMatrix(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.createApprovalMatrix(user.tenantId, dto);
+  }
+
+  @Patch('approval-matrix/:id')
+  @RequirePermission('procurement:po:approve')
+  @ApiOperation({ summary: 'Update approval matrix' })
+  updateMatrix(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+    return this.service.updateApprovalMatrix(user.tenantId, id, dto);
+  }
+
+  @Get(':id/required-approvals')
+  @RequirePermission('procurement:po:read')
+  @ApiOperation({ summary: 'Get required approval levels for a PO' })
+  async getRequiredApprovals(@CurrentUser() user: any, @Param('id') id: string) {
+    const po = await this.service.findOne(user.tenantId, id);
+    const levels = await this.service.getRequiredApprovalLevels(user.tenantId, Number(po.total));
+    return { poId: id, total: po.total, requiredLevels: levels };
+  }
 }
