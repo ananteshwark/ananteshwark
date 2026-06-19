@@ -40,6 +40,43 @@ container loses nothing — just re-clone and continue.
 - [x] **Phase 8 — Localization packs**: add US + UAE to prove the pluggable
       localization/tax framework.
 
+## Gap-closure phases (SAP/Oracle parity — identified 2026-06)
+- [ ] **Phase 9 — Fixed Assets (FAM)**: asset register, depreciation engine
+      (SLM/WDV/DB), asset categories, acquisitions, disposals, GL postings,
+      depreciation runs, asset reports. Frontend: asset list, detail, run page.
+- [ ] **Phase 10 — Sales Orders (Quote→Order→Invoice)**: convert CRM quotes to
+      sales orders, order lines, fulfilment status, auto-create AR invoice on
+      ship/complete; price lists & discounts; sales order reports.
+- [ ] **Phase 11 — ESS / MSS Portal**: employee self-service (view own payslips,
+      leave balance, leave apply, profile, documents, payroll history); manager
+      self-service (team leave approvals, team timesheets, headcount).
+- [ ] **Phase 12 — Contract Management (CLM)**: purchase & sales contracts,
+      contract templates, terms, milestones, renewal alerts, link to PO/Invoice.
+- [ ] **Phase 13 — Dunning & Collections**: dunning levels/templates, dunning
+      runs on overdue AR, dunning letters, payment plans, write-off workflow.
+- [ ] **Phase 14 — Manufacturing (PP)**: bill of materials (BOM multi-level),
+      work centers, routings, production orders (planned→released→completed),
+      material issuance, yield, scrap, GL postings (COGS/WIP/FG).
+- [ ] **Phase 15 — Quality Management (QM)**: inspection plans, inspection lots
+      (GRN-triggered/production-triggered), usage decisions, non-conformance
+      reports, CAPA workflow, quality certificates.
+- [ ] **Phase 16 — Plant Maintenance (PM)**: equipment/functional locations,
+      maintenance plans (time/counter-based), maintenance orders, breakdown
+      notifications, spare parts, cost postings.
+- [ ] **Phase 17 — Benefits Administration + Compensation Planning**: benefit
+      plans (health/dental/401k), enrollment periods, employee elections,
+      payroll deduction integration; salary bands, merit cycles, comp letters.
+- [ ] **Phase 18 — Inventory completeness**: lot/serial tracking, bin management,
+      reorder points (min/max), stock valuation (FIFO/WA), cycle counting,
+      multi-UoM, returns/RMA.
+- [ ] **Phase 19 — Advanced Analytics + Report Builder**: custom report designer,
+      scheduled email delivery, embedded charts (P&L trend, cash flow, headcount),
+      budgeting & forecasting module, variance analysis.
+- [ ] **Phase 20 — Platform hardening**: SSO/SAML/OAuth2 IdP integration, GRC
+      (segregation-of-duties rules engine), tax engine (GST/VAT auto-calc on
+      transactions), e-Invoicing (India GST IRN/e-way bill), API rate limiting,
+      data archiving/retention policies.
+
 ## Cross-cutting principles (apply every phase)
 - Configuration over customization; localization is pluggable (never bake one
   country's rules into core).
