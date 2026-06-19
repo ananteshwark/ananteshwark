@@ -37,7 +37,7 @@ container loses nothing — just re-clone and continue.
       succession; OKRs/goals, reviews, appraisal cycles, calibration.
 - [ ] **Phase 7 — Additional modules**: inventory/warehouse, projects,
       expenses, CRM (enable per tenant).
-- [ ] **Phase 8 — Localization packs**: add US + UAE to prove the pluggable
+- [x] **Phase 8 — Localization packs**: add US + UAE to prove the pluggable
       localization/tax framework.
 
 ## Cross-cutting principles (apply every phase)
