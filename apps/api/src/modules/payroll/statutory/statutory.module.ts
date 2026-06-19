@@ -4,6 +4,7 @@ import { StatutoryConfig } from './entities/statutory-config.entity';
 import { TaxSlab } from './entities/tax-slab.entity';
 import { Form16 } from './entities/form16.entity';
 import { ComplianceCalendarItem } from './entities/compliance-calendar-item.entity';
+import { TdsReturn } from './entities/tds-return.entity';
 import { StatutoryService } from './statutory.service';
 import { StatutoryController } from './statutory.controller';
 import { RbacModule } from '../../rbac/rbac.module';
@@ -16,6 +17,7 @@ import { LocalizationModule } from '../../localization/localization.module';
       TaxSlab,
       Form16,
       ComplianceCalendarItem,
+      TdsReturn,
     ]),
     RbacModule,
     LocalizationModule,

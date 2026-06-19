@@ -98,4 +98,29 @@ export class StatutoryController {
   listForm16(@CurrentUser() user: any, @Query('employeeId') employeeId?: string) {
     return this.service.listForm16(user.tenantId, employeeId);
   }
+
+  @Post('form16/generate')
+  @RequirePermission('payroll:statutory:manage')
+  generateForm16(@CurrentUser() user: any, @Body() body: { employeeId: string; financialYear: string; grossSalary: number; totalDeductions: number; taxableIncome: number; taxPaid: number }) {
+    return this.service.generateForm16(user.tenantId, body.employeeId, body.financialYear, body);
+  }
+
+  // 24Q TDS Returns
+  @Get('tds-returns')
+  @RequirePermission('payroll:statutory:read')
+  list24QReturns(@CurrentUser() user: any, @Query('financialYear') financialYear?: string) {
+    return this.service.list24QReturns(user.tenantId, financialYear);
+  }
+
+  @Post('tds-returns')
+  @RequirePermission('payroll:statutory:manage')
+  create24QReturn(@CurrentUser() user: any, @Body() body: any) {
+    return this.service.create24QReturn(user.tenantId, body);
+  }
+
+  @Post('tds-returns/:id/file')
+  @RequirePermission('payroll:statutory:manage')
+  file24QReturn(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { acknowledgementNumber?: string }) {
+    return this.service.file24QReturn(user.tenantId, id, body?.acknowledgementNumber);
+  }
 }

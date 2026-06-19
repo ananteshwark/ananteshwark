@@ -10,6 +10,7 @@ import {
   ComplianceFrequency,
   ComplianceStatus,
 } from './entities/compliance-calendar-item.entity';
+import { TdsReturn, TdsReturnQuarter, TdsReturnStatus } from './entities/tds-return.entity';
 import { StatutoryType } from '../components/entities/pay-component.entity';
 import {
   UpsertStatutoryConfigDto,
@@ -67,6 +68,8 @@ export class StatutoryService implements LocalizationPack {
     private readonly form16Repo: Repository<Form16>,
     @InjectRepository(ComplianceCalendarItem)
     private readonly calendarRepo: Repository<ComplianceCalendarItem>,
+    @InjectRepository(TdsReturn)
+    private readonly tdsReturnRepo: Repository<TdsReturn>,
     @Optional() private readonly localizationRegistry?: LocalizationRegistry,
   ) {
     // Self-register with the localization registry if available
@@ -487,6 +490,44 @@ export class StatutoryService implements LocalizationPack {
     const where: any = { tenantId };
     if (employeeId) where.employeeId = employeeId;
     return this.form16Repo.find({ where, order: { financialYear: 'DESC' } });
+  }
+
+  // ---------------------------------------------------------------------------
+  // 24Q TDS Returns
+  // ---------------------------------------------------------------------------
+
+  async list24QReturns(tenantId: string, financialYear?: string): Promise<TdsReturn[]> {
+    const where: any = { tenantId };
+    if (financialYear) where.financialYear = financialYear;
+    return this.tdsReturnRepo.find({ where, order: { financialYear: 'DESC', quarter: 'ASC' } });
+  }
+
+  async create24QReturn(
+    tenantId: string,
+    dto: {
+      financialYear: string;
+      quarter: TdsReturnQuarter;
+      totalEmployees: number;
+      totalTdsDeducted: number;
+      totalTdsDeposited: number;
+      remarks?: string;
+    },
+  ): Promise<TdsReturn> {
+    const ret = this.tdsReturnRepo.create({ ...dto, tenantId });
+    return this.tdsReturnRepo.save(ret);
+  }
+
+  async file24QReturn(
+    tenantId: string,
+    id: string,
+    acknowledgementNumber?: string,
+  ): Promise<TdsReturn> {
+    const ret = await this.tdsReturnRepo.findOne({ where: { id, tenantId } });
+    if (!ret) throw new NotFoundException(`TDS return ${id} not found`);
+    ret.status = TdsReturnStatus.FILED;
+    ret.filedAt = new Date();
+    if (acknowledgementNumber) ret.acknowledgementNumber = acknowledgementNumber;
+    return this.tdsReturnRepo.save(ret);
   }
 
   private todayStr(): string {
