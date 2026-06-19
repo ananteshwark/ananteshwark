@@ -16,6 +16,10 @@ import { HrModule } from './modules/hr/hr.module';
 import { PayrollModule } from './modules/payroll/payroll.module';
 import { ProcurementModule } from './modules/procurement/procurement.module';
 import { TalentModule } from './modules/talent/talent.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -49,6 +53,10 @@ import { getDatabaseConfig } from './config/database.config';
     PayrollModule,
     ProcurementModule,
     TalentModule,
+    InventoryModule,
+    ProjectsModule,
+    ExpensesModule,
+    CrmModule,
   ],
 })
 export class AppModule {
