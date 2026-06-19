@@ -11,6 +11,7 @@ import {
   ComplianceStatus,
 } from './entities/compliance-calendar-item.entity';
 import { TdsReturn, TdsReturnQuarter, TdsReturnStatus } from './entities/tds-return.entity';
+import { GratuitySettlement, GratuitySettlementStatus } from './entities/gratuity-settlement.entity';
 import { StatutoryType } from '../components/entities/pay-component.entity';
 import {
   UpsertStatutoryConfigDto,
@@ -70,6 +71,8 @@ export class StatutoryService implements LocalizationPack {
     private readonly calendarRepo: Repository<ComplianceCalendarItem>,
     @InjectRepository(TdsReturn)
     private readonly tdsReturnRepo: Repository<TdsReturn>,
+    @InjectRepository(GratuitySettlement)
+    private readonly gratuityRepo: Repository<GratuitySettlement>,
     @Optional() private readonly localizationRegistry?: LocalizationRegistry,
   ) {
     // Self-register with the localization registry if available
@@ -528,6 +531,42 @@ export class StatutoryService implements LocalizationPack {
     ret.filedAt = new Date();
     if (acknowledgementNumber) ret.acknowledgementNumber = acknowledgementNumber;
     return this.tdsReturnRepo.save(ret);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gratuity settlements
+  // ---------------------------------------------------------------------------
+
+  async listGratuitySettlements(tenantId: string, employeeId?: string): Promise<GratuitySettlement[]> {
+    const where: any = { tenantId };
+    if (employeeId) where.employeeId = employeeId;
+    return this.gratuityRepo.find({ where, order: { createdAt: 'DESC' } });
+  }
+
+  async createGratuitySettlement(
+    tenantId: string,
+    dto: { employeeId: string; lastDrawnBasic: number; yearsOfService: number; separationDate: string; remarks?: string },
+  ): Promise<GratuitySettlement> {
+    const gratuityAmount = this.calculateGratuity(dto.lastDrawnBasic, dto.yearsOfService);
+    const settlement = this.gratuityRepo.create({ ...dto, tenantId, gratuityAmount });
+    return this.gratuityRepo.save(settlement);
+  }
+
+  async approveGratuitySettlement(tenantId: string, id: string, approvedById: string): Promise<GratuitySettlement> {
+    const settlement = await this.gratuityRepo.findOne({ where: { id, tenantId } });
+    if (!settlement) throw new NotFoundException(`Gratuity settlement ${id} not found`);
+    settlement.status = GratuitySettlementStatus.APPROVED;
+    settlement.approvedById = approvedById;
+    settlement.approvedAt = new Date();
+    return this.gratuityRepo.save(settlement);
+  }
+
+  async markGratuityPaid(tenantId: string, id: string): Promise<GratuitySettlement> {
+    const settlement = await this.gratuityRepo.findOne({ where: { id, tenantId } });
+    if (!settlement) throw new NotFoundException(`Gratuity settlement ${id} not found`);
+    settlement.status = GratuitySettlementStatus.PAID;
+    settlement.paidAt = new Date();
+    return this.gratuityRepo.save(settlement);
   }
 
   private todayStr(): string {

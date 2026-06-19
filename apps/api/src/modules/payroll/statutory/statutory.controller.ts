@@ -123,4 +123,37 @@ export class StatutoryController {
   file24QReturn(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { acknowledgementNumber?: string }) {
     return this.service.file24QReturn(user.tenantId, id, body?.acknowledgementNumber);
   }
+
+  // Gratuity settlements
+  @Get('gratuity')
+  @RequirePermission('payroll:statutory:read')
+  listGratuity(@CurrentUser() user: any, @Query('employeeId') employeeId?: string) {
+    return this.service.listGratuitySettlements(user.tenantId, employeeId);
+  }
+
+  @Post('gratuity')
+  @RequirePermission('payroll:statutory:manage')
+  createGratuity(@CurrentUser() user: any, @Body() body: any) {
+    return this.service.createGratuitySettlement(user.tenantId, body);
+  }
+
+  @Post('gratuity/:id/approve')
+  @RequirePermission('payroll:statutory:manage')
+  approveGratuity(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.approveGratuitySettlement(user.tenantId, id, user.id);
+  }
+
+  @Post('gratuity/:id/pay')
+  @RequirePermission('payroll:statutory:manage')
+  markGratuityPaid(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.markGratuityPaid(user.tenantId, id);
+  }
+
+  // Gratuity calculation helper
+  @Post('gratuity/calculate')
+  @RequirePermission('payroll:statutory:read')
+  calculateGratuity(@Body() body: { lastDrawnBasic: number; yearsOfService: number }) {
+    const amount = this.service.calculateGratuity(body.lastDrawnBasic, body.yearsOfService);
+    return { amount, eligible: body.yearsOfService >= 5 };
+  }
 }
