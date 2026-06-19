@@ -6,7 +6,10 @@ import {
   Body,
   Query,
   UseGuards,
+  Res,
+  Header,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RunService } from './run.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -68,6 +71,19 @@ export class RunController {
   @RequirePermission('payroll:runs:process')
   cancelRun(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.cancelRun(user.tenantId, id);
+  }
+
+  @Get('runs/:id/bank-file')
+  @RequirePermission('payroll:runs:approve')
+  @Header('Content-Type', 'text/csv')
+  async downloadBankFile(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const csv = await this.service.generateBankFile(user.tenantId, id);
+    res.setHeader('Content-Disposition', `attachment; filename="bank-file-${id.slice(0, 8)}.csv"`);
+    res.send(csv);
   }
 
   // Payslips

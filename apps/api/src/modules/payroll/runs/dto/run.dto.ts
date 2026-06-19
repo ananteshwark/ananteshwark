@@ -30,4 +30,9 @@ export class CreatePayrollRunDto {
   @IsOptional()
   @IsDateString()
   payDate?: string;
+
+  @ApiPropertyOptional({ default: 'INR', description: 'ISO 4217 currency code' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
 }

@@ -70,6 +70,9 @@ export class PayrollRun {
   @Column({ name: 'employee_count', type: 'int', default: 0 })
   employeeCount: number;
 
+  @Column({ length: 10, default: 'INR' })
+  currency: string;
+
   @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true })
   journalEntryId: string | null;
 

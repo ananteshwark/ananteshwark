@@ -79,6 +79,7 @@ export class RunService {
       periodEnd,
       payDate,
       runType,
+      currency: dto.currency || 'INR',
       status: PayrollRunStatus.DRAFT,
     });
     return this.runRepo.save(run);
@@ -392,7 +393,7 @@ export class RunService {
           description: `Payroll accrual - ${run.name}`,
           reference: `PAYRUN-${run.id.slice(0, 8)}`,
           source: JournalSource.PAYROLL,
-          currency: 'INR',
+          currency: run.currency || 'INR',
           lines,
         },
         userId,
@@ -444,7 +445,7 @@ export class RunService {
           description: `Payroll payment - ${run.name}`,
           reference: `PAYRUN-${run.id.slice(0, 8)}`,
           source: JournalSource.PAYROLL,
-          currency: 'INR',
+          currency: run.currency || 'INR',
           lines,
         },
         userId,
@@ -518,5 +519,32 @@ export class RunService {
       where: { tenantId, employeeId },
       order: { payPeriodYear: 'DESC', payPeriodMonth: 'DESC' },
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bank file export (NEFT/RTGS CSV)
+  // ---------------------------------------------------------------------------
+
+  async generateBankFile(tenantId: string, runId: string): Promise<string> {
+    const run = await this.getRun(tenantId, runId);
+    if (![PayrollRunStatus.APPROVED, PayrollRunStatus.PAID].includes(run.status)) {
+      throw new BadRequestException('Bank file can only be generated for APPROVED or PAID runs');
+    }
+
+    const payslips = await this.payslipRepo.find({ where: { tenantId, payrollRunId: runId } });
+    const employees = await this.employeeRepo.find({
+      where: { tenantId },
+      select: ['id', 'firstName', 'lastName'],
+    });
+    const empMap = new Map(employees.map(e => [e.id, e]));
+
+    const rows = ['EmployeeId,EmployeeName,NetPay,Currency'];
+    for (const slip of payslips) {
+      const emp = empMap.get(slip.employeeId);
+      const name = emp ? `${emp.firstName} ${emp.lastName}` : slip.employeeId;
+      rows.push(`${slip.employeeId},"${name}",${slip.netPay},${run.currency || 'INR'}`);
+    }
+
+    return rows.join('\n');
   }
 }
