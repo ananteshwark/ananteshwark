@@ -11,6 +11,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { HealthModule } from './modules/health/health.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -39,6 +40,7 @@ import { getDatabaseConfig } from './config/database.config';
     NotificationsModule,
     AuditModule,
     HealthModule,
+    FinanceModule,
   ],
 })
 export class AppModule {

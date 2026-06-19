@@ -20,7 +20,7 @@ container loses nothing — just re-clone and continue.
 - [x] **Phase 1 — Foundation**: multi-tenant core (RLS, tenant context), auth
       (JWT + refresh), users + invites, RBAC, workflow engine, notifications,
       audit trail, i18n (en/hi), API gateway + Swagger, React UI shell + theming.
-- [~] **Phase 2 — Finance core** (in progress): GL (chart of accounts, journals,
+- [x] **Phase 2 — Finance core**: GL (chart of accounts, journals,
       double-entry, periods/close), AP (vendors, bills, payments), AR (customers,
       invoices, receipts), bank & reconciliation, financial reports (trial
       balance, P&L, balance sheet, GL detail, cash flow).

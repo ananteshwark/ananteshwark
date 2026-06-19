@@ -45,9 +45,13 @@ const navItems: NavItem[] = [
     icon: <Calculator className="h-4 w-4" />,
     module: 'finance',
     children: [
-      { label: 'General Ledger', path: '/finance/gl' },
-      { label: 'Accounts Receivable', path: '/finance/ar' },
-      { label: 'Accounts Payable', path: '/finance/ap' },
+      { label: 'Chart of Accounts', path: '/finance/accounts' },
+      { label: 'Journal Entries', path: '/finance/journals' },
+      { label: 'Vendors', path: '/finance/vendors' },
+      { label: 'Bills', path: '/finance/bills' },
+      { label: 'Customers', path: '/finance/customers' },
+      { label: 'Invoices', path: '/finance/invoices' },
+      { label: 'Reports', path: '/finance/reports' },
     ],
   },
   {

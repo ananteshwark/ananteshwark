@@ -5,6 +5,9 @@ import { UsersService } from '../modules/users/users.service';
 import { RbacService } from '../modules/rbac/rbac.service';
 import { WorkflowService } from '../modules/workflow/workflow.service';
 import { TenantPlan, TenantStatus } from '../modules/tenants/entities/tenant.entity';
+import { GlService } from '../modules/finance/gl/gl.service';
+import { ApService } from '../modules/finance/ap/ap.service';
+import { ArService } from '../modules/finance/ar/ar.service';
 
 async function seed() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -137,6 +140,120 @@ async function seed() {
     console.log('Workflow definitions seeded');
   } catch (e) {
     console.log('Error seeding workflows:', e.message);
+  }
+
+  // Seed Chart of Accounts
+  console.log('Seeding chart of accounts...');
+  const glService = app.get(GlService);
+  const apService = app.get(ApService);
+  const arService = app.get(ArService);
+
+  const accounts = [
+    // Assets
+    { code: '1000', name: 'Cash', type: 'ASSET', normalBalance: 'DEBIT' },
+    { code: '1010', name: 'Bank', type: 'ASSET', normalBalance: 'DEBIT' },
+    { code: '1100', name: 'AR Control', type: 'ASSET', normalBalance: 'DEBIT' },
+    { code: '1200', name: 'Inventory', type: 'ASSET', normalBalance: 'DEBIT' },
+    { code: '1300', name: 'Prepaid Expenses', type: 'ASSET', normalBalance: 'DEBIT' },
+    { code: '1500', name: 'Fixed Assets', type: 'ASSET', normalBalance: 'DEBIT' },
+    // Liabilities
+    { code: '2000', name: 'AP Control', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    { code: '2100', name: 'Tax Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    { code: '2200', name: 'Accrued Liabilities', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    { code: '2300', name: 'Short-term Loans', type: 'LIABILITY', normalBalance: 'CREDIT' },
+    // Equity
+    { code: '3000', name: 'Common Stock', type: 'EQUITY', normalBalance: 'CREDIT' },
+    { code: '3100', name: 'Retained Earnings', type: 'EQUITY', normalBalance: 'CREDIT' },
+    // Income
+    { code: '4000', name: 'Sales Revenue', type: 'INCOME', normalBalance: 'CREDIT' },
+    { code: '4100', name: 'Service Revenue', type: 'INCOME', normalBalance: 'CREDIT' },
+    { code: '4200', name: 'Other Income', type: 'INCOME', normalBalance: 'CREDIT' },
+    // COGS / Expenses
+    { code: '5000', name: 'Cost of Goods Sold', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6000', name: 'Salaries & Wages', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6100', name: 'Rent', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6200', name: 'Utilities', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6300', name: 'Marketing', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6400', name: 'Office Expenses', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6500', name: 'Depreciation', type: 'EXPENSE', normalBalance: 'DEBIT' },
+    { code: '6600', name: 'Interest Expense', type: 'EXPENSE', normalBalance: 'DEBIT' },
+  ];
+
+  for (const acc of accounts) {
+    try {
+      await glService.createAccount(tenant.id, acc as any);
+      console.log('Created account:', acc.code, acc.name);
+    } catch (e) {
+      console.log('Account already exists:', acc.code);
+    }
+  }
+
+  // Seed Fiscal Year FY2026
+  console.log('Seeding FY2026...');
+  try {
+    await glService.createFiscalYear(tenant.id, {
+      name: 'FY2026',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      generatePeriods: true,
+    });
+    console.log('FY2026 created with monthly periods');
+  } catch (e) {
+    console.log('FY2026 already exists');
+  }
+
+  // Seed vendors
+  console.log('Seeding vendors...');
+  try {
+    await apService.createVendor(tenant.id, {
+      code: 'VENDOR-001',
+      name: 'Acme Supplies',
+      email: 'accounts@acme.com',
+      currency: 'USD',
+      paymentTerms: 30,
+    });
+    console.log('Vendor VENDOR-001 created');
+  } catch (e) {
+    console.log('Vendor VENDOR-001 already exists');
+  }
+  try {
+    await apService.createVendor(tenant.id, {
+      code: 'VENDOR-002',
+      name: 'Tech Corp',
+      email: 'billing@techcorp.com',
+      currency: 'USD',
+      paymentTerms: 15,
+    });
+    console.log('Vendor VENDOR-002 created');
+  } catch (e) {
+    console.log('Vendor VENDOR-002 already exists');
+  }
+
+  // Seed customers
+  console.log('Seeding customers...');
+  try {
+    await arService.createCustomer(tenant.id, {
+      code: 'CUST-001',
+      name: 'Global Corp',
+      email: 'ap@globalcorp.com',
+      currency: 'USD',
+      paymentTerms: 30,
+    });
+    console.log('Customer CUST-001 created');
+  } catch (e) {
+    console.log('Customer CUST-001 already exists');
+  }
+  try {
+    await arService.createCustomer(tenant.id, {
+      code: 'CUST-002',
+      name: 'Local Biz',
+      email: 'owner@localbiz.com',
+      currency: 'USD',
+      paymentTerms: 15,
+    });
+    console.log('Customer CUST-002 created');
+  } catch (e) {
+    console.log('Customer CUST-002 already exists');
   }
 
   console.log('\nSeed complete!');

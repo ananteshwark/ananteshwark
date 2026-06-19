@@ -12,8 +12,12 @@ export const ALL_PERMISSIONS = [
   // Finance module
   'finance:gl:read', 'finance:gl:create', 'finance:gl:update',
   'finance:invoices:read', 'finance:invoices:create', 'finance:invoices:update',
-  'finance:ar:read', 'finance:ar:create',
-  'finance:ap:read', 'finance:ap:create',
+  'finance:accounts:read', 'finance:accounts:create', 'finance:accounts:update',
+  'finance:journal:read', 'finance:journal:create', 'finance:journal:post', 'finance:journal:reverse',
+  'finance:ar:read', 'finance:ar:create', 'finance:ar:post',
+  'finance:ap:read', 'finance:ap:create', 'finance:ap:post',
+  'finance:bank:read', 'finance:bank:create', 'finance:bank:reconcile',
+  'finance:reports:read',
   // Payroll module
   'payroll:payroll_run:read', 'payroll:payroll_run:create', 'payroll:payroll_run:execute',
   'payroll:payslips:read',
@@ -56,6 +60,12 @@ export const SYSTEM_ROLES = {
       ...ALL_PERMISSIONS.filter(p => p.startsWith('finance:')),
       'workflow:instances:approve',
       'workflow:instances:read',
+      'finance:accounts:read', 'finance:accounts:create', 'finance:accounts:update',
+      'finance:journal:read', 'finance:journal:create', 'finance:journal:post', 'finance:journal:reverse',
+      'finance:ap:read', 'finance:ap:create', 'finance:ap:post',
+      'finance:ar:read', 'finance:ar:create', 'finance:ar:post',
+      'finance:bank:read', 'finance:bank:create', 'finance:bank:reconcile',
+      'finance:reports:read',
     ],
   },
   EMPLOYEE: {
