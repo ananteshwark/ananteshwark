@@ -6,6 +6,7 @@ import { Department } from './entities/department.entity';
 import { Designation } from './entities/designation.entity';
 import { Location } from './entities/location.entity';
 import { EmployeeDocument } from './entities/employee-document.entity';
+import { EmployeeTransfer, TransferStatus } from './entities/employee-transfer.entity';
 import {
   CreateEmployeeDto, UpdateEmployeeDto,
   CreateDepartmentDto, UpdateDepartmentDto,
@@ -27,6 +28,8 @@ export class EmployeeService {
     private readonly locationRepo: Repository<Location>,
     @InjectRepository(EmployeeDocument)
     private readonly documentRepo: Repository<EmployeeDocument>,
+    @InjectRepository(EmployeeTransfer)
+    private readonly transferRepo: Repository<EmployeeTransfer>,
   ) {}
 
   // ---- Employees ----
@@ -179,5 +182,41 @@ export class EmployeeService {
     const loc = await this.findLocation(tenantId, id);
     Object.assign(loc, dto);
     return this.locationRepo.save(loc);
+  }
+
+  // ---- Transfers & Promotions ----
+
+  async listTransfers(tenantId: string, employeeId?: string): Promise<EmployeeTransfer[]> {
+    const where: any = { tenantId };
+    if (employeeId) where.employeeId = employeeId;
+    return this.transferRepo.find({ where, order: { effectiveDate: 'DESC' } });
+  }
+
+  async createTransfer(tenantId: string, dto: Partial<EmployeeTransfer>): Promise<EmployeeTransfer> {
+    const transfer = this.transferRepo.create({ ...dto, tenantId });
+    return this.transferRepo.save(transfer);
+  }
+
+  async approveTransfer(tenantId: string, id: string, approvedById: string): Promise<EmployeeTransfer> {
+    const transfer = await this.transferRepo.findOne({ where: { id, tenantId } });
+    if (!transfer) throw new NotFoundException(`Transfer ${id} not found`);
+    transfer.status = TransferStatus.APPROVED;
+    transfer.approvedById = approvedById;
+    transfer.approvedAt = new Date();
+    return this.transferRepo.save(transfer);
+  }
+
+  async effectuateTransfer(tenantId: string, id: string): Promise<EmployeeTransfer> {
+    const transfer = await this.transferRepo.findOne({ where: { id, tenantId } });
+    if (!transfer) throw new NotFoundException(`Transfer ${id} not found`);
+    if (transfer.status !== TransferStatus.APPROVED) {
+      throw new BadRequestException('Transfer must be approved before being effectuated');
+    }
+    const employee = await this.findEmployee(tenantId, transfer.employeeId);
+    if (transfer.toDepartmentId) employee.departmentId = transfer.toDepartmentId;
+    if (transfer.toDesignationId) employee.designationId = transfer.toDesignationId;
+    await this.employeeRepo.save(employee);
+    transfer.status = TransferStatus.EFFECTIVE;
+    return this.transferRepo.save(transfer);
   }
 }

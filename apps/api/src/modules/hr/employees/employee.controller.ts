@@ -149,4 +149,29 @@ export class EmployeeController {
   updateLocation(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateLocationDto) {
     return this.employeeService.updateLocation(user.tenantId, id, dto);
   }
+
+  // Transfers & Promotions
+  @Get('transfers')
+  @RequirePermission('hr:employees:read')
+  listTransfers(@CurrentUser() user: any, @Query('employeeId') employeeId?: string) {
+    return this.employeeService.listTransfers(user.tenantId, employeeId);
+  }
+
+  @Post('transfers')
+  @RequirePermission('hr:employees:manage')
+  createTransfer(@CurrentUser() user: any, @Body() dto: any) {
+    return this.employeeService.createTransfer(user.tenantId, dto);
+  }
+
+  @Post('transfers/:id/approve')
+  @RequirePermission('hr:employees:manage')
+  approveTransfer(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.employeeService.approveTransfer(user.tenantId, id, user.id);
+  }
+
+  @Post('transfers/:id/effectuate')
+  @RequirePermission('hr:employees:manage')
+  effectuateTransfer(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.employeeService.effectuateTransfer(user.tenantId, id);
+  }
 }
