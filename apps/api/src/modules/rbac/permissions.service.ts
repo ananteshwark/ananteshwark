@@ -50,6 +50,8 @@ export const ALL_PERMISSIONS = [
   'talent:goals:read', 'talent:goals:create', 'talent:goals:manage',
   'talent:performance:read', 'talent:performance:submit', 'talent:performance:manage', 'talent:performance:calibrate',
   'talent:appraisal:read', 'talent:appraisal:manage',
+  // Localization module
+  'localization:read',
 ];
 
 export const SYSTEM_ROLES = {

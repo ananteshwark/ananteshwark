@@ -1,0 +1,128 @@
+{
+  "common": {
+    "search": "[AR] Search...",
+    "loading": "[AR] Loading...",
+    "save": "[AR] Save",
+    "cancel": "[AR] Cancel",
+    "delete": "[AR] Delete",
+    "edit": "[AR] Edit",
+    "create": "[AR] Create",
+    "submit": "[AR] Submit",
+    "confirm": "[AR] Confirm",
+    "back": "[AR] Back",
+    "next": "[AR] Next",
+    "finish": "[AR] Finish",
+    "yes": "[AR] Yes",
+    "no": "[AR] No",
+    "all": "[AR] All",
+    "none": "[AR] None",
+    "noData": "[AR] No data found",
+    "error": "[AR] An error occurred",
+    "success": "[AR] Operation successful",
+    "required": "[AR] This field is required",
+    "actions": "[AR] Actions"
+  },
+  "nav": {
+    "dashboard": "[AR] Dashboard",
+    "users": "[AR] Users",
+    "roles": "[AR] Roles & Permissions",
+    "workflows": "[AR] Workflows",
+    "notifications": "[AR] Notifications",
+    "audit": "[AR] Audit Log",
+    "settings": "[AR] Settings",
+    "hr": "[AR] HR",
+    "finance": "[AR] Finance",
+    "payroll": "[AR] Payroll",
+    "procurement": "[AR] Procurement"
+  },
+  "auth": {
+    "login": "[AR] Sign In",
+    "logout": "[AR] Sign Out",
+    "register": "[AR] Create Account",
+    "email": "[AR] Email",
+    "password": "[AR] Password",
+    "forgotPassword": "[AR] Forgot password?",
+    "rememberMe": "[AR] Remember me",
+    "noAccount": "[AR] Don't have an account?",
+    "hasAccount": "[AR] Already have an account?",
+    "welcomeBack": "[AR] Welcome back",
+    "signInSubtitle": "[AR] Sign in to your ERP account"
+  },
+  "users": {
+    "title": "[AR] Users",
+    "description": "[AR] Manage users and their access",
+    "invite": "[AR] Invite User",
+    "name": "[AR] Name",
+    "email": "[AR] Email",
+    "role": "[AR] Role",
+    "status": "[AR] Status",
+    "lastLogin": "[AR] Last Login",
+    "joined": "[AR] Joined",
+    "deactivate": "[AR] Deactivate",
+    "resendInvite": "[AR] Resend Invite",
+    "noUsers": "[AR] No users found",
+    "inviteDescription": "[AR] Invite team members to join your organization"
+  },
+  "roles": {
+    "title": "[AR] Roles & Permissions",
+    "create": "[AR] Create Role",
+    "name": "[AR] Role Name",
+    "description": "[AR] Description",
+    "permissions": "[AR] Permissions",
+    "systemRole": "[AR] System Role",
+    "noRoles": "[AR] No roles found"
+  },
+  "workflow": {
+    "title": "[AR] Workflows",
+    "definitions": "[AR] Definitions",
+    "pending": "[AR] Pending Approvals",
+    "approve": "[AR] Approve",
+    "reject": "[AR] Reject",
+    "comment": "[AR] Comment",
+    "noPending": "[AR] No pending approvals",
+    "allCaughtUp": "[AR] You're all caught up!"
+  },
+  "notifications": {
+    "title": "[AR] Notifications",
+    "markAllRead": "[AR] Mark all read",
+    "noNotifications": "[AR] No notifications",
+    "allCaughtUp": "[AR] You're all caught up!"
+  },
+  "audit": {
+    "title": "[AR] Audit Log",
+    "description": "[AR] Immutable record of all system actions",
+    "user": "[AR] User",
+    "action": "[AR] Action",
+    "resource": "[AR] Resource",
+    "timestamp": "[AR] Timestamp",
+    "noLogs": "[AR] No audit logs found"
+  },
+  "settings": {
+    "general": "[AR] General Settings",
+    "modules": "[AR] Module Settings",
+    "branding": "[AR] Branding",
+    "primaryColor": "[AR] Primary Color",
+    "logoUrl": "[AR] Logo URL",
+    "companyInfo": "[AR] Company Info"
+  },
+  "dashboard": {
+    "title": "[AR] Dashboard",
+    "welcome": "[AR] Good morning",
+    "totalUsers": "[AR] Total Users",
+    "pendingApprovals": "[AR] Pending Approvals",
+    "unreadNotifications": "[AR] Unread Notifications",
+    "systemStatus": "[AR] System Status",
+    "quickActions": "[AR] Quick Actions",
+    "myPendingApprovals": "[AR] My Pending Approvals"
+  },
+  "onboarding": {
+    "title": "[AR] Set up your ERP",
+    "subtitle": "[AR] Just a few steps to get started",
+    "companyInfo": "[AR] Company Information",
+    "fiscalYear": "[AR] Fiscal Year & Currency",
+    "modules": "[AR] Select Modules",
+    "adminAccount": "[AR] Admin Account",
+    "done": "[AR] Done",
+    "ready": "[AR] Your ERP is ready!"
+  }
+}

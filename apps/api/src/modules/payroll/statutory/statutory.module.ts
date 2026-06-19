@@ -7,6 +7,7 @@ import { ComplianceCalendarItem } from './entities/compliance-calendar-item.enti
 import { StatutoryService } from './statutory.service';
 import { StatutoryController } from './statutory.controller';
 import { RbacModule } from '../../rbac/rbac.module';
+import { LocalizationModule } from '../../localization/localization.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RbacModule } from '../../rbac/rbac.module';
       ComplianceCalendarItem,
     ]),
     RbacModule,
+    LocalizationModule,
   ],
   controllers: [StatutoryController],
   providers: [StatutoryService],

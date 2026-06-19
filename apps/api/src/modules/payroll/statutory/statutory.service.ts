@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StatutoryConfig } from './entities/statutory-config.entity';
@@ -15,6 +15,12 @@ import {
   UpsertStatutoryConfigDto,
   CreateComplianceItemDto,
 } from './dto/statutory.dto';
+import { LocalizationRegistry } from '../../localization/localization.registry';
+import {
+  LocalizationPack,
+  TaxCalculationInput,
+  TaxCalculationResult,
+} from '../../localization/localization.types';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -48,7 +54,10 @@ export const INDIA_DEFAULTS = {
 };
 
 @Injectable()
-export class StatutoryService {
+export class StatutoryService implements LocalizationPack {
+  readonly country = 'IN';
+  readonly name = 'India (IN)';
+
   constructor(
     @InjectRepository(StatutoryConfig)
     private readonly configRepo: Repository<StatutoryConfig>,
@@ -58,7 +67,101 @@ export class StatutoryService {
     private readonly form16Repo: Repository<Form16>,
     @InjectRepository(ComplianceCalendarItem)
     private readonly calendarRepo: Repository<ComplianceCalendarItem>,
-  ) {}
+    @Optional() private readonly localizationRegistry?: LocalizationRegistry,
+  ) {
+    // Self-register with the localization registry if available
+    if (this.localizationRegistry) {
+      this.localizationRegistry.register(this);
+    }
+  }
+
+  /** LocalizationPack interface — synchronous statutory calculation for India. */
+  calculateStatutory(input: TaxCalculationInput): TaxCalculationResult {
+    const { grossMonthly, basicMonthly } = input;
+
+    // PF: 12% of basic, capped at ₹15,000 basic
+    const pfBase = Math.min(basicMonthly, INDIA_DEFAULTS.PF.wageCeiling);
+    const pfAmount = round2(pfBase * INDIA_DEFAULTS.PF.rate);
+
+    // ESI: employee 0.75%, employer 3.25% if gross <= ₹21,000
+    let esiEmployee = 0;
+    let esiEmployer = 0;
+    if (grossMonthly <= INDIA_DEFAULTS.ESI.grossThreshold) {
+      esiEmployee = round2(grossMonthly * INDIA_DEFAULTS.ESI.employeeRate);
+      esiEmployer = round2(grossMonthly * INDIA_DEFAULTS.ESI.employerRate);
+    }
+
+    // PT: Maharashtra default slab
+    let ptAmount = 0;
+    const slabs = INDIA_DEFAULTS.PT.slabs;
+    for (let i = 0; i < slabs.length; i++) {
+      const slab = slabs[i];
+      if (slab.upTo === null || slab.upTo === undefined || grossMonthly <= slab.upTo) {
+        ptAmount = slab.amount;
+        break;
+      }
+    }
+
+    // TDS: simplified — use NEW regime FY2025-26 defaults (in-memory)
+    const annualTaxable = Math.max(0, input.annualTaxableIncome - INDIA_DEFAULTS.TDS.standardDeduction);
+    let annualTax = 0;
+    if (annualTaxable > INDIA_DEFAULTS.TDS.rebate87ALimit) {
+      const newRegimeBrackets = [
+        { from: 0, to: 300000, rate: 0 },
+        { from: 300000, to: 700000, rate: 0.05 },
+        { from: 700000, to: 1000000, rate: 0.10 },
+        { from: 1000000, to: 1200000, rate: 0.15 },
+        { from: 1200000, to: 1500000, rate: 0.20 },
+        { from: 1500000, to: Infinity, rate: 0.30 },
+      ];
+      for (const bracket of newRegimeBrackets) {
+        if (annualTaxable <= bracket.from) break;
+        const taxable = Math.min(annualTaxable, bracket.to) - bracket.from;
+        annualTax += taxable * bracket.rate;
+      }
+      annualTax = round2(annualTax * (1 + INDIA_DEFAULTS.TDS.cess));
+    }
+    const tdsMonthly = round2(annualTax / 12);
+
+    const employeeDeductions: TaxCalculationResult['employeeDeductions'] = [
+      { code: 'PF_EMPLOYEE', name: 'Provident Fund (Employee)', amount: pfAmount },
+      { code: 'ESI_EMPLOYEE', name: 'ESI (Employee)', amount: esiEmployee },
+      { code: 'PT', name: 'Professional Tax', amount: ptAmount },
+      { code: 'TDS', name: 'Income Tax (TDS)', amount: tdsMonthly },
+    ];
+
+    const employerContributions: TaxCalculationResult['employerContributions'] = [
+      { code: 'PF_EMPLOYER', name: 'Provident Fund (Employer)', amount: pfAmount },
+      { code: 'ESI_EMPLOYER', name: 'ESI (Employer)', amount: esiEmployer },
+    ];
+
+    const totalDeductions = employeeDeductions.reduce((s, d) => s + d.amount, 0);
+
+    return {
+      employeeDeductions,
+      employerContributions,
+      netPay: round2(grossMonthly - totalDeductions),
+    };
+  }
+
+  /** LocalizationPack interface — India compliance calendar items. */
+  getComplianceCalendarItems(
+    month: number,
+    year: number,
+  ): Array<{ title: string; dueDate: string; type: string }> {
+    const mm = String(month).padStart(2, '0');
+    const lastDay = new Date(year, month, 0).getDate();
+    return [
+      { title: `TDS Payment (${year}-${mm})`, dueDate: `${year}-${mm}-07`, type: 'TDS' },
+      { title: `PF Contribution (${year}-${mm})`, dueDate: `${year}-${mm}-15`, type: 'PF' },
+      { title: `ESI Contribution (${year}-${mm})`, dueDate: `${year}-${mm}-15`, type: 'ESI' },
+      {
+        title: `Professional Tax (${year}-${mm})`,
+        dueDate: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
+        type: 'PT',
+      },
+    ];
+  }
 
   // ---------------------------------------------------------------------------
   // Config helpers

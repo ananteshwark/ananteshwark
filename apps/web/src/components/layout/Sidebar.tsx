@@ -124,6 +124,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'General', path: '/settings/general' },
       { label: 'Modules', path: '/settings/modules' },
+      { label: 'Localization', path: '/settings/localization' },
     ],
   },
 ];

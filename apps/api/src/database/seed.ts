@@ -727,6 +727,55 @@ async function seed() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // LOCALIZATION seed data (Phase 8)
+  // ---------------------------------------------------------------------------
+  console.log('\nSeeding Localization data (Phase 8)...');
+  try {
+    const StatutoryConfigRepo = app.get(DataSource).getRepository('pay_statutory_configs');
+    // US config
+    const usExists = await StatutoryConfigRepo.findOne({
+      where: { tenantId: tenant.id, type: 'TDS', country: 'US' },
+    });
+    if (!usExists) {
+      await StatutoryConfigRepo.save([
+        {
+          tenantId: tenant.id,
+          type: 'TDS',
+          country: 'US',
+          isEnabled: true,
+          config: { regime: 'SINGLE', wageBase2024: 168600 },
+          effectiveFrom: '2024-01-01',
+        },
+      ]);
+      console.log('US statutory config seeded');
+    } else {
+      console.log('US statutory config already exists');
+    }
+    // UAE config
+    const aeExists = await StatutoryConfigRepo.findOne({
+      where: { tenantId: tenant.id, type: 'GRATUITY', country: 'AE' },
+    });
+    if (!aeExists) {
+      await StatutoryConfigRepo.save([
+        {
+          tenantId: tenant.id,
+          type: 'GRATUITY',
+          country: 'AE',
+          isEnabled: true,
+          config: { accrualDaysPerYear: 21, nationalRate: 0.125 },
+          effectiveFrom: '2024-01-01',
+        },
+      ]);
+      console.log('UAE statutory config seeded');
+    } else {
+      console.log('UAE statutory config already exists');
+    }
+    console.log('Phase 8 localization seed done');
+  } catch (e) {
+    console.log('Phase 8 seed skipped:', e.message);
+  }
+
   console.log('\nSeed complete!');
   console.log('Demo credentials:');
   console.log('  Email: admin@demo.com');

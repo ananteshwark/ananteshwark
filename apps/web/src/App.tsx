@@ -13,6 +13,7 @@ import NotificationsPage from './pages/notifications/NotificationsPage';
 import AuditPage from './pages/audit/AuditPage';
 import GeneralSettingsPage from './pages/settings/GeneralSettingsPage';
 import ModulesSettingsPage from './pages/settings/ModulesSettingsPage';
+import LocalizationPage from './pages/settings/LocalizationPage';
 import {
   ChartOfAccountsPage,
   JournalEntriesPage,
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="audit" element={<AuditPage />} />
         <Route path="settings/general" element={<GeneralSettingsPage />} />
         <Route path="settings/modules" element={<ModulesSettingsPage />} />
+        <Route path="settings/localization" element={<LocalizationPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />
         <Route path="hr/departments" element={<DepartmentsPage />} />
         <Route path="hr/attendance" element={<AttendancePage />} />
