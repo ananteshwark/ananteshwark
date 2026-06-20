@@ -50,6 +50,20 @@ export const financeApi = {
   createBankAccount: (data: any) => apiClient.post('/finance/bank/accounts', data),
   getTransactions: (params?: any) => apiClient.get('/finance/bank/transactions', { params }),
 
+  // Fixed Assets
+  getAssetCategories: (params?: any) => apiClient.get('/finance/fixed-assets/categories', { params }),
+  createAssetCategory: (data: any) => apiClient.post('/finance/fixed-assets/categories', data),
+  getFixedAssets: (params?: any) => apiClient.get('/finance/fixed-assets', { params }),
+  getFixedAsset: (id: string) => apiClient.get(`/finance/fixed-assets/${id}`),
+  createFixedAsset: (data: any) => apiClient.post('/finance/fixed-assets', data),
+  updateFixedAsset: (id: string, data: any) => apiClient.patch(`/finance/fixed-assets/${id}`, data),
+  disposeAsset: (id: string, data: any) => apiClient.post(`/finance/fixed-assets/${id}/dispose`, data),
+  getAssetSchedule: (id: string) => apiClient.get(`/finance/fixed-assets/${id}/schedule`),
+  getDepreciationRuns: (params?: any) => apiClient.get('/finance/fixed-assets/depreciation-runs', { params }),
+  runDepreciation: (data: any) => apiClient.post('/finance/fixed-assets/depreciation-runs', data),
+  postDepreciationRun: (id: string) => apiClient.post(`/finance/fixed-assets/depreciation-runs/${id}/post`),
+  getRunLines: (id: string) => apiClient.get(`/finance/fixed-assets/depreciation-runs/${id}/lines`),
+
   // Reports
   getTrialBalance: (params?: any) => apiClient.get('/finance/reports/trial-balance', { params }),
   getProfitLoss: (params?: any) => apiClient.get('/finance/reports/profit-loss', { params }),

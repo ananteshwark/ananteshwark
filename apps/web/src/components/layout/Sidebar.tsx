@@ -60,6 +60,7 @@ const navItems: NavItem[] = [
       { label: 'Bills', path: '/finance/bills' },
       { label: 'Customers', path: '/finance/customers' },
       { label: 'Invoices', path: '/finance/invoices' },
+      { label: 'Fixed Assets', path: '/finance/fixed-assets' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

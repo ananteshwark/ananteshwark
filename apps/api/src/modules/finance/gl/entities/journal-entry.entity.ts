@@ -15,6 +15,7 @@ export enum JournalSource {
   BANK = 'BANK',
   PAYROLL = 'PAYROLL',
   PROCUREMENT = 'PROCUREMENT',
+  FIXED_ASSETS = 'FIXED_ASSETS',
   SYSTEM = 'SYSTEM',
 }
 
