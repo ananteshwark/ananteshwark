@@ -26,6 +26,7 @@ import { ManufacturingModule } from './modules/manufacturing/manufacturing.modul
 import { QualityModule } from './modules/quality/quality.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { BenefitsModule } from './modules/benefits/benefits.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
@@ -70,6 +71,7 @@ import { getDatabaseConfig } from './config/database.config';
     QualityModule,
     MaintenanceModule,
     BenefitsModule,
+    AnalyticsModule,
     LocalizationPacksModule,
   ],
 })
