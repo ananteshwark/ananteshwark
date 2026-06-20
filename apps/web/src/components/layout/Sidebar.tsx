@@ -111,6 +111,14 @@ const navItems: NavItem[] = [
       { label: 'Sales Orders', path: '/sales/orders' },
     ],
   },
+  {
+    label: 'My Portal',
+    icon: <UserCheck className="h-4 w-4" />,
+    children: [
+      { label: 'Employee Self-Service', path: '/ess' },
+      { label: 'Manager Self-Service', path: '/mss' },
+    ],
+  },
   { label: 'Users', icon: <Users className="h-4 w-4" />, path: '/users' },
   { label: 'Roles & Permissions', icon: <Shield className="h-4 w-4" />, path: '/roles' },
   { label: 'Workflows', icon: <GitBranch className="h-4 w-4" />, path: '/workflows' },

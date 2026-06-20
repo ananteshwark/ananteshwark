@@ -45,6 +45,7 @@ export const hrApi = {
   // Time Entries
   getTimeEntries: (params?: any) => apiClient.get('/hr/time-entries', { params }),
   createTimeEntry: (data: any) => apiClient.post('/hr/time-entries', data),
+  getTimesheets: (params?: any) => apiClient.get('/hr/timesheets', { params }),
   submitTimesheet: (data: any) => apiClient.post('/hr/timesheets/submit', data),
   approveTimesheet: (id: string) => apiClient.post(`/hr/timesheets/${id}/approve`),
 
