@@ -49,7 +49,7 @@ export default function JournalEntriesPage() {
     setError(null);
     try {
       const res = await financeApi.getJournalEntries();
-      setEntries(res.data?.data ?? res.data ?? []);
+      setEntries(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load journal entries');
     } finally {

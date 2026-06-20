@@ -71,7 +71,7 @@ export default function LeavePage() {
   useEffect(() => {
     if (tab !== 'team') return;
     hrApi.getLeaveCalendar({ month: calMonth, year: calYear }).then(res => {
-      const data = res.data?.data ?? res.data ?? [];
+      const data = res.data?.data?.items ?? res.data?.data ?? res.data ?? [];
       setTeamLeaves(Array.isArray(data) ? data : []);
     }).catch(() => setTeamLeaves([]));
   }, [tab, calMonth, calYear]);

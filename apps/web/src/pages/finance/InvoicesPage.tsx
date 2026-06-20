@@ -72,7 +72,7 @@ export default function InvoicesPage() {
     try {
       const params = statusFilter !== 'All' ? { status: statusFilter } : {};
       const res = await financeApi.getInvoices(params);
-      setInvoices(res.data?.data ?? res.data ?? []);
+      setInvoices(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load invoices');
     } finally {
@@ -83,7 +83,7 @@ export default function InvoicesPage() {
   const fetchCustomers = async () => {
     try {
       const res = await financeApi.getCustomers();
-      setCustomers(res.data?.data ?? res.data ?? []);
+      setCustomers(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch {
       // non-critical
     }

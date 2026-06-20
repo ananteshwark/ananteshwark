@@ -46,7 +46,7 @@ export default function ChartOfAccountsPage() {
     try {
       const params = typeFilter !== 'All' ? { type: typeFilter } : {};
       const res = await financeApi.getAccounts(params);
-      setAccounts(res.data?.data ?? res.data ?? []);
+      setAccounts(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load accounts');
     } finally {

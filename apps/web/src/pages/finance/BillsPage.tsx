@@ -61,7 +61,7 @@ export default function BillsPage() {
     try {
       const params = statusFilter !== 'All' ? { status: statusFilter } : {};
       const res = await financeApi.getBills(params);
-      setBills(res.data?.data ?? res.data ?? []);
+      setBills(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load bills');
     } finally {
@@ -72,7 +72,7 @@ export default function BillsPage() {
   const fetchVendors = async () => {
     try {
       const res = await financeApi.getVendors();
-      setVendors(res.data?.data ?? res.data ?? []);
+      setVendors(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch {
       // non-critical
     }

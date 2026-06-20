@@ -27,7 +27,7 @@ function TrialBalanceTab() {
     setError(null);
     try {
       const res = await financeApi.getTrialBalance({ from, to });
-      const payload = res.data?.data ?? res.data ?? [];
+      const payload = res.data?.data?.items ?? res.data?.data ?? res.data ?? [];
       setData(Array.isArray(payload) ? payload : []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to run report');
@@ -264,7 +264,7 @@ function GlDetailTab() {
     setError(null);
     try {
       const res = await financeApi.getGlDetail({ accountId: accountId || undefined, from, to });
-      const payload = res.data?.data ?? res.data ?? [];
+      const payload = res.data?.data?.items ?? res.data?.data ?? res.data ?? [];
       setData(Array.isArray(payload) ? payload : []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to run report');

@@ -42,7 +42,19 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // The API wraps payloads as { success, data, meta }. For paginated lists
+    // the array lives at data.data.items. Pages read it inconsistently
+    // (res.data.items vs res.data.data.items), so lift items/total to the top
+    // level of the body so every access pattern resolves to the same array.
+    const body = response.data;
+    if (body && body.success === true && body.data && typeof body.data === 'object'
+        && Array.isArray((body.data as any).items)) {
+      (body as any).items = (body.data as any).items;
+      (body as any).total = (body.data as any).total;
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 

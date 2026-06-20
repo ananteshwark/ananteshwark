@@ -23,7 +23,10 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidNonWhitelisted: true,
+      // Do not 403/400 on extra properties: controllers bind the whole query
+      // string to PaginationDto via @Query() while also reading sibling filter
+      // params (search/type/status/...). forbidNonWhitelisted would reject those.
+      forbidNonWhitelisted: false,
       transformOptions: { enableImplicitConversion: true },
     }),
   );

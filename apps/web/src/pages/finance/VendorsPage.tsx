@@ -36,7 +36,7 @@ export default function VendorsPage() {
     setError(null);
     try {
       const res = await financeApi.getVendors();
-      setVendors(res.data?.data ?? res.data ?? []);
+      setVendors(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load vendors');
     } finally {

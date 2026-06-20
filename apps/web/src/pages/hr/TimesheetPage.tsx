@@ -44,7 +44,7 @@ export default function TimesheetPage() {
     if (!selectedEmployee) return;
     setLoading(true);
     hrApi.getTimeEntries({ employeeId: selectedEmployee }).then(res => {
-      const data = res.data?.data ?? res.data ?? [];
+      const data = res.data?.data?.items ?? res.data?.data ?? res.data ?? [];
       setEntries(Array.isArray(data) ? data : []);
     }).catch(() => setEntries([])).finally(() => setLoading(false));
   }, [selectedEmployee, weekStart]);
@@ -89,7 +89,7 @@ export default function TimesheetPage() {
       setShowAddEntry(false);
       setEntryForm({ date: '', startTime: '', endTime: '', taskDescription: '', projectCode: '' });
       const res = await hrApi.getTimeEntries({ employeeId: selectedEmployee });
-      const data = res.data?.data ?? res.data ?? [];
+      const data = res.data?.data?.items ?? res.data?.data ?? res.data ?? [];
       setEntries(Array.isArray(data) ? data : []);
     } catch (err: any) {
       alert(err?.response?.data?.message ?? 'Failed to add entry');

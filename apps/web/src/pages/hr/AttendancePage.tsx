@@ -52,7 +52,7 @@ export default function AttendancePage() {
     if (!selectedEmployee) return;
     setLoading(true);
     hrApi.getMonthlyAttendance({ employeeId: selectedEmployee, month, year }).then(res => {
-      const records: any[] = res.data?.data ?? res.data ?? [];
+      const records: any[] = res.data?.data?.items ?? res.data?.data ?? res.data ?? [];
       const map: Record<string, any> = {};
       records.forEach((r: any) => { map[r.date?.substring(0, 10)] = r; });
       setAttendanceMap(map);
@@ -81,7 +81,7 @@ export default function AttendancePage() {
       setShowMarkModal(false);
       // Refresh
       const res = await hrApi.getMonthlyAttendance({ employeeId: selectedEmployee, month, year });
-      const records: any[] = res.data?.data ?? res.data ?? [];
+      const records: any[] = res.data?.data?.items ?? res.data?.data ?? res.data ?? [];
       const map: Record<string, any> = {};
       records.forEach((r: any) => { map[r.date?.substring(0, 10)] = r; });
       setAttendanceMap(map);
