@@ -22,6 +22,7 @@ import { ExpensesModule } from './modules/expenses/expenses.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
+import { ManufacturingModule } from './modules/manufacturing/manufacturing.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
@@ -62,6 +63,7 @@ import { getDatabaseConfig } from './config/database.config';
     CrmModule,
     SalesModule,
     ContractsModule,
+    ManufacturingModule,
     LocalizationPacksModule,
   ],
 })

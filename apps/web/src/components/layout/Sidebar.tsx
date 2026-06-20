@@ -113,6 +113,7 @@ const navItems: NavItem[] = [
     ],
   },
   { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts' },
+  { label: 'Manufacturing', icon: <Package className="h-4 w-4" />, path: '/manufacturing' },
   {
     label: 'My Portal',
     icon: <UserCheck className="h-4 w-4" />,
