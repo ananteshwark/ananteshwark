@@ -97,6 +97,7 @@ const navItems: NavItem[] = [
     icon: <Briefcase className="h-4 w-4" />,
     module: 'talent',
     children: [
+      { label: 'Hiring', path: '/talent/hiring' },
       { label: 'ATS', path: '/talent/ats' },
       { label: 'Onboarding', path: '/talent/onboarding' },
       { label: 'Learning', path: '/talent/learning' },

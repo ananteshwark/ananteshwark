@@ -57,6 +57,7 @@ import {
   AppraisalPage,
   SuccessionPage,
 } from './pages/talent';
+import HiringPage from './pages/hiring/HiringPage';
 import { InventoryPage } from './pages/inventory';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
@@ -148,6 +149,7 @@ export default function App() {
         <Route path="procurement/rfq" element={<RFQPage />} />
         <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />
         <Route path="procurement/grn" element={<GRNPage />} />
+        <Route path="talent/hiring" element={<HiringPage />} />
         <Route path="talent/ats" element={<AtsPage />} />
         <Route path="talent/onboarding" element={<TalentOnboardingPage />} />
         <Route path="talent/learning" element={<LearningPage />} />
