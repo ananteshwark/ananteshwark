@@ -3,7 +3,20 @@ import { Plus, X, Building2, KeyRound, Ban, CheckCircle, Users } from 'lucide-re
 import { adminApi } from '../../api/admin';
 
 const TIERS = ['TRIAL', 'FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE'];
-const ALL_MODULES = ['hr', 'finance', 'payroll', 'procurement', 'inventory', 'crm', 'projects', 'expenses', 'talent'];
+const ALL_MODULES = [
+  'hr', 'finance', 'payroll', 'procurement', 'inventory',
+  'crm', 'sales', 'contracts', 'projects', 'expenses',
+  'talent', 'manufacturing', 'quality', 'maintenance',
+  'benefits', 'analytics', 'platform', 'licensing',
+];
+
+const MODULE_LABELS: Record<string, string> = {
+  hr: 'HR', finance: 'Finance', payroll: 'Payroll', procurement: 'Procurement',
+  inventory: 'Inventory', crm: 'CRM', sales: 'Sales', contracts: 'Contracts',
+  projects: 'Projects', expenses: 'Expenses', talent: 'Talent',
+  manufacturing: 'Manufacturing', quality: 'Quality', maintenance: 'Maintenance',
+  benefits: 'Benefits', analytics: 'Analytics', platform: 'Platform', licensing: 'Licensing',
+};
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-700',
@@ -273,11 +286,16 @@ export default function TenantsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Enabled Modules</label>
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => setLicForm((f: any) => ({ ...f, enabledModules: [...ALL_MODULES] }))} className="text-xs text-indigo-600 hover:underline">Select all</button>
+                  <span className="text-xs text-gray-300">|</span>
+                  <button type="button" onClick={() => setLicForm((f: any) => ({ ...f, enabledModules: [] }))} className="text-xs text-gray-500 hover:underline">Clear all</button>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   {ALL_MODULES.map(m => (
-                    <label key={m} className="flex items-center gap-2 text-sm capitalize cursor-pointer">
+                    <label key={m} className="flex items-center gap-2 text-sm cursor-pointer">
                       <input type="checkbox" checked={licForm.enabledModules.includes(m)} onChange={() => toggleModule(m)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                      {m}
+                      {MODULE_LABELS[m] ?? m}
                     </label>
                   ))}
                 </div>
