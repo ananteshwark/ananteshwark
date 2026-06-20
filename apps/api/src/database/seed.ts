@@ -369,15 +369,19 @@ async function seed() {
   }
 
   // Functions (under departments) and an optional Sub Function
+  let platFn: any, taFn: any;
   try {
-    const platFn = await employeeService.createFunction(tenant.id, { code: 'FN-PLAT', name: 'Platform Engineering', departmentId: engDept?.id });
+    platFn = await employeeService.createFunction(tenant.id, { code: 'FN-PLAT', name: 'Platform Engineering', departmentId: engDept?.id });
     await employeeService.createFunction(tenant.id, { code: 'FN-QA', name: 'Quality Assurance', departmentId: engDept?.id });
-    await employeeService.createFunction(tenant.id, { code: 'FN-TA', name: 'Talent Acquisition', departmentId: hrDept?.id });
+    taFn = await employeeService.createFunction(tenant.id, { code: 'FN-TA', name: 'Talent Acquisition', departmentId: hrDept?.id });
     await employeeService.createSubFunction(tenant.id, { code: 'SF-BACKEND', name: 'Backend', functionId: platFn.id });
     await employeeService.createSubFunction(tenant.id, { code: 'SF-FRONTEND', name: 'Frontend', functionId: platFn.id });
     console.log('Created functions and sub functions');
   } catch (e) {
     console.log('Functions already exist');
+    const fns = await employeeService.findFunctions(tenant.id, { page: 1, limit: 100 });
+    platFn = fns.items.find((f: any) => f.code === 'FN-PLAT');
+    taFn = fns.items.find((f: any) => f.code === 'FN-TA');
   }
 
   // Designations
@@ -417,7 +421,9 @@ async function seed() {
       email: 'hr.emp@demo.com',
       dateOfJoining: '2024-01-01',
       designationId: hrmDesig?.id,
+      businessUnitId: corpBu?.id,
       departmentId: hrDept?.id,
+      functionId: taFn?.id,
       employmentType: 'FULL_TIME' as any,
     });
     console.log('Created employee EMP-001');
@@ -434,7 +440,9 @@ async function seed() {
       email: 'dev1@demo.com',
       dateOfJoining: '2024-03-01',
       designationId: seDesig?.id,
+      businessUnitId: techBu?.id,
       departmentId: engDept?.id,
+      functionId: platFn?.id,
       employmentType: 'FULL_TIME' as any,
     });
     console.log('Created employee EMP-002');
@@ -451,7 +459,9 @@ async function seed() {
       email: 'dev2@demo.com',
       dateOfJoining: '2024-06-01',
       designationId: seDesig?.id,
+      businessUnitId: techBu?.id,
       departmentId: engDept?.id,
+      functionId: platFn?.id,
       managerId: emp2?.id,
       employmentType: 'FULL_TIME' as any,
     });

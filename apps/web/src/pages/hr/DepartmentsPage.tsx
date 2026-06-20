@@ -105,9 +105,11 @@ export default function DepartmentsPage() {
       if (form.level === 'businessUnit') {
         await hrApi.createBusinessUnit(base);
       } else if (form.level === 'department') {
-        await hrApi.createDepartment({ ...base, businessUnitId: form.businessUnitId || undefined });
+        if (!form.businessUnitId) { setFormError('Business Unit is required for a department'); setSubmitting(false); return; }
+        await hrApi.createDepartment({ ...base, businessUnitId: form.businessUnitId });
       } else if (form.level === 'function') {
-        await hrApi.createFunction({ ...base, departmentId: form.departmentId || undefined });
+        if (!form.departmentId) { setFormError('Department is required for a function'); setSubmitting(false); return; }
+        await hrApi.createFunction({ ...base, departmentId: form.departmentId });
       } else {
         if (!form.functionId) { setFormError('Function is required for a sub function'); setSubmitting(false); return; }
         await hrApi.createSubFunction({ ...base, functionId: form.functionId });
@@ -188,9 +190,9 @@ export default function DepartmentsPage() {
 
               {form.level === 'department' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Unit</label>
-                  <select value={form.businessUnitId} onChange={e => setForm(f => ({ ...f, businessUnitId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">None (Unassigned)</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Unit *</label>
+                  <select required value={form.businessUnitId} onChange={e => setForm(f => ({ ...f, businessUnitId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select business unit...</option>
                     {businessUnits.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
@@ -198,9 +200,9 @@ export default function DepartmentsPage() {
 
               {form.level === 'function' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">None (Unassigned)</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+                  <select required value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select department...</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>

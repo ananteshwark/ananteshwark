@@ -92,7 +92,7 @@ export default function EmployeesPage() {
     setFormError(null);
     try {
       const payload: any = { ...form };
-      ['businessUnitId', 'departmentId', 'functionId', 'subFunctionId', 'designationId', 'phone'].forEach(k => {
+      ['subFunctionId', 'designationId', 'phone'].forEach(k => {
         if (!payload[k]) delete payload[k];
       });
       await hrApi.createEmployee(payload);
@@ -235,25 +235,25 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Unit</label>
-                  <select value={form.businessUnitId} onChange={e => setForm(f => ({ ...f, businessUnitId: e.target.value, departmentId: '', functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Business Unit</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Unit *</label>
+                  <select required value={form.businessUnitId} onChange={e => setForm(f => ({ ...f, businessUnitId: e.target.value, departmentId: '', functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Business Unit...</option>
                     {businessUnits.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value, functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Department</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+                  <select required value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value, functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Department...</option>
                     {departments.filter(d => !form.businessUnitId || d.businessUnitId === form.businessUnitId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Function</label>
-                  <select value={form.functionId} onChange={e => setForm(f => ({ ...f, functionId: e.target.value, subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Function</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Function *</label>
+                  <select required value={form.functionId} onChange={e => setForm(f => ({ ...f, functionId: e.target.value, subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Function...</option>
                     {functions.filter(fn => !form.departmentId || fn.departmentId === form.departmentId).map(fn => <option key={fn.id} value={fn.id}>{fn.name}</option>)}
                   </select>
                 </div>

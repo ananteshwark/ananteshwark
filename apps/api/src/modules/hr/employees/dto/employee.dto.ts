@@ -58,17 +58,14 @@ export class CreateEmployeeDto {
   @IsUUID()
   designationId?: string;
 
-  @IsOptional()
   @IsUUID()
-  businessUnitId?: string;
+  businessUnitId: string;
 
-  @IsOptional()
   @IsUUID()
-  departmentId?: string;
+  departmentId: string;
 
-  @IsOptional()
   @IsUUID()
-  functionId?: string;
+  functionId: string;
 
   @IsOptional()
   @IsUUID()
@@ -125,9 +122,8 @@ export class CreateDepartmentDto {
   @IsString()
   name: string;
 
-  @IsOptional()
   @IsUUID()
-  businessUnitId?: string;
+  businessUnitId: string;
 
   @IsOptional()
   @IsUUID()
@@ -150,9 +146,8 @@ export class CreateFunctionDto {
   @IsString()
   name: string;
 
-  @IsOptional()
   @IsUUID()
-  departmentId?: string;
+  departmentId: string;
 
   @IsOptional()
   @IsUUID()
