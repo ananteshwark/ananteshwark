@@ -63,6 +63,9 @@ import { SalesOrdersPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
 import { ManufacturingPage } from './pages/manufacturing';
+import { QualityPage } from './pages/quality';
+import { MaintenancePage } from './pages/maintenance';
+import { BenefitsPage } from './pages/benefits';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -130,6 +133,9 @@ export default function App() {
         <Route path="sales/orders" element={<SalesOrdersPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="manufacturing" element={<ManufacturingPage />} />
+        <Route path="quality" element={<QualityPage />} />
+        <Route path="maintenance" element={<MaintenancePage />} />
+        <Route path="benefits" element={<BenefitsPage />} />
         <Route path="ess" element={<ESSPage />} />
         <Route path="mss" element={<MSSPage />} />
       </Route>

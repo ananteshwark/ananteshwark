@@ -23,6 +23,9 @@ import {
   Users2,
   TrendingUp,
   FileText,
+  ClipboardCheck,
+  Wrench,
+  HeartHandshake,
   X,
   Menu,
 } from 'lucide-react';
@@ -114,6 +117,9 @@ const navItems: NavItem[] = [
   },
   { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts' },
   { label: 'Manufacturing', icon: <Package className="h-4 w-4" />, path: '/manufacturing' },
+  { label: 'Quality', icon: <ClipboardCheck className="h-4 w-4" />, path: '/quality' },
+  { label: 'Maintenance', icon: <Wrench className="h-4 w-4" />, path: '/maintenance' },
+  { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits' },
   {
     label: 'My Portal',
     icon: <UserCheck className="h-4 w-4" />,
