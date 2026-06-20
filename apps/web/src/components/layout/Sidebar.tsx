@@ -22,6 +22,7 @@ import {
   Receipt,
   Users2,
   TrendingUp,
+  FileText,
   X,
   Menu,
 } from 'lucide-react';
@@ -111,6 +112,7 @@ const navItems: NavItem[] = [
       { label: 'Sales Orders', path: '/sales/orders' },
     ],
   },
+  { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts' },
   {
     label: 'My Portal',
     icon: <UserCheck className="h-4 w-4" />,
