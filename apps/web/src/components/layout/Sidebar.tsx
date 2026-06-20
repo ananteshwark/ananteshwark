@@ -21,6 +21,7 @@ import {
   FolderOpen,
   Receipt,
   Users2,
+  TrendingUp,
   X,
   Menu,
 } from 'lucide-react';
@@ -102,6 +103,14 @@ const navItems: NavItem[] = [
   { label: 'Projects', icon: <FolderOpen className="h-4 w-4" />, path: '/projects', module: 'projects' },
   { label: 'Expenses', icon: <Receipt className="h-4 w-4" />, path: '/expenses', module: 'expenses' },
   { label: 'CRM', icon: <Users2 className="h-4 w-4" />, path: '/crm', module: 'crm' },
+  {
+    label: 'Sales',
+    icon: <TrendingUp className="h-4 w-4" />,
+    module: 'crm',
+    children: [
+      { label: 'Sales Orders', path: '/sales/orders' },
+    ],
+  },
   { label: 'Users', icon: <Users className="h-4 w-4" />, path: '/users' },
   { label: 'Roles & Permissions', icon: <Shield className="h-4 w-4" />, path: '/roles' },
   { label: 'Workflows', icon: <GitBranch className="h-4 w-4" />, path: '/workflows' },
