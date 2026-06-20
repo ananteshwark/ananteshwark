@@ -19,6 +19,6 @@ import { RbacModule } from '../../rbac/rbac.module';
   ],
   controllers: [ArController],
   providers: [ArService],
-  exports: [ArService],
+  exports: [ArService, TypeOrmModule],
 })
 export class ArModule {}
