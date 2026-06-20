@@ -82,8 +82,18 @@ export class Employee {
   @Column({ name: 'designation_id', type: 'uuid', nullable: true })
   designationId: string | null;
 
+  // Org hierarchy: Business Unit > Department > Function > Sub Function.
+  @Column({ name: 'business_unit_id', type: 'uuid', nullable: true })
+  businessUnitId: string | null;
+
   @Column({ name: 'department_id', type: 'uuid', nullable: true })
   departmentId: string | null;
+
+  @Column({ name: 'function_id', type: 'uuid', nullable: true })
+  functionId: string | null;
+
+  @Column({ name: 'sub_function_id', type: 'uuid', nullable: true })
+  subFunctionId: string | null;
 
   @Column({ name: 'manager_id', type: 'uuid', nullable: true })
   managerId: string | null;

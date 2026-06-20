@@ -305,23 +305,58 @@ async function seed() {
   const attendanceService = app.get(AttendanceService);
   const leaveService = app.get(LeaveService);
 
-  // Departments
+  // Business Units (top of the org hierarchy under the Organization/tenant)
+  let techBu: any, corpBu: any;
+  try {
+    techBu = await employeeService.createBusinessUnit(tenant.id, { code: 'BU-TECH', name: 'Technology' });
+    console.log('Created Technology business unit');
+  } catch (e) {
+    const bus = await employeeService.findBusinessUnits(tenant.id, { page: 1, limit: 100 });
+    techBu = bus.items.find((b: any) => b.code === 'BU-TECH');
+  }
+  try {
+    corpBu = await employeeService.createBusinessUnit(tenant.id, { code: 'BU-CORP', name: 'Corporate' });
+    console.log('Created Corporate business unit');
+  } catch (e) {
+    const bus = await employeeService.findBusinessUnits(tenant.id, { page: 1, limit: 100 });
+    corpBu = bus.items.find((b: any) => b.code === 'BU-CORP');
+  }
+
+  // Departments (under business units)
   let engDept: any, hrDept: any;
   try {
-    engDept = await employeeService.createDepartment(tenant.id, { code: 'ENG', name: 'Engineering' });
+    engDept = await employeeService.createDepartment(tenant.id, { code: 'ENG', name: 'Engineering', businessUnitId: techBu?.id });
     console.log('Created Engineering department');
   } catch (e) {
     console.log('Engineering department already exists');
     const depts = await employeeService.findDepartments(tenant.id, { page: 1, limit: 100 });
     engDept = depts.items.find((d: any) => d.code === 'ENG');
+    if (engDept && !engDept.businessUnitId && techBu?.id) {
+      engDept = await employeeService.updateDepartment(tenant.id, engDept.id, { businessUnitId: techBu.id });
+    }
   }
   try {
-    hrDept = await employeeService.createDepartment(tenant.id, { code: 'HR-DEPT', name: 'Human Resources' });
+    hrDept = await employeeService.createDepartment(tenant.id, { code: 'HR-DEPT', name: 'Human Resources', businessUnitId: corpBu?.id });
     console.log('Created HR department');
   } catch (e) {
     console.log('HR department already exists');
     const depts = await employeeService.findDepartments(tenant.id, { page: 1, limit: 100 });
     hrDept = depts.items.find((d: any) => d.code === 'HR-DEPT');
+    if (hrDept && !hrDept.businessUnitId && corpBu?.id) {
+      hrDept = await employeeService.updateDepartment(tenant.id, hrDept.id, { businessUnitId: corpBu.id });
+    }
+  }
+
+  // Functions (under departments) and an optional Sub Function
+  try {
+    const platFn = await employeeService.createFunction(tenant.id, { code: 'FN-PLAT', name: 'Platform Engineering', departmentId: engDept?.id });
+    await employeeService.createFunction(tenant.id, { code: 'FN-QA', name: 'Quality Assurance', departmentId: engDept?.id });
+    await employeeService.createFunction(tenant.id, { code: 'FN-TA', name: 'Talent Acquisition', departmentId: hrDept?.id });
+    await employeeService.createSubFunction(tenant.id, { code: 'SF-BACKEND', name: 'Backend', functionId: platFn.id });
+    await employeeService.createSubFunction(tenant.id, { code: 'SF-FRONTEND', name: 'Frontend', functionId: platFn.id });
+    console.log('Created functions and sub functions');
+  } catch (e) {
+    console.log('Functions already exist');
   }
 
   // Designations

@@ -30,13 +30,19 @@ const defaultForm = {
   dateOfJoining: '',
   employmentType: 'FULL_TIME',
   status: 'ACTIVE',
+  businessUnitId: '',
   departmentId: '',
+  functionId: '',
+  subFunctionId: '',
   designationId: '',
 };
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [businessUnits, setBusinessUnits] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [functions, setFunctions] = useState<any[]>([]);
+  const [subFunctions, setSubFunctions] = useState<any[]>([]);
   const [designations, setDesignations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,15 +60,21 @@ export default function EmployeesPage() {
       const params: any = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
-      const [empRes, deptRes, desigRes] = await Promise.all([
+      const [empRes, buRes, deptRes, fnRes, subFnRes, desigRes] = await Promise.all([
         hrApi.getEmployees(params),
-        hrApi.getDepartments({ limit: 100 }),
+        hrApi.getBusinessUnits({ limit: 200 }),
+        hrApi.getDepartments({ limit: 200 }),
+        hrApi.getFunctions({ limit: 200 }),
+        hrApi.getSubFunctions({ limit: 200 }),
         hrApi.getDesignations({ limit: 100 }),
       ]);
       const empData = empRes.data?.data ?? empRes.data ?? {};
       setEmployees(empData.items ?? empData ?? []);
+      setBusinessUnits(buRes.data?.items ?? buRes.data?.data?.items ?? []);
       const deptData = deptRes.data?.data ?? deptRes.data ?? {};
       setDepartments(deptData.items ?? deptData ?? []);
+      setFunctions(fnRes.data?.items ?? fnRes.data?.data?.items ?? []);
+      setSubFunctions(subFnRes.data?.items ?? subFnRes.data?.data?.items ?? []);
       const desigData = desigRes.data?.data ?? desigRes.data ?? {};
       setDesignations(desigData.items ?? desigData ?? []);
     } catch (err: any) {
@@ -80,9 +92,9 @@ export default function EmployeesPage() {
     setFormError(null);
     try {
       const payload: any = { ...form };
-      if (!payload.departmentId) delete payload.departmentId;
-      if (!payload.designationId) delete payload.designationId;
-      if (!payload.phone) delete payload.phone;
+      ['businessUnitId', 'departmentId', 'functionId', 'subFunctionId', 'designationId', 'phone'].forEach(k => {
+        if (!payload[k]) delete payload[k];
+      });
       await hrApi.createEmployee(payload);
       setShowModal(false);
       setForm(defaultForm);
@@ -223,19 +235,42 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Department</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Unit</label>
+                  <select value={form.businessUnitId} onChange={e => setForm(f => ({ ...f, businessUnitId: e.target.value, departmentId: '', functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Business Unit</option>
+                    {businessUnits.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
-                  <select value={form.designationId} onChange={e => setForm(f => ({ ...f, designationId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Designation</option>
-                    {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                  <select value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value, functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Department</option>
+                    {departments.filter(d => !form.businessUnitId || d.businessUnitId === form.businessUnitId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Function</label>
+                  <select value={form.functionId} onChange={e => setForm(f => ({ ...f, functionId: e.target.value, subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Function</option>
+                    {functions.filter(fn => !form.departmentId || fn.departmentId === form.departmentId).map(fn => <option key={fn.id} value={fn.id}>{fn.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub Function <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <select value={form.subFunctionId} onChange={e => setForm(f => ({ ...f, subFunctionId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Sub Function</option>
+                    {subFunctions.filter(sf => !form.functionId || sf.functionId === form.functionId).map(sf => <option key={sf.id} value={sf.id}>{sf.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                <select value={form.designationId} onChange={e => setForm(f => ({ ...f, designationId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select Designation</option>
+                  {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

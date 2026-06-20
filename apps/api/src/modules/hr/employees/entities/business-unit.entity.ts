@@ -1,8 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
-@Entity('hr_departments')
+// Top level of the org hierarchy beneath the Organization (tenant):
+// Organization > Business Unit > Department > Function > Sub Function.
+@Entity('hr_business_units')
 @Index(['code', 'tenantId'], { unique: true })
-export class Department {
+export class BusinessUnit {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -14,13 +16,6 @@ export class Department {
 
   @Column({ length: 200 })
   name: string;
-
-  // Department sits under a Business Unit in the org hierarchy.
-  @Column({ name: 'business_unit_id', type: 'uuid', nullable: true })
-  businessUnitId: string | null;
-
-  @Column({ name: 'parent_id', type: 'uuid', nullable: true })
-  parentId: string | null;
 
   @Column({ name: 'head_employee_id', type: 'uuid', nullable: true })
   headEmployeeId: string | null;

@@ -60,7 +60,19 @@ export class CreateEmployeeDto {
 
   @IsOptional()
   @IsUUID()
+  businessUnitId?: string;
+
+  @IsOptional()
+  @IsUUID()
   departmentId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  functionId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  subFunctionId?: string;
 
   @IsOptional()
   @IsUUID()
@@ -89,12 +101,33 @@ export class CreateEmployeeDto {
 
 export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {}
 
+export class CreateBusinessUnitDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsUUID()
+  headEmployeeId?: string;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdateBusinessUnitDto extends PartialType(CreateBusinessUnitDto) {}
+
 export class CreateDepartmentDto {
   @IsString()
   code: string;
 
   @IsString()
   name: string;
+
+  @IsOptional()
+  @IsUUID()
+  businessUnitId?: string;
 
   @IsOptional()
   @IsUUID()
@@ -109,6 +142,43 @@ export class CreateDepartmentDto {
 }
 
 export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) {}
+
+export class CreateFunctionDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  headEmployeeId?: string;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdateFunctionDto extends PartialType(CreateFunctionDto) {}
+
+export class CreateSubFunctionDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  @IsUUID()
+  functionId: string;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdateSubFunctionDto extends PartialType(CreateSubFunctionDto) {}
 
 export class CreateDesignationDto {
   @IsString()

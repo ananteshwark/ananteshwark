@@ -8,7 +8,10 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import {
   CreateEmployeeDto, UpdateEmployeeDto,
+  CreateBusinessUnitDto, UpdateBusinessUnitDto,
   CreateDepartmentDto, UpdateDepartmentDto,
+  CreateFunctionDto, UpdateFunctionDto,
+  CreateSubFunctionDto, UpdateSubFunctionDto,
   CreateDesignationDto, UpdateDesignationDto,
   CreateLocationDto, UpdateLocationDto,
 } from './dto/employee.dto';
@@ -69,6 +72,25 @@ export class EmployeeController {
     return this.employeeService.resignEmployee(user.tenantId, id, body.dateOfLeaving);
   }
 
+  // Business Units
+  @Get('business-units')
+  @RequirePermission('hr:employees:read')
+  listBusinessUnits(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
+    return this.employeeService.findBusinessUnits(user.tenantId, pagination);
+  }
+
+  @Post('business-units')
+  @RequirePermission('hr:org:manage')
+  createBusinessUnit(@CurrentUser() user: any, @Body() dto: CreateBusinessUnitDto) {
+    return this.employeeService.createBusinessUnit(user.tenantId, dto);
+  }
+
+  @Patch('business-units/:id')
+  @RequirePermission('hr:org:manage')
+  updateBusinessUnit(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateBusinessUnitDto) {
+    return this.employeeService.updateBusinessUnit(user.tenantId, id, dto);
+  }
+
   // Departments
   @Get('departments')
   @RequirePermission('hr:employees:read')
@@ -98,6 +120,44 @@ export class EmployeeController {
   @RequirePermission('hr:org:manage')
   updateDepartment(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateDepartmentDto) {
     return this.employeeService.updateDepartment(user.tenantId, id, dto);
+  }
+
+  // Functions
+  @Get('functions')
+  @RequirePermission('hr:employees:read')
+  listFunctions(@CurrentUser() user: any, @Query() pagination: PaginationDto, @Query('departmentId') departmentId?: string) {
+    return this.employeeService.findFunctions(user.tenantId, pagination, departmentId);
+  }
+
+  @Post('functions')
+  @RequirePermission('hr:org:manage')
+  createFunction(@CurrentUser() user: any, @Body() dto: CreateFunctionDto) {
+    return this.employeeService.createFunction(user.tenantId, dto);
+  }
+
+  @Patch('functions/:id')
+  @RequirePermission('hr:org:manage')
+  updateFunction(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateFunctionDto) {
+    return this.employeeService.updateFunction(user.tenantId, id, dto);
+  }
+
+  // Sub Functions
+  @Get('sub-functions')
+  @RequirePermission('hr:employees:read')
+  listSubFunctions(@CurrentUser() user: any, @Query() pagination: PaginationDto, @Query('functionId') functionId?: string) {
+    return this.employeeService.findSubFunctions(user.tenantId, pagination, functionId);
+  }
+
+  @Post('sub-functions')
+  @RequirePermission('hr:org:manage')
+  createSubFunction(@CurrentUser() user: any, @Body() dto: CreateSubFunctionDto) {
+    return this.employeeService.createSubFunction(user.tenantId, dto);
+  }
+
+  @Patch('sub-functions/:id')
+  @RequirePermission('hr:org:manage')
+  updateSubFunction(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateSubFunctionDto) {
+    return this.employeeService.updateSubFunction(user.tenantId, id, dto);
   }
 
   // Designations

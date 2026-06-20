@@ -10,12 +10,30 @@ export const hrApi = {
   resignEmployee: (id: string, data: any) => apiClient.post(`/hr/employees/${id}/resign`, data),
   getReportees: (id: string) => apiClient.get(`/hr/employees/${id}/reportees`),
 
+  // Org hierarchy: Business Unit > Department > Function > Sub Function
+  getOrgTree: () => apiClient.get('/hr/departments/tree'),
+
+  // Business Units
+  getBusinessUnits: (params?: any) => apiClient.get('/hr/business-units', { params }),
+  createBusinessUnit: (data: any) => apiClient.post('/hr/business-units', data),
+  updateBusinessUnit: (id: string, data: any) => apiClient.patch(`/hr/business-units/${id}`, data),
+
   // Departments
   getDepartments: (params?: any) => apiClient.get('/hr/departments', { params }),
   getDepartmentTree: () => apiClient.get('/hr/departments/tree'),
   getDepartment: (id: string) => apiClient.get(`/hr/departments/${id}`),
   createDepartment: (data: any) => apiClient.post('/hr/departments', data),
   updateDepartment: (id: string, data: any) => apiClient.patch(`/hr/departments/${id}`, data),
+
+  // Functions
+  getFunctions: (params?: any) => apiClient.get('/hr/functions', { params }),
+  createFunction: (data: any) => apiClient.post('/hr/functions', data),
+  updateFunction: (id: string, data: any) => apiClient.patch(`/hr/functions/${id}`, data),
+
+  // Sub Functions
+  getSubFunctions: (params?: any) => apiClient.get('/hr/sub-functions', { params }),
+  createSubFunction: (data: any) => apiClient.post('/hr/sub-functions', data),
+  updateSubFunction: (id: string, data: any) => apiClient.patch(`/hr/sub-functions/${id}`, data),
 
   // Designations
   getDesignations: (params?: any) => apiClient.get('/hr/designations', { params }),

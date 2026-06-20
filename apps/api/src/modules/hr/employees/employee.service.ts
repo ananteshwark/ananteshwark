@@ -3,13 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Employee, EmployeeStatus } from './entities/employee.entity';
 import { Department } from './entities/department.entity';
+import { BusinessUnit } from './entities/business-unit.entity';
+import { OrgFunction } from './entities/org-function.entity';
+import { SubFunction } from './entities/sub-function.entity';
 import { Designation } from './entities/designation.entity';
 import { Location } from './entities/location.entity';
 import { EmployeeDocument } from './entities/employee-document.entity';
 import { EmployeeTransfer, TransferStatus } from './entities/employee-transfer.entity';
 import {
   CreateEmployeeDto, UpdateEmployeeDto,
+  CreateBusinessUnitDto, UpdateBusinessUnitDto,
   CreateDepartmentDto, UpdateDepartmentDto,
+  CreateFunctionDto, UpdateFunctionDto,
+  CreateSubFunctionDto, UpdateSubFunctionDto,
   CreateDesignationDto, UpdateDesignationDto,
   CreateLocationDto, UpdateLocationDto,
 } from './dto/employee.dto';
@@ -22,6 +28,12 @@ export class EmployeeService {
     private readonly employeeRepo: Repository<Employee>,
     @InjectRepository(Department)
     private readonly departmentRepo: Repository<Department>,
+    @InjectRepository(BusinessUnit)
+    private readonly businessUnitRepo: Repository<BusinessUnit>,
+    @InjectRepository(OrgFunction)
+    private readonly functionRepo: Repository<OrgFunction>,
+    @InjectRepository(SubFunction)
+    private readonly subFunctionRepo: Repository<SubFunction>,
     @InjectRepository(Designation)
     private readonly designationRepo: Repository<Designation>,
     @InjectRepository(Location)
@@ -117,18 +129,111 @@ export class EmployeeService {
     return this.departmentRepo.save(dept);
   }
 
+  // ---- Business Units ----
+  async createBusinessUnit(tenantId: string, dto: CreateBusinessUnitDto): Promise<BusinessUnit> {
+    const existing = await this.businessUnitRepo.findOne({ where: { tenantId, code: dto.code } });
+    if (existing) throw new ConflictException(`Business unit code ${dto.code} already exists`);
+    return this.businessUnitRepo.save(this.businessUnitRepo.create({ ...dto, tenantId }));
+  }
+
+  async findBusinessUnits(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<BusinessUnit>> {
+    const { page = 1, limit = 100 } = pagination;
+    const [items, total] = await this.businessUnitRepo.findAndCount({ where: { tenantId }, skip: (page - 1) * limit, take: limit });
+    return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  async updateBusinessUnit(tenantId: string, id: string, dto: UpdateBusinessUnitDto): Promise<BusinessUnit> {
+    const bu = await this.businessUnitRepo.findOne({ where: { tenantId, id } });
+    if (!bu) throw new NotFoundException(`Business unit ${id} not found`);
+    Object.assign(bu, dto);
+    return this.businessUnitRepo.save(bu);
+  }
+
+  // ---- Functions ----
+  async createFunction(tenantId: string, dto: CreateFunctionDto): Promise<OrgFunction> {
+    const existing = await this.functionRepo.findOne({ where: { tenantId, code: dto.code } });
+    if (existing) throw new ConflictException(`Function code ${dto.code} already exists`);
+    return this.functionRepo.save(this.functionRepo.create({ ...dto, tenantId }));
+  }
+
+  async findFunctions(tenantId: string, pagination: PaginationDto, departmentId?: string): Promise<PaginatedResponseDto<OrgFunction>> {
+    const { page = 1, limit = 100 } = pagination;
+    const where: any = { tenantId };
+    if (departmentId) where.departmentId = departmentId;
+    const [items, total] = await this.functionRepo.findAndCount({ where, skip: (page - 1) * limit, take: limit });
+    return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  async updateFunction(tenantId: string, id: string, dto: UpdateFunctionDto): Promise<OrgFunction> {
+    const fn = await this.functionRepo.findOne({ where: { tenantId, id } });
+    if (!fn) throw new NotFoundException(`Function ${id} not found`);
+    Object.assign(fn, dto);
+    return this.functionRepo.save(fn);
+  }
+
+  // ---- Sub Functions ----
+  async createSubFunction(tenantId: string, dto: CreateSubFunctionDto): Promise<SubFunction> {
+    const existing = await this.subFunctionRepo.findOne({ where: { tenantId, code: dto.code } });
+    if (existing) throw new ConflictException(`Sub function code ${dto.code} already exists`);
+    return this.subFunctionRepo.save(this.subFunctionRepo.create({ ...dto, tenantId }));
+  }
+
+  async findSubFunctions(tenantId: string, pagination: PaginationDto, functionId?: string): Promise<PaginatedResponseDto<SubFunction>> {
+    const { page = 1, limit = 100 } = pagination;
+    const where: any = { tenantId };
+    if (functionId) where.functionId = functionId;
+    const [items, total] = await this.subFunctionRepo.findAndCount({ where, skip: (page - 1) * limit, take: limit });
+    return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  async updateSubFunction(tenantId: string, id: string, dto: UpdateSubFunctionDto): Promise<SubFunction> {
+    const sf = await this.subFunctionRepo.findOne({ where: { tenantId, id } });
+    if (!sf) throw new NotFoundException(`Sub function ${id} not found`);
+    Object.assign(sf, dto);
+    return this.subFunctionRepo.save(sf);
+  }
+
+  // Full org hierarchy: Business Unit > Department > Function > Sub Function.
   async getOrgTree(tenantId: string): Promise<any[]> {
-    const all = await this.departmentRepo.find({ where: { tenantId } });
-    const map = new Map<string, any>();
-    all.forEach(d => map.set(d.id, { ...d, children: [] }));
-    const roots: any[] = [];
-    map.forEach(node => {
-      if (node.parentId && map.has(node.parentId)) {
-        map.get(node.parentId).children.push(node);
-      } else {
-        roots.push(node);
-      }
+    const [bus, depts, fns, subs] = await Promise.all([
+      this.businessUnitRepo.find({ where: { tenantId } }),
+      this.departmentRepo.find({ where: { tenantId } }),
+      this.functionRepo.find({ where: { tenantId } }),
+      this.subFunctionRepo.find({ where: { tenantId } }),
+    ]);
+
+    const subsByFn = new Map<string, any[]>();
+    subs.forEach(s => {
+      const arr = subsByFn.get(s.functionId) ?? [];
+      arr.push({ ...s, level: 'subFunction' });
+      subsByFn.set(s.functionId, arr);
     });
+
+    const fnsByDept = new Map<string, any[]>();
+    fns.forEach(f => {
+      const node = { ...f, level: 'function', children: f.id ? (subsByFn.get(f.id) ?? []) : [] };
+      const key = f.departmentId ?? '__none__';
+      const arr = fnsByDept.get(key) ?? [];
+      arr.push(node);
+      fnsByDept.set(key, arr);
+    });
+
+    const deptsByBu = new Map<string, any[]>();
+    depts.forEach(d => {
+      const node = { ...d, level: 'department', children: fnsByDept.get(d.id) ?? [] };
+      const key = d.businessUnitId ?? '__none__';
+      const arr = deptsByBu.get(key) ?? [];
+      arr.push(node);
+      deptsByBu.set(key, arr);
+    });
+
+    const roots = bus.map(b => ({ ...b, level: 'businessUnit', children: deptsByBu.get(b.id) ?? [] }));
+
+    // Surface any departments not yet linked to a business unit so nothing is hidden.
+    const orphanDepts = deptsByBu.get('__none__') ?? [];
+    if (orphanDepts.length) {
+      roots.push({ id: '__unassigned__', code: 'UNASSIGNED', name: 'Unassigned', level: 'businessUnit', children: orphanDepts } as any);
+    }
     return roots;
   }
 
