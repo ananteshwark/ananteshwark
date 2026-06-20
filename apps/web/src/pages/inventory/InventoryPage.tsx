@@ -208,7 +208,7 @@ function NewItemDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   );
 }
 
-type Tab = 'items' | 'warehouses' | 'stock' | 'adjustments';
+type Tab = 'items' | 'warehouses' | 'stock' | 'adjustments' | 'lots' | 'cycle-counts' | 'rmas';
 
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<Tab>('items');
@@ -216,9 +216,15 @@ export default function InventoryPage() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [stockBalances, setStockBalances] = useState<any[]>([]);
   const [adjustments, setAdjustments] = useState<any[]>([]);
+  const [lots, setLots] = useState<any[]>([]);
+  const [cycleCounts, setCycleCounts] = useState<any[]>([]);
+  const [rmas, setRmas] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [showNewItem, setShowNewItem] = useState(false);
   const [showNewWarehouse, setShowNewWarehouse] = useState(false);
+  const [showLotModal, setShowLotModal] = useState(false);
+  const [showCycleModal, setShowCycleModal] = useState(false);
+  const [showRmaModal, setShowRmaModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const fetchItems = async () => {
@@ -266,11 +272,41 @@ export default function InventoryPage() {
     }
   };
 
+  const fetchLots = async () => {
+    setLoading(true);
+    try {
+      const res = await inventoryApi.getLots();
+      setLots(res.data || []);
+    } catch {
+    } finally { setLoading(false); }
+  };
+
+  const fetchCycleCounts = async () => {
+    setLoading(true);
+    try {
+      const res = await inventoryApi.getCycleCounts({ limit: 50 });
+      setCycleCounts(res.data?.items || []);
+    } catch {
+    } finally { setLoading(false); }
+  };
+
+  const fetchRmas = async () => {
+    setLoading(true);
+    try {
+      const res = await inventoryApi.getRmas({ limit: 50 });
+      setRmas(res.data?.items || []);
+    } catch {
+    } finally { setLoading(false); }
+  };
+
   useEffect(() => {
     if (activeTab === 'items') fetchItems();
     if (activeTab === 'warehouses') fetchWarehouses();
     if (activeTab === 'stock') fetchStockBalances();
     if (activeTab === 'adjustments') fetchAdjustments();
+    if (activeTab === 'lots') fetchLots();
+    if (activeTab === 'cycle-counts') fetchCycleCounts();
+    if (activeTab === 'rmas') fetchRmas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, search]);
 
@@ -279,6 +315,9 @@ export default function InventoryPage() {
     { key: 'warehouses' as const, label: 'Warehouses' },
     { key: 'stock' as const, label: 'Stock Balances' },
     { key: 'adjustments' as const, label: 'Adjustments' },
+    { key: 'lots' as const, label: 'Lots & Serials' },
+    { key: 'cycle-counts' as const, label: 'Cycle Counts' },
+    { key: 'rmas' as const, label: 'RMA' },
   ];
 
   return (
@@ -523,6 +562,151 @@ export default function InventoryPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Lots & Serials Tab */}
+      {activeTab === 'lots' && (
+        <>
+          <div className="flex justify-end mb-4">
+            <button onClick={() => setShowLotModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+              <Plus className="h-4 w-4" /> Receive Lot
+            </button>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b"><tr>{['Lot #', 'Item ID', 'Type', 'Received Qty', 'Available Qty', 'Expiry', 'Status'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{h}</th>)}</tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {lots.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">No lots or serials</td></tr>}
+                {lots.map((l: any) => (
+                  <tr key={l.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-xs">{l.lotNumber}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{l.itemId.slice(0, 8)}…</td>
+                    <td className="px-4 py-3">{l.trackingType}</td>
+                    <td className="px-4 py-3 text-right">{Number(l.receivedQty).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right">{Number(l.availableQty).toLocaleString()}</td>
+                    <td className="px-4 py-3">{l.expiryDate ?? '—'}</td>
+                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${l.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : l.status === 'QUARANTINE' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>{l.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {showLotModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <form className="bg-white rounded-xl p-6 w-[480px]" onSubmit={async e => { e.preventDefault(); const f = new FormData(e.currentTarget); await inventoryApi.receiveLot({ itemId: f.get('itemId'), lotNumber: f.get('lotNumber'), trackingType: f.get('trackingType'), receivedQty: Number(f.get('receivedQty')), expiryDate: f.get('expiryDate') || undefined }); setShowLotModal(false); fetchLots(); }}>
+                <h2 className="text-lg font-semibold mb-4">Receive Lot / Serial</h2>
+                <div className="space-y-3">
+                  <div><label className="text-xs text-gray-500">Item ID (UUID)</label><input name="itemId" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-xs text-gray-500">Lot / Serial #</label><input name="lotNumber" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                    <div><label className="text-xs text-gray-500">Type</label><select name="trackingType" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="LOT">Lot</option><option value="SERIAL">Serial</option></select></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-xs text-gray-500">Received Qty</label><input name="receivedQty" type="number" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                    <div><label className="text-xs text-gray-500">Expiry Date</label><input name="expiryDate" type="date" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-5">
+                  <button type="button" onClick={() => setShowLotModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                  <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Receive</button>
+                </div>
+              </form>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Cycle Counts Tab */}
+      {activeTab === 'cycle-counts' && (
+        <>
+          <div className="flex justify-end mb-4">
+            <button onClick={() => setShowCycleModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+              <Plus className="h-4 w-4" /> Start Cycle Count
+            </button>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b"><tr>{['Count #', 'Warehouse', 'Date', 'Status'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{h}</th>)}</tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {cycleCounts.length === 0 && <tr><td colSpan={4} className="text-center py-8 text-gray-400">No cycle counts</td></tr>}
+                {cycleCounts.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-xs">{c.countNumber}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{c.warehouseId.slice(0, 8)}…</td>
+                    <td className="px-4 py-3">{c.countDate}</td>
+                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.status === 'POSTED' ? 'bg-green-100 text-green-700' : c.status === 'COUNTING' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{c.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {showCycleModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <form className="bg-white rounded-xl p-6 w-[400px]" onSubmit={async e => { e.preventDefault(); const f = new FormData(e.currentTarget); await inventoryApi.createCycleCount({ warehouseId: f.get('warehouseId'), countDate: f.get('countDate') }); setShowCycleModal(false); fetchCycleCounts(); }}>
+                <h2 className="text-lg font-semibold mb-4">Start Cycle Count</h2>
+                <div className="space-y-3">
+                  <div><label className="text-xs text-gray-500">Warehouse ID (UUID)</label><input name="warehouseId" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                  <div><label className="text-xs text-gray-500">Count Date</label><input name="countDate" type="date" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                </div>
+                <div className="flex justify-end gap-3 mt-5">
+                  <button type="button" onClick={() => setShowCycleModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                  <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create</button>
+                </div>
+              </form>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* RMA Tab */}
+      {activeTab === 'rmas' && (
+        <>
+          <div className="flex justify-end mb-4">
+            <button onClick={() => setShowRmaModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+              <Plus className="h-4 w-4" /> New RMA
+            </button>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b"><tr>{['RMA #', 'Type', 'Customer/Vendor', 'Status', 'Requested', 'Value', 'Actions'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{h}</th>)}</tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {rmas.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">No RMAs</td></tr>}
+                {rmas.map((r: any) => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-xs">{r.rmaNumber}</td>
+                    <td className="px-4 py-3">{r.type}</td>
+                    <td className="px-4 py-3">{r.customerVendorName ?? '—'}</td>
+                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : r.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' : r.status === 'RECEIVED' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>{r.status}</span></td>
+                    <td className="px-4 py-3">{r.requestedDate}</td>
+                    <td className="px-4 py-3 text-right">{Number(r.totalValue).toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      {r.status === 'DRAFT' && <button onClick={async () => { await inventoryApi.approveRma(r.id); fetchRmas(); }} className="text-xs text-blue-600 hover:underline">Approve</button>}
+                      {r.status === 'APPROVED' && <button onClick={async () => { await inventoryApi.receiveRma(r.id, new Date().toISOString().slice(0, 10)); fetchRmas(); }} className="text-xs text-green-600 hover:underline">Mark Received</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {showRmaModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <form className="bg-white rounded-xl p-6 w-[480px]" onSubmit={async e => { e.preventDefault(); const f = new FormData(e.currentTarget); await inventoryApi.createRma({ type: f.get('type'), customerVendorName: f.get('customerVendorName') || undefined, requestedDate: f.get('requestedDate'), lines: [] }); setShowRmaModal(false); fetchRmas(); }}>
+                <h2 className="text-lg font-semibold mb-4">New Return (RMA)</h2>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-xs text-gray-500">Type</label><select name="type" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="CUSTOMER">Customer Return</option><option value="SUPPLIER">Supplier Return</option></select></div>
+                    <div><label className="text-xs text-gray-500">Customer / Vendor</label><input name="customerVendorName" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                  </div>
+                  <div><label className="text-xs text-gray-500">Requested Date</label><input name="requestedDate" type="date" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                </div>
+                <div className="flex justify-end gap-3 mt-5">
+                  <button type="button" onClick={() => setShowRmaModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                  <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create</button>
+                </div>
+              </form>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

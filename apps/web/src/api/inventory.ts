@@ -27,4 +27,30 @@ export const inventoryApi = {
   getAdjustments: (params?: any) => apiClient.get('/inventory/adjustments', { params }),
   createAdjustment: (data: any) => apiClient.post('/inventory/adjustments', data),
   postAdjustment: (id: string) => apiClient.post(`/inventory/adjustments/${id}/post`),
+
+  // Phase 18 - Bin Locations
+  getBins: (warehouseId?: string) => apiClient.get('/inventory/v2/bins', { params: warehouseId ? { warehouseId } : {} }),
+  createBin: (data: any) => apiClient.post('/inventory/v2/bins', data),
+
+  // Phase 18 - Lot / Serial
+  getLots: (itemId?: string) => apiClient.get('/inventory/v2/lots', { params: itemId ? { itemId } : {} }),
+  receiveLot: (data: any) => apiClient.post('/inventory/v2/lots', data),
+  quarantineLot: (id: string) => apiClient.patch(`/inventory/v2/lots/${id}/quarantine`),
+
+  // Phase 18 - UoM Conversions
+  getUomConversions: (itemId?: string) => apiClient.get('/inventory/v2/uom-conversions', { params: itemId ? { itemId } : {} }),
+  createUomConversion: (data: any) => apiClient.post('/inventory/v2/uom-conversions', data),
+
+  // Phase 18 - Cycle Counts
+  getCycleCounts: (params?: any) => apiClient.get('/inventory/v2/cycle-counts', { params }),
+  createCycleCount: (data: any) => apiClient.post('/inventory/v2/cycle-counts', data),
+  getCountLines: (countId: string) => apiClient.get(`/inventory/v2/cycle-counts/${countId}/lines`),
+  enterCount: (countId: string, lineId: string, countedQty: number) => apiClient.patch(`/inventory/v2/cycle-counts/${countId}/lines/${lineId}/count`, { countedQty }),
+  postCycleCount: (id: string) => apiClient.post(`/inventory/v2/cycle-counts/${id}/post`),
+
+  // Phase 18 - RMA
+  getRmas: (params?: any) => apiClient.get('/inventory/v2/rmas', { params }),
+  createRma: (data: any) => apiClient.post('/inventory/v2/rmas', data),
+  approveRma: (id: string) => apiClient.post(`/inventory/v2/rmas/${id}/approve`),
+  receiveRma: (id: string, receivedDate: string) => apiClient.post(`/inventory/v2/rmas/${id}/receive`, { receivedDate }),
 };
