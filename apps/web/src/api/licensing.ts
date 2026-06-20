@@ -19,6 +19,8 @@ export const licensingApi = {
   getModuleLicenses: (contractId?: string) =>
     apiClient.get('/licensing/module-licenses', { params: contractId ? { contractId } : {} }),
   assignModuleLicense: (data: any) => apiClient.post('/licensing/module-licenses', data),
+  updateModuleLicense: (id: string, data: any) =>
+    apiClient.patch(`/licensing/module-licenses/${id}`, data),
   revokeModuleLicense: (id: string) => apiClient.delete(`/licensing/module-licenses/${id}`),
 
   // Employee Assignments

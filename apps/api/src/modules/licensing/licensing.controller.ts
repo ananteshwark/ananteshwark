@@ -20,6 +20,7 @@ import {
   CreateLicenseContractDto,
   UpdateContractStatusDto,
   AssignModuleLicenseDto,
+  UpdateModuleLicenseDto,
   AssignEmployeeModuleDto,
   BulkAssignEmployeeModuleDto,
   RecordConsumptionDto,
@@ -109,6 +110,17 @@ export class LicensingController {
   @RequirePermission('licensing:manage')
   assignModuleLicense(@CurrentUser() user: any, @Body() dto: AssignModuleLicenseDto) {
     return this.licensingService.assignModuleLicense(user.tenantId, dto, user.id);
+  }
+
+  @Patch('module-licenses/:id')
+  @ApiOperation({ summary: 'Update module license (licensed users, price, validity)' })
+  @RequirePermission('licensing:manage')
+  updateModuleLicense(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateModuleLicenseDto,
+  ) {
+    return this.licensingService.updateModuleLicense(user.tenantId, id, dto, user.id);
   }
 
   @Delete('module-licenses/:id')

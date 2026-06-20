@@ -134,6 +134,22 @@ export class AssignModuleLicenseDto {
   effectiveTo?: string;
 }
 
+export class UpdateModuleLicenseDto {
+  // Number of licensed users for the module. Pass `null` for unlimited.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxEmployees?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  unitPrice?: number;
+
+  @IsOptional()
+  @IsString()
+  effectiveTo?: string | null;
+}
+
 export class AssignEmployeeModuleDto {
   @IsString()
   employeeId: string;

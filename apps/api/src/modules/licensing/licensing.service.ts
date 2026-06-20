@@ -20,6 +20,7 @@ import {
   CreateLicensePlanDto,
   CreateLicenseContractDto,
   AssignModuleLicenseDto,
+  UpdateModuleLicenseDto,
   AssignEmployeeModuleDto,
   BulkAssignEmployeeModuleDto,
   RecordConsumptionDto,
@@ -225,11 +226,43 @@ export class LicensingService {
   async listModuleLicenses(
     tenantId: string,
     contractId?: string,
-  ): Promise<{ data: ModuleLicense[]; total: number }> {
+  ): Promise<{ data: any[]; total: number }> {
     const where: any = { tenantId };
     if (contractId) where.contractId = contractId;
     const data = await this.moduleLicenseRepo.find({ where, order: { moduleKey: 'ASC' } });
-    return { data, total: data.length };
+
+    // Enrich each module license with current active-seat usage so the UI can
+    // show "seats used / cap" and seats remaining.
+    const enriched = await Promise.all(
+      data.map(async (m) => {
+        const assignedCount = await this.assignmentRepo.count({
+          where: { tenantId, moduleKey: m.moduleKey, isActive: true },
+        });
+        const seatsRemaining =
+          m.maxEmployees === null ? null : Math.max(0, m.maxEmployees - assignedCount);
+        return { ...m, assignedCount, seatsRemaining };
+      }),
+    );
+
+    return { data: enriched, total: enriched.length };
+  }
+
+  /**
+   * Resolve the effective seat cap for a module across all active module
+   * licenses for the tenant. Returns `null` when access is uncapped (i.e. at
+   * least one active license grants unlimited seats), otherwise the summed cap.
+   */
+  private async getModuleSeatCap(tenantId: string, moduleKey: string): Promise<number | null> {
+    const licenses = await this.moduleLicenseRepo.find({
+      where: { tenantId, moduleKey, isActive: true },
+    });
+    if (licenses.length === 0) return null;
+    let cap = 0;
+    for (const lic of licenses) {
+      if (lic.maxEmployees === null) return null; // any unlimited license ⇒ uncapped
+      cap += lic.maxEmployees;
+    }
+    return cap;
   }
 
   async assignModuleLicense(
@@ -257,6 +290,37 @@ export class LicensingService {
       userId,
       null,
       saved,
+    );
+    return saved;
+  }
+
+  async updateModuleLicense(
+    tenantId: string,
+    id: string,
+    dto: UpdateModuleLicenseDto,
+    userId: string | null,
+  ): Promise<ModuleLicense> {
+    const ml = await this.moduleLicenseRepo.findOne({ where: { id, tenantId } });
+    if (!ml) throw new NotFoundException('Module license not found');
+
+    const old = { maxEmployees: ml.maxEmployees, unitPrice: ml.unitPrice, effectiveTo: ml.effectiveTo };
+
+    if (dto.maxEmployees !== undefined) {
+      // maxEmployees may be set to null to mean "unlimited".
+      ml.maxEmployees = dto.maxEmployees === null ? null : dto.maxEmployees;
+    }
+    if (dto.unitPrice !== undefined) ml.unitPrice = dto.unitPrice;
+    if (dto.effectiveTo !== undefined) ml.effectiveTo = dto.effectiveTo ?? null;
+
+    const saved = await this.moduleLicenseRepo.save(ml);
+    await this.writeAuditLog(
+      tenantId,
+      'MODULE_LICENSE_UPDATED',
+      'ModuleLicense',
+      id,
+      userId,
+      old,
+      { maxEmployees: saved.maxEmployees, unitPrice: saved.unitPrice, effectiveTo: saved.effectiveTo },
     );
     return saved;
   }
@@ -317,6 +381,20 @@ export class LicensingService {
       );
     }
 
+    // Enforce the per-module seat cap defined by the admin. Block the assignment
+    // if granting it would exceed the number of licensed users for the module.
+    const cap = await this.getModuleSeatCap(tenantId, dto.moduleKey);
+    if (cap !== null) {
+      const currentCount = await this.assignmentRepo.count({
+        where: { tenantId, moduleKey: dto.moduleKey, isActive: true },
+      });
+      if (currentCount >= cap) {
+        throw new BadRequestException(
+          `Module '${dto.moduleKey}' seat limit reached (${currentCount}/${cap}). Increase the module's licensed users or revoke an existing assignment.`,
+        );
+      }
+    }
+
     const assignment = this.assignmentRepo.create({
       tenantId,
       employeeId: dto.employeeId,
@@ -342,9 +420,20 @@ export class LicensingService {
     tenantId: string,
     dto: BulkAssignEmployeeModuleDto,
     userId: string | null,
-  ): Promise<{ assigned: number; skipped: number }> {
+  ): Promise<{ assigned: number; skipped: number; capReached: number }> {
     let assigned = 0;
     let skipped = 0;
+    let capReached = 0;
+
+    // Resolve the seat cap once and track a running active-seat count so we
+    // stop assigning the moment the module's licensed-user limit is hit.
+    const cap = await this.getModuleSeatCap(tenantId, dto.moduleKey);
+    let activeCount =
+      cap === null
+        ? 0
+        : await this.assignmentRepo.count({
+            where: { tenantId, moduleKey: dto.moduleKey, isActive: true },
+          });
 
     for (const emp of dto.employeeIds) {
       const existing = await this.assignmentRepo.findOne({
@@ -360,6 +449,11 @@ export class LicensingService {
         continue;
       }
 
+      if (cap !== null && activeCount >= cap) {
+        capReached++;
+        continue;
+      }
+
       const assignment = this.assignmentRepo.create({
         tenantId,
         employeeId: emp.employeeId,
@@ -370,6 +464,7 @@ export class LicensingService {
       });
       await this.assignmentRepo.save(assignment);
       assigned++;
+      activeCount++;
     }
 
     await this.writeAuditLog(
@@ -379,10 +474,10 @@ export class LicensingService {
       null,
       userId,
       null,
-      { moduleKey: dto.moduleKey, assigned, skipped },
+      { moduleKey: dto.moduleKey, assigned, skipped, capReached },
     );
 
-    return { assigned, skipped };
+    return { assigned, skipped, capReached };
   }
 
   async revokeAssignment(
@@ -866,15 +961,16 @@ export class LicensingService {
         }
       }
 
-      // Check max employee capacity
-      if (moduleLicense.maxEmployees !== null) {
+      // Check max employee capacity against the aggregate seat cap
+      const cap = await this.getModuleSeatCap(tenantId, dto.moduleKey);
+      if (cap !== null) {
         const currentCount = await this.assignmentRepo.count({
           where: { tenantId, moduleKey: dto.moduleKey, isActive: true },
         });
-        if (currentCount >= moduleLicense.maxEmployees) {
+        if (currentCount > cap) {
           return {
             allowed: false,
-            reason: `Module '${dto.moduleKey}' employee limit reached (${currentCount}/${moduleLicense.maxEmployees})`,
+            reason: `Module '${dto.moduleKey}' employee limit reached (${currentCount}/${cap})`,
             action: 'SOFT_BLOCK',
           };
         }

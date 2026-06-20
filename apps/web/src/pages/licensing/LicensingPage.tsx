@@ -27,7 +27,19 @@ const LICENSE_TYPE_LABELS: Record<string, string> = {
   ENTERPRISE_CONSUMPTION: 'Enterprise Pool',
 };
 
-const COMMON_MODULES = ['hr', 'payroll', 'recruitment', 'attendance', 'learning', 'performance', 'analytics', 'api'];
+const COMMON_MODULES = [
+  'hr', 'finance', 'payroll', 'procurement', 'inventory', 'crm', 'sales', 'contracts',
+  'projects', 'expenses', 'talent', 'manufacturing', 'quality', 'maintenance', 'benefits',
+  'analytics', 'platform', 'licensing',
+];
+
+const MODULE_LABELS: Record<string, string> = {
+  hr: 'Human Resources', finance: 'Finance', payroll: 'Payroll', procurement: 'Procurement',
+  inventory: 'Inventory', crm: 'CRM', sales: 'Sales', contracts: 'Contracts',
+  projects: 'Projects', expenses: 'Expenses', talent: 'Talent', manufacturing: 'Manufacturing',
+  quality: 'Quality', maintenance: 'Maintenance', benefits: 'Benefits', analytics: 'Analytics',
+  platform: 'Platform', licensing: 'Licensing',
+};
 
 function StatCard({ label, value, sub, color = 'blue' }: { label: string; value: string | number; sub?: string; color?: string }) {
   const colors: Record<string, string> = {
@@ -59,10 +71,12 @@ export const LicensingPage: React.FC = () => {
   // Modals
   const [showContractModal, setShowContractModal] = useState(false);
   const [showModuleModal, setShowModuleModal] = useState(false);
+  const [editingModule, setEditingModule] = useState<any>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showConsumptionModal, setShowConsumptionModal] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   // Validation
   const [validateForm, setValidateForm] = useState({ employeeId: '', moduleKey: '' });
@@ -174,7 +188,7 @@ export const LicensingPage: React.FC = () => {
     await licensingApi.assignModuleLicense({
       contractId: f.get('contractId'),
       moduleKey: key,
-      moduleName: key.charAt(0).toUpperCase() + key.slice(1),
+      moduleName: MODULE_LABELS[key] || (key.charAt(0).toUpperCase() + key.slice(1)),
       maxEmployees: f.get('maxEmployees') ? parseInt(f.get('maxEmployees') as string) : null,
       unitPrice: parseFloat(f.get('unitPrice') as string),
       effectiveFrom: f.get('effectiveFrom'),
@@ -183,20 +197,39 @@ export const LicensingPage: React.FC = () => {
     fetchAll();
   };
 
-  const handleAssignSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleModuleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    await licensingApi.assignEmployee({
-      employeeId: f.get('employeeId'),
-      employeeName: f.get('employeeName'),
-      moduleKey: f.get('moduleKey'),
+    const maxRaw = (f.get('maxEmployees') as string).trim();
+    await licensingApi.updateModuleLicense(editingModule.id, {
+      maxEmployees: maxRaw === '' ? null : parseInt(maxRaw, 10),
+      unitPrice: parseFloat(f.get('unitPrice') as string),
+      effectiveTo: (f.get('effectiveTo') as string) || null,
     });
-    setShowAssignModal(false);
+    setEditingModule(null);
     fetchAll();
+  };
+
+  const handleAssignSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAssignError(null);
+    const f = new FormData(e.currentTarget);
+    try {
+      await licensingApi.assignEmployee({
+        employeeId: f.get('employeeId'),
+        employeeName: f.get('employeeName'),
+        moduleKey: f.get('moduleKey'),
+      });
+      setShowAssignModal(false);
+      fetchAll();
+    } catch (err: any) {
+      setAssignError(err?.response?.data?.message || 'Failed to assign employee');
+    }
   };
 
   const handleBulkSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setAssignError(null);
     const f = new FormData(e.currentTarget);
     const moduleKey = f.get('moduleKey') as string;
     const raw = (f.get('employees') as string).split('\n').map(l => l.trim()).filter(Boolean);
@@ -204,9 +237,18 @@ export const LicensingPage: React.FC = () => {
       const [id, ...nameParts] = line.split(':');
       return { employeeId: id.trim(), employeeName: nameParts.join(':').trim() || id.trim() };
     });
-    await licensingApi.bulkAssignEmployees({ moduleKey, employeeIds });
-    setShowBulkModal(false);
-    fetchAll();
+    try {
+      const res = await licensingApi.bulkAssignEmployees({ moduleKey, employeeIds });
+      const r = res.data?.data ?? res.data ?? {};
+      setShowBulkModal(false);
+      fetchAll();
+      const parts = [`${r.assigned ?? 0} assigned`];
+      if (r.skipped) parts.push(`${r.skipped} skipped (already licensed)`);
+      if (r.capReached) parts.push(`${r.capReached} blocked (seat limit reached)`);
+      alert(parts.join(', '));
+    } catch (err: any) {
+      setAssignError(err?.response?.data?.message || 'Failed to bulk assign');
+    }
   };
 
   const handleInvoiceSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -413,7 +455,7 @@ export const LicensingPage: React.FC = () => {
               <tr>
                 <th className="px-4 py-2 text-left">Module</th>
                 <th className="px-4 py-2 text-left">Contract</th>
-                <th className="px-4 py-2 text-right">Max Employees</th>
+                <th className="px-4 py-2 text-left">Licensed Users (used / cap)</th>
                 <th className="px-4 py-2 text-right">Unit Price</th>
                 <th className="px-4 py-2 text-left">Effective From</th>
                 <th className="px-4 py-2 text-left">Effective To</th>
@@ -422,20 +464,43 @@ export const LicensingPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {moduleLicenses.map((m: any) => (
+              {moduleLicenses.map((m: any) => {
+                const used = m.assignedCount ?? 0;
+                const cap = m.maxEmployees;
+                const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : 0;
+                const full = cap != null && used >= cap;
+                return (
                 <tr key={m.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-mono">{m.moduleKey}</span> <span className="text-gray-600 ml-1">{m.moduleName}</span></td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{m.contractId?.slice(0, 8)}…</td>
-                  <td className="px-4 py-3 text-right">{m.maxEmployees ?? 'Unlimited'}</td>
+                  <td className="px-4 py-3">
+                    {cap == null ? (
+                      <span className="text-gray-600">{used} <span className="text-gray-400">/ Unlimited</span></span>
+                    ) : (
+                      <div className="w-40">
+                        <div className="flex items-center justify-between text-xs mb-0.5">
+                          <span className={full ? 'text-red-600 font-semibold' : 'text-gray-700'}>{used} / {cap}</span>
+                          {full && <span className="text-red-600 font-medium">Full</span>}
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div className={`h-1.5 rounded-full ${full ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right font-medium">${Number(m.unitPrice).toFixed(2)}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{m.effectiveFrom ? new Date(m.effectiveFrom).toLocaleDateString() : '—'}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{m.effectiveTo ? new Date(m.effectiveTo).toLocaleDateString() : '—'}</td>
                   <td className="px-4 py-3">{m.isActive ? <span className="text-green-600 text-xs font-medium">Active</span> : <span className="text-gray-400 text-xs">Revoked</span>}</td>
                   <td className="px-4 py-3">
-                    {m.isActive && <button onClick={() => handleRevokeModule(m.id)} className="flex items-center gap-1 text-red-500 hover:underline text-xs"><Trash2 className="h-3 w-3" /> Revoke</button>}
+                    <div className="flex gap-3 text-xs">
+                      {m.isActive && <button onClick={() => setEditingModule(m)} className="text-blue-600 hover:underline">Edit Limit</button>}
+                      {m.isActive && <button onClick={() => handleRevokeModule(m.id)} className="flex items-center gap-1 text-red-500 hover:underline"><Trash2 className="h-3 w-3" /> Revoke</button>}
+                    </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {moduleLicenses.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No module licenses assigned</td></tr>}
             </tbody>
           </table>
@@ -454,14 +519,14 @@ export const LicensingPage: React.FC = () => {
                 className="border rounded px-2 py-1 text-sm"
               >
                 <option value="">All Modules</option>
-                {COMMON_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+                {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
               </select>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowBulkModal(true)} className="flex items-center gap-1 px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
+              <button onClick={() => { setAssignError(null); setShowBulkModal(true); }} className="flex items-center gap-1 px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
                 <Users className="h-3.5 w-3.5" /> Bulk Assign
               </button>
-              <button onClick={() => setShowAssignModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+              <button onClick={() => { setAssignError(null); setShowAssignModal(true); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
                 <Plus className="h-3.5 w-3.5" /> Assign Employee
               </button>
             </div>
@@ -651,7 +716,7 @@ export const LicensingPage: React.FC = () => {
                   className="w-full border rounded px-3 py-2 text-sm"
                 >
                   <option value="">— Employee-level check only —</option>
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
                 </select>
               </div>
               <button onClick={handleValidate} className="w-full py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center justify-center gap-2">
@@ -774,13 +839,13 @@ export const LicensingPage: React.FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Module</label>
                 <select name="moduleKey" required className="w-full border rounded px-3 py-2 text-sm">
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Max Employees (blank=unlimited)</label>
-                  <input name="maxEmployees" type="number" min="1" className="w-full border rounded px-3 py-2 text-sm" />
+                  <label className="block text-xs text-gray-500 mb-1">Licensed Users (blank=unlimited)</label>
+                  <input name="maxEmployees" type="number" min="1" className="w-full border rounded px-3 py-2 text-sm" placeholder="e.g. 25" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Unit Price ($/employee)</label>
@@ -800,11 +865,56 @@ export const LicensingPage: React.FC = () => {
         </div>
       )}
 
+      {/* Edit Module License (licensed users) Modal */}
+      {editingModule && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-1">Edit Licensed Users</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              <span className="font-mono">{editingModule.moduleKey}</span> — currently {editingModule.assignedCount ?? 0} active user(s) assigned
+            </p>
+            <form onSubmit={handleModuleEditSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Licensed Users (blank = unlimited)</label>
+                <input
+                  name="maxEmployees"
+                  type="number"
+                  min="0"
+                  defaultValue={editingModule.maxEmployees ?? ''}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  placeholder="Unlimited"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Only this many active employees may be assigned access to this module.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Unit Price ($/employee)</label>
+                <input name="unitPrice" type="number" step="0.0001" required defaultValue={Number(editingModule.unitPrice).toFixed(4)} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Effective To (optional)</label>
+                <input name="effectiveTo" type="date" defaultValue={editingModule.effectiveTo ?? ''} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingModule(null)} className="px-4 py-2 text-sm border rounded hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Assign Employee Modal */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold mb-4">Assign Employee to Module</h3>
+            {assignError && (
+              <div className="mb-3 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> <span>{assignError}</span>
+              </div>
+            )}
             <form onSubmit={handleAssignSubmit} className="space-y-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Employee ID</label>
@@ -817,7 +927,7 @@ export const LicensingPage: React.FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Module</label>
                 <select name="moduleKey" required className="w-full border rounded px-3 py-2 text-sm">
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
                 </select>
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -834,11 +944,16 @@ export const LicensingPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold mb-4">Bulk Assign Employees</h3>
+            {assignError && (
+              <div className="mb-3 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> <span>{assignError}</span>
+              </div>
+            )}
             <form onSubmit={handleBulkSubmit} className="space-y-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Module</label>
                 <select name="moduleKey" required className="w-full border rounded px-3 py-2 text-sm">
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
                 </select>
               </div>
               <div>
@@ -914,7 +1029,7 @@ export const LicensingPage: React.FC = () => {
                 <label className="block text-xs text-gray-500 mb-1">Module (for MODULE type)</label>
                 <select name="moduleKey" className="w-full border rounded px-3 py-2 text-sm">
                   <option value="">— N/A —</option>
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-3 gap-3">
