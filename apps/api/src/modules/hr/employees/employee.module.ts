@@ -12,11 +12,13 @@ import { EmployeeTransfer } from './entities/employee-transfer.entity';
 import { EmployeeService } from './employee.service';
 import { EmployeeController } from './employee.controller';
 import { RbacModule } from '../../rbac/rbac.module';
+import { UsersModule } from '../../users/users.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Employee, Department, BusinessUnit, OrgFunction, SubFunction, Designation, Location, EmployeeDocument, EmployeeTransfer]),
     RbacModule,
+    UsersModule,
   ],
   controllers: [EmployeeController],
   providers: [EmployeeService],

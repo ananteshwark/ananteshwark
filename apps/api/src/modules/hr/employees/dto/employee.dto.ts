@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsEmail, IsEnum, IsUUID, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsEnum, IsUUID, IsDateString, IsBoolean, MinLength, IsArray, ValidateNested } from 'class-validator';
 import { PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { Gender, MaritalStatus, EmployeeStatus, EmploymentType } from '../entities/employee.entity';
 
 export class CreateEmployeeDto {
@@ -9,6 +10,10 @@ export class CreateEmployeeDto {
   @IsString()
   firstName: string;
 
+  @IsOptional()
+  @IsString()
+  middleName?: string;
+
   @IsString()
   lastName: string;
 
@@ -16,9 +21,18 @@ export class CreateEmployeeDto {
   email: string;
 
   @IsOptional()
+  @IsEmail()
+  personalEmail?: string;
+
+  @IsOptional()
   @IsString()
   phone?: string;
 
+  @IsOptional()
+  @IsString()
+  homePhone?: string;
+
+  // Personal details
   @IsOptional()
   @IsDateString()
   dateOfBirth?: string;
@@ -37,12 +51,105 @@ export class CreateEmployeeDto {
 
   @IsOptional()
   @IsString()
+  bloodGroup?: string;
+
+  @IsOptional()
+  @IsString()
   pan?: string;
 
   @IsOptional()
   @IsString()
   aadhar?: string;
 
+  @IsOptional()
+  @IsString()
+  passportNumber?: string;
+
+  @IsOptional()
+  @IsDateString()
+  passportExpiry?: string;
+
+  // Current address
+  @IsOptional()
+  @IsString()
+  currentAddressLine1?: string;
+
+  @IsOptional()
+  @IsString()
+  currentAddressLine2?: string;
+
+  @IsOptional()
+  @IsString()
+  currentCity?: string;
+
+  @IsOptional()
+  @IsString()
+  currentState?: string;
+
+  @IsOptional()
+  @IsString()
+  currentCountry?: string;
+
+  @IsOptional()
+  @IsString()
+  currentPincode?: string;
+
+  // Permanent address
+  @IsOptional()
+  @IsString()
+  permanentAddressLine1?: string;
+
+  @IsOptional()
+  @IsString()
+  permanentAddressLine2?: string;
+
+  @IsOptional()
+  @IsString()
+  permanentCity?: string;
+
+  @IsOptional()
+  @IsString()
+  permanentState?: string;
+
+  @IsOptional()
+  @IsString()
+  permanentCountry?: string;
+
+  @IsOptional()
+  @IsString()
+  permanentPincode?: string;
+
+  // Emergency contact
+  @IsOptional()
+  @IsString()
+  emergencyContactName?: string;
+
+  @IsOptional()
+  @IsString()
+  emergencyContactRelation?: string;
+
+  @IsOptional()
+  @IsString()
+  emergencyContactPhone?: string;
+
+  // Banking
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  bankBranch?: string;
+
+  // Employment
   @IsDateString()
   dateOfJoining: string;
 
@@ -54,6 +161,19 @@ export class CreateEmployeeDto {
   @IsEnum(EmployeeStatus)
   status?: EmployeeStatus;
 
+  @IsOptional()
+  @IsEnum(EmploymentType)
+  employmentType?: EmploymentType;
+
+  @IsOptional()
+  @IsDateString()
+  probationEndDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  confirmationDate?: string;
+
+  // Org hierarchy
   @IsOptional()
   @IsUUID()
   designationId?: string;
@@ -80,23 +200,28 @@ export class CreateEmployeeDto {
   locationId?: string;
 
   @IsOptional()
-  @IsEnum(EmploymentType)
-  employmentType?: EmploymentType;
-
-  @IsOptional()
   @IsUUID()
   userId?: string;
 
+  // Login account provisioning (not persisted — handled in service)
   @IsOptional()
-  @IsDateString()
-  probationEndDate?: string;
+  @IsBoolean()
+  createLoginAccount?: boolean;
 
   @IsOptional()
-  @IsDateString()
-  confirmationDate?: string;
+  @IsString()
+  @MinLength(8)
+  loginPassword?: string;
 }
 
 export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {}
+
+export class BulkCreateEmployeeDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateEmployeeDto)
+  rows: CreateEmployeeDto[];
+}
 
 export class CreateBusinessUnitDto {
   @IsString()

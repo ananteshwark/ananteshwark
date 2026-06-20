@@ -1,17 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Plus, X, Search } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, X, Search, Upload, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { hrApi } from '../../api/hr';
 
 interface Employee {
   id: string;
   employeeCode: string;
   firstName: string;
+  middleName?: string | null;
   lastName: string;
   email: string;
+  phone?: string | null;
   status: string;
   designationId: string | null;
   departmentId: string | null;
+  businessUnitId?: string | null;
   employmentType: string;
+  dateOfJoining?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -21,21 +25,66 @@ const STATUS_COLORS: Record<string, string> = {
   RESIGNED: 'bg-gray-100 text-gray-800',
 };
 
-const defaultForm = {
-  employeeCode: '',
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  dateOfJoining: '',
-  employmentType: 'FULL_TIME',
-  status: 'ACTIVE',
-  businessUnitId: '',
-  departmentId: '',
-  functionId: '',
-  subFunctionId: '',
-  designationId: '',
-};
+const TABS = ['Work Info', 'Personal', 'Address', 'Emergency', 'Banking', 'Login Account'] as const;
+type Tab = typeof TABS[number];
+
+const makeDefaultForm = () => ({
+  // Work Info
+  employeeCode: '', dateOfJoining: '', probationEndDate: '', confirmationDate: '',
+  firstName: '', middleName: '', lastName: '',
+  email: '', phone: '',
+  businessUnitId: '', departmentId: '', functionId: '', subFunctionId: '',
+  designationId: '', managerId: '', locationId: '',
+  employmentType: 'FULL_TIME', status: 'ACTIVE',
+  // Personal
+  dateOfBirth: '', gender: '', maritalStatus: '', nationality: '',
+  bloodGroup: '', personalEmail: '', homePhone: '', pan: '', aadhar: '',
+  passportNumber: '', passportExpiry: '',
+  // Current Address
+  currentAddressLine1: '', currentAddressLine2: '', currentCity: '',
+  currentState: '', currentCountry: '', currentPincode: '',
+  // Permanent Address
+  permanentAddressLine1: '', permanentAddressLine2: '', permanentCity: '',
+  permanentState: '', permanentCountry: '', permanentPincode: '',
+  // Emergency
+  emergencyContactName: '', emergencyContactRelation: '', emergencyContactPhone: '',
+  // Banking
+  bankName: '', bankAccountNumber: '', bankIfsc: '', bankBranch: '',
+  // Login
+  createLoginAccount: false, loginPassword: '',
+});
+
+// CSV columns for bulk upload template
+const CSV_COLUMNS = [
+  'employeeCode', 'firstName', 'lastName', 'email', 'dateOfJoining',
+  'businessUnitId', 'departmentId', 'functionId', 'phone', 'gender',
+  'dateOfBirth', 'employmentType', 'designationId', 'locationId',
+];
+
+function parseCSV(text: string): Record<string, string>[] {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).map(line => {
+    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']));
+  });
+}
+
+function downloadTemplate(bus: any[], depts: any[], fns: any[], desigs: any[], locs: any[]) {
+  const header = CSV_COLUMNS.join(',');
+  const example = [
+    'EMP-100', 'John', 'Doe', 'john.doe@company.com', '2024-01-15',
+    bus[0]?.id ?? '', depts[0]?.id ?? '', fns[0]?.id ?? '',
+    '+91-9999999999', 'MALE', '1990-05-20', 'FULL_TIME',
+    desigs[0]?.id ?? '', locs[0]?.id ?? '',
+  ].join(',');
+  const blob = new Blob([header + '\n' + example], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'employee_bulk_upload_template.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -44,14 +93,23 @@ export default function EmployeesPage() {
   const [functions, setFunctions] = useState<any[]>([]);
   const [subFunctions, setSubFunctions] = useState<any[]>([]);
   const [designations, setDesignations] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [allEmployees, setAllEmployees] = useState<any[]>([]); // for manager dropdown
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+
+  // Create modal
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(defaultForm);
+  const [activeTab, setActiveTab] = useState<Tab>('Work Info');
+  const [form, setForm] = useState(makeDefaultForm());
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Bulk upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkResult, setBulkResult] = useState<{ created: number; errors: { row: number; error: string }[] } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -60,13 +118,15 @@ export default function EmployeesPage() {
       const params: any = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
-      const [empRes, buRes, deptRes, fnRes, subFnRes, desigRes] = await Promise.all([
+      const [empRes, buRes, deptRes, fnRes, subFnRes, desigRes, locRes, allEmpRes] = await Promise.all([
         hrApi.getEmployees(params),
         hrApi.getBusinessUnits({ limit: 200 }),
         hrApi.getDepartments({ limit: 200 }),
         hrApi.getFunctions({ limit: 200 }),
         hrApi.getSubFunctions({ limit: 200 }),
         hrApi.getDesignations({ limit: 100 }),
+        hrApi.getLocations({ limit: 100 }),
+        hrApi.getEmployees({ limit: 500 }),
       ]);
       const empData = empRes.data?.data ?? empRes.data ?? {};
       setEmployees(empData.items ?? empData ?? []);
@@ -77,6 +137,9 @@ export default function EmployeesPage() {
       setSubFunctions(subFnRes.data?.items ?? subFnRes.data?.data?.items ?? []);
       const desigData = desigRes.data?.data ?? desigRes.data ?? {};
       setDesignations(desigData.items ?? desigData ?? []);
+      setLocations(locRes.data?.items ?? locRes.data?.data?.items ?? []);
+      const allEmpData = allEmpRes.data?.data ?? allEmpRes.data ?? {};
+      setAllEmployees(allEmpData.items ?? allEmpData ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load employees');
     } finally {
@@ -86,18 +149,32 @@ export default function EmployeesPage() {
 
   useEffect(() => { fetchData(); }, [search, statusFilter]);
 
+  const setF = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
     try {
       const payload: any = { ...form };
-      ['subFunctionId', 'designationId', 'phone'].forEach(k => {
-        if (!payload[k]) delete payload[k];
-      });
+      // Strip empty optional fields
+      const optional = [
+        'middleName', 'phone', 'homePhone', 'personalEmail', 'subFunctionId', 'designationId',
+        'managerId', 'locationId', 'dateOfBirth', 'gender', 'maritalStatus', 'nationality',
+        'bloodGroup', 'pan', 'aadhar', 'passportNumber', 'passportExpiry',
+        'probationEndDate', 'confirmationDate',
+        'currentAddressLine1', 'currentAddressLine2', 'currentCity', 'currentState', 'currentCountry', 'currentPincode',
+        'permanentAddressLine1', 'permanentAddressLine2', 'permanentCity', 'permanentState', 'permanentCountry', 'permanentPincode',
+        'emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone',
+        'bankName', 'bankAccountNumber', 'bankIfsc', 'bankBranch',
+        'loginPassword',
+      ];
+      optional.forEach(k => { if (!payload[k]) delete payload[k]; });
+      if (!payload.createLoginAccount) delete payload.loginPassword;
       await hrApi.createEmployee(payload);
       setShowModal(false);
-      setForm(defaultForm);
+      setForm(makeDefaultForm());
+      setActiveTab('Work Info');
       await fetchData();
     } catch (err: any) {
       setFormError(err?.response?.data?.message ?? 'Failed to create employee');
@@ -106,8 +183,34 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if (rows.length === 0) { alert('No data rows found in CSV'); return; }
+    try {
+      const res = await hrApi.bulkCreateEmployees(rows);
+      const result = res.data?.data ?? res.data;
+      setBulkResult(result);
+      await fetchData();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? 'Bulk upload failed');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const getDeptName = (id: string | null) => departments.find(d => d.id === id)?.name ?? '-';
   const getDesigName = (id: string | null) => designations.find(d => d.id === id)?.name ?? '-';
+  const getBuName = (id: string | null | undefined) => businessUnits.find(b => b.id === id)?.name ?? '-';
+
+  const INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+  const LABEL = 'block text-sm font-medium text-gray-700 mb-1';
+
+  const filteredDepts = departments.filter(d => !form.businessUnitId || d.businessUnitId === form.businessUnitId);
+  const filteredFns = functions.filter(fn => !form.departmentId || fn.departmentId === form.departmentId);
+  const filteredSubFns = subFunctions.filter(sf => !form.functionId || sf.functionId === form.functionId);
 
   return (
     <div className="p-6">
@@ -116,32 +219,62 @@ export default function EmployeesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
           <p className="text-sm text-gray-500 mt-1">Manage your workforce</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          New Employee
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadTemplate(businessUnits, departments, functions, designations, locations)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
+          >
+            <Download className="h-4 w-4" /> CSV Template
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 text-sm font-medium"
+          >
+            <Upload className="h-4 w-4" /> Bulk Upload
+          </button>
+          <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
+          <button
+            onClick={() => { setShowModal(true); setActiveTab('Work Info'); setForm(makeDefaultForm()); setFormError(null); }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          >
+            <Plus className="h-4 w-4" /> New Employee
+          </button>
+        </div>
       </div>
+
+      {/* Bulk result banner */}
+      {bulkResult && (
+        <div className={`mb-4 p-4 rounded-lg border ${bulkResult.errors.length === 0 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 font-medium text-sm mb-1">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                {bulkResult.created} employee{bulkResult.created !== 1 ? 's' : ''} created successfully
+                {bulkResult.errors.length > 0 && <span className="text-amber-700">, {bulkResult.errors.length} failed</span>}
+              </div>
+              {bulkResult.errors.map(e => (
+                <div key={e.row} className="text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> Row {e.row}: {e.error}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setBulkResult(null)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-4 mb-6">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
-            type="text"
-            placeholder="Search employees..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            type="text" placeholder="Search employees..."
+            value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">All Status</option>
           <option value="ACTIVE">Active</option>
           <option value="ON_LEAVE">On Leave</option>
@@ -155,34 +288,40 @@ export default function EmployeesPage() {
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Code</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Designation</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Department</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Code</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Name</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Designation</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Business Unit</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Department</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Joining Date</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Type</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {employees.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No employees found</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No employees found</td></tr>
               ) : (
                 employees.map(emp => (
                   <tr key={emp.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-gray-700">{emp.employeeCode}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{emp.firstName} {emp.lastName}</td>
+                    <td className="px-4 py-3 font-mono text-gray-700 whitespace-nowrap">{emp.employeeCode}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                      {emp.firstName} {emp.middleName ? emp.middleName[0] + '. ' : ''}{emp.lastName}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{emp.email}</td>
-                    <td className="px-4 py-3 text-gray-600">{getDesigName(emp.designationId)}</td>
-                    <td className="px-4 py-3 text-gray-600">{getDeptName(emp.departmentId)}</td>
-                    <td className="px-4 py-3 text-gray-600">{emp.employmentType?.replace('_', ' ')}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{getDesigName(emp.designationId)}</td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{getBuName(emp.businessUnitId)}</td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{getDeptName(emp.departmentId)}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.dateOfJoining ?? '-'}</td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{emp.employmentType?.replace(/_/g, ' ')}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[emp.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                        {emp.status}
+                        {emp.status?.replace('_', ' ')}
                       </span>
                     </td>
                   </tr>
@@ -195,102 +334,380 @@ export default function EmployeesPage() {
 
       {/* New Employee Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
               <h2 className="text-lg font-semibold">New Employee</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-5 w-5" />
-              </button>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee Code *</label>
-                  <input required value={form.employeeCode} onChange={e => setForm(f => ({ ...f, employeeCode: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Joining *</label>
-                  <input required type="date" value={form.dateOfJoining} onChange={e => setForm(f => ({ ...f, dateOfJoining: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+
+            {/* Tabs */}
+            <div className="flex border-b flex-shrink-0 overflow-x-auto">
+              {TABS.map(tab => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-800'}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>}
+
+                {/* ── Work Info ── */}
+                {activeTab === 'Work Info' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Employee Code *</label>
+                        <input required value={form.employeeCode} onChange={e => setF({ employeeCode: e.target.value })} className={INPUT} placeholder="EMP-001" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Date of Joining *</label>
+                        <input required type="date" value={form.dateOfJoining} onChange={e => setF({ dateOfJoining: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className={LABEL}>First Name *</label>
+                        <input required value={form.firstName} onChange={e => setF({ firstName: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Middle Name</label>
+                        <input value={form.middleName} onChange={e => setF({ middleName: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Last Name *</label>
+                        <input required value={form.lastName} onChange={e => setF({ lastName: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Work Email *</label>
+                        <input required type="email" value={form.email} onChange={e => setF({ email: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Mobile Phone</label>
+                        <input value={form.phone} onChange={e => setF({ phone: e.target.value })} className={INPUT} placeholder="+91-9999999999" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Employment Type</label>
+                        <select value={form.employmentType} onChange={e => setF({ employmentType: e.target.value })} className={INPUT}>
+                          <option value="FULL_TIME">Full Time</option>
+                          <option value="PART_TIME">Part Time</option>
+                          <option value="CONTRACT">Contract</option>
+                          <option value="INTERN">Intern</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={LABEL}>Status</label>
+                        <select value={form.status} onChange={e => setF({ status: e.target.value })} className={INPUT}>
+                          <option value="ACTIVE">Active</option>
+                          <option value="ON_LEAVE">On Leave</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Probation End Date</label>
+                        <input type="date" value={form.probationEndDate} onChange={e => setF({ probationEndDate: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Confirmation Date</label>
+                        <input type="date" value={form.confirmationDate} onChange={e => setF({ confirmationDate: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Business Unit *</label>
+                        <select required value={form.businessUnitId} onChange={e => setF({ businessUnitId: e.target.value, departmentId: '', functionId: '', subFunctionId: '' })} className={INPUT}>
+                          <option value="">Select Business Unit...</option>
+                          {businessUnits.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={LABEL}>Department *</label>
+                        <select required value={form.departmentId} onChange={e => setF({ departmentId: e.target.value, functionId: '', subFunctionId: '' })} className={INPUT}>
+                          <option value="">Select Department...</option>
+                          {filteredDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Function *</label>
+                        <select required value={form.functionId} onChange={e => setF({ functionId: e.target.value, subFunctionId: '' })} className={INPUT}>
+                          <option value="">Select Function...</option>
+                          {filteredFns.map(fn => <option key={fn.id} value={fn.id}>{fn.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={LABEL}>Sub Function <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <select value={form.subFunctionId} onChange={e => setF({ subFunctionId: e.target.value })} className={INPUT}>
+                          <option value="">None</option>
+                          {filteredSubFns.map(sf => <option key={sf.id} value={sf.id}>{sf.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Designation</label>
+                        <select value={form.designationId} onChange={e => setF({ designationId: e.target.value })} className={INPUT}>
+                          <option value="">Select Designation</option>
+                          {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={LABEL}>Location</label>
+                        <select value={form.locationId} onChange={e => setF({ locationId: e.target.value })} className={INPUT}>
+                          <option value="">Select Location</option>
+                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className={LABEL}>Reporting Manager</label>
+                      <select value={form.managerId} onChange={e => setF({ managerId: e.target.value })} className={INPUT}>
+                        <option value="">None</option>
+                        {allEmployees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeCode})</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* ── Personal ── */}
+                {activeTab === 'Personal' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Date of Birth</label>
+                        <input type="date" value={form.dateOfBirth} onChange={e => setF({ dateOfBirth: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Gender</label>
+                        <select value={form.gender} onChange={e => setF({ gender: e.target.value })} className={INPUT}>
+                          <option value="">Select</option>
+                          <option value="MALE">Male</option>
+                          <option value="FEMALE">Female</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Marital Status</label>
+                        <select value={form.maritalStatus} onChange={e => setF({ maritalStatus: e.target.value })} className={INPUT}>
+                          <option value="">Select</option>
+                          <option value="SINGLE">Single</option>
+                          <option value="MARRIED">Married</option>
+                          <option value="DIVORCED">Divorced</option>
+                          <option value="WIDOWED">Widowed</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={LABEL}>Blood Group</label>
+                        <select value={form.bloodGroup} onChange={e => setF({ bloodGroup: e.target.value })} className={INPUT}>
+                          <option value="">Select</option>
+                          {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Nationality</label>
+                        <input value={form.nationality} onChange={e => setF({ nationality: e.target.value })} className={INPUT} placeholder="Indian" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Personal Email</label>
+                        <input type="email" value={form.personalEmail} onChange={e => setF({ personalEmail: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Home Phone</label>
+                        <input value={form.homePhone} onChange={e => setF({ homePhone: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>PAN</label>
+                        <input value={form.pan} onChange={e => setF({ pan: e.target.value })} className={INPUT} placeholder="ABCDE1234F" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Aadhar Number</label>
+                        <input value={form.aadhar} onChange={e => setF({ aadhar: e.target.value })} className={INPUT} placeholder="XXXX XXXX XXXX" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Passport Number</label>
+                        <input value={form.passportNumber} onChange={e => setF({ passportNumber: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={LABEL}>Passport Expiry</label>
+                      <input type="date" value={form.passportExpiry} onChange={e => setF({ passportExpiry: e.target.value })} className={INPUT} />
+                    </div>
+                  </>
+                )}
+
+                {/* ── Address ── */}
+                {activeTab === 'Address' && (
+                  <>
+                    <p className="text-sm font-semibold text-gray-700">Current Address</p>
+                    <div>
+                      <label className={LABEL}>Address Line 1</label>
+                      <input value={form.currentAddressLine1} onChange={e => setF({ currentAddressLine1: e.target.value })} className={INPUT} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Address Line 2</label>
+                      <input value={form.currentAddressLine2} onChange={e => setF({ currentAddressLine2: e.target.value })} className={INPUT} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className={LABEL}>City</label>
+                        <input value={form.currentCity} onChange={e => setF({ currentCity: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>State</label>
+                        <input value={form.currentState} onChange={e => setF({ currentState: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Country</label>
+                        <input value={form.currentCountry} onChange={e => setF({ currentCountry: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={LABEL}>Pincode</label>
+                      <input value={form.currentPincode} onChange={e => setF({ currentPincode: e.target.value })} className={INPUT} />
+                    </div>
+
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm font-semibold text-gray-700">Permanent Address</p>
+                      <button type="button" className="text-xs text-blue-600 hover:underline"
+                        onClick={() => setF({
+                          permanentAddressLine1: form.currentAddressLine1,
+                          permanentAddressLine2: form.currentAddressLine2,
+                          permanentCity: form.currentCity,
+                          permanentState: form.currentState,
+                          permanentCountry: form.currentCountry,
+                          permanentPincode: form.currentPincode,
+                        })}>
+                        Same as current
+                      </button>
+                    </div>
+                    <div>
+                      <label className={LABEL}>Address Line 1</label>
+                      <input value={form.permanentAddressLine1} onChange={e => setF({ permanentAddressLine1: e.target.value })} className={INPUT} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Address Line 2</label>
+                      <input value={form.permanentAddressLine2} onChange={e => setF({ permanentAddressLine2: e.target.value })} className={INPUT} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className={LABEL}>City</label>
+                        <input value={form.permanentCity} onChange={e => setF({ permanentCity: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>State</label>
+                        <input value={form.permanentState} onChange={e => setF({ permanentState: e.target.value })} className={INPUT} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Country</label>
+                        <input value={form.permanentCountry} onChange={e => setF({ permanentCountry: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={LABEL}>Pincode</label>
+                      <input value={form.permanentPincode} onChange={e => setF({ permanentPincode: e.target.value })} className={INPUT} />
+                    </div>
+                  </>
+                )}
+
+                {/* ── Emergency Contact ── */}
+                {activeTab === 'Emergency' && (
+                  <>
+                    <div>
+                      <label className={LABEL}>Contact Name</label>
+                      <input value={form.emergencyContactName} onChange={e => setF({ emergencyContactName: e.target.value })} className={INPUT} placeholder="Jane Doe" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Relationship</label>
+                      <input value={form.emergencyContactRelation} onChange={e => setF({ emergencyContactRelation: e.target.value })} className={INPUT} placeholder="Spouse, Parent, Sibling..." />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Phone Number</label>
+                      <input value={form.emergencyContactPhone} onChange={e => setF({ emergencyContactPhone: e.target.value })} className={INPUT} placeholder="+91-9999999999" />
+                    </div>
+                  </>
+                )}
+
+                {/* ── Banking ── */}
+                {activeTab === 'Banking' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Bank Name</label>
+                        <input value={form.bankName} onChange={e => setF({ bankName: e.target.value })} className={INPUT} placeholder="HDFC Bank" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Branch</label>
+                        <input value={form.bankBranch} onChange={e => setF({ bankBranch: e.target.value })} className={INPUT} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={LABEL}>Account Number</label>
+                      <input value={form.bankAccountNumber} onChange={e => setF({ bankAccountNumber: e.target.value })} className={INPUT} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>IFSC Code</label>
+                      <input value={form.bankIfsc} onChange={e => setF({ bankIfsc: e.target.value })} className={INPUT} placeholder="HDFC0001234" />
+                    </div>
+                  </>
+                )}
+
+                {/* ── Login Account ── */}
+                {activeTab === 'Login Account' && (
+                  <>
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-800">
+                      Creating a login account lets this employee sign in to the ERP. They will be automatically assigned the <strong>Employee</strong> role with access to self-service, leave, attendance, and payslips.
+                    </div>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.createLoginAccount}
+                        onChange={e => setF({ createLoginAccount: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Create login account for this employee</span>
+                    </label>
+                    {form.createLoginAccount && (
+                      <div>
+                        <label className={LABEL}>Temporary Password *</label>
+                        <input
+                          type="password"
+                          minLength={8}
+                          required={form.createLoginAccount}
+                          value={form.loginPassword}
+                          onChange={e => setF({ loginPassword: e.target.value })}
+                          className={INPUT}
+                          placeholder="At least 8 characters"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Login email will be the employee's work email: <strong>{form.email || '(enter work email first)'}</strong></p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-                  <input required value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                  <input required value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Unit *</label>
-                  <select required value={form.businessUnitId} onChange={e => setForm(f => ({ ...f, businessUnitId: e.target.value, departmentId: '', functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Business Unit...</option>
-                    {businessUnits.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-                  <select required value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value, functionId: '', subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Department...</option>
-                    {departments.filter(d => !form.businessUnitId || d.businessUnitId === form.businessUnitId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Function *</label>
-                  <select required value={form.functionId} onChange={e => setForm(f => ({ ...f, functionId: e.target.value, subFunctionId: '' }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Function...</option>
-                    {functions.filter(fn => !form.departmentId || fn.departmentId === form.departmentId).map(fn => <option key={fn.id} value={fn.id}>{fn.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub Function <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <select value={form.subFunctionId} onChange={e => setForm(f => ({ ...f, subFunctionId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select Sub Function</option>
-                    {subFunctions.filter(sf => !form.functionId || sf.functionId === form.functionId).map(sf => <option key={sf.id} value={sf.id}>{sf.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
-                <select value={form.designationId} onChange={e => setForm(f => ({ ...f, designationId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Select Designation</option>
-                  {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
-                  <select value={form.employmentType} onChange={e => setForm(f => ({ ...f, employmentType: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="FULL_TIME">Full Time</option>
-                    <option value="PART_TIME">Part Time</option>
-                    <option value="CONTRACT">Contract</option>
-                    <option value="INTERN">Intern</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="ACTIVE">Active</option>
-                    <option value="ON_LEAVE">On Leave</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
+
+              {/* Footer */}
+              <div className="flex gap-3 p-5 border-t flex-shrink-0">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={submitting} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{submitting ? 'Creating...' : 'Create Employee'}</button>
               </div>

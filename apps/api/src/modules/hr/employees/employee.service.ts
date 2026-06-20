@@ -20,6 +20,9 @@ import {
   CreateLocationDto, UpdateLocationDto,
 } from './dto/employee.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { UsersService } from '../../users/users.service';
+import { RbacService } from '../../rbac/rbac.service';
+import { PermissionsService } from '../../rbac/permissions.service';
 
 @Injectable()
 export class EmployeeService {
@@ -42,6 +45,9 @@ export class EmployeeService {
     private readonly documentRepo: Repository<EmployeeDocument>,
     @InjectRepository(EmployeeTransfer)
     private readonly transferRepo: Repository<EmployeeTransfer>,
+    private readonly usersService: UsersService,
+    private readonly rbacService: RbacService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   // ---- Employees ----
@@ -50,8 +56,47 @@ export class EmployeeService {
     if (existing) throw new ConflictException(`Employee code ${dto.employeeCode} already exists`);
     const existingEmail = await this.employeeRepo.findOne({ where: { tenantId, email: dto.email } });
     if (existingEmail) throw new ConflictException(`Email ${dto.email} already exists`);
-    const employee = this.employeeRepo.create({ ...dto, tenantId, status: dto.status ?? EmployeeStatus.ACTIVE });
-    return this.employeeRepo.save(employee);
+
+    // Optionally create a login account for the employee.
+    let userId = dto.userId ?? null;
+    if (dto.createLoginAccount && dto.loginPassword) {
+      const user = await this.usersService.create(tenantId, {
+        email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        password: dto.loginPassword,
+      } as any);
+      userId = user.id;
+    }
+
+    const { createLoginAccount, loginPassword, ...rest } = dto;
+    const employee = this.employeeRepo.create({ ...rest, tenantId, userId, status: dto.status ?? EmployeeStatus.ACTIVE });
+    const saved = await this.employeeRepo.save(employee);
+
+    // Auto-assign the Employee role to the linked user account.
+    if (userId) {
+      const roles = await this.rbacService.findAll(tenantId);
+      const employeeRole = roles.find((r: any) => r.name === 'Employee');
+      if (employeeRole) {
+        await this.permissionsService.assignRole(userId, employeeRole.id, tenantId, userId);
+      }
+    }
+
+    return saved;
+  }
+
+  async bulkCreateEmployees(tenantId: string, rows: CreateEmployeeDto[]): Promise<{ created: number; errors: { row: number; error: string }[] }> {
+    const errors: { row: number; error: string }[] = [];
+    let created = 0;
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        await this.createEmployee(tenantId, rows[i]);
+        created++;
+      } catch (e: any) {
+        errors.push({ row: i + 1, error: e.message ?? String(e) });
+      }
+    }
+    return { created, errors };
   }
 
   async findEmployees(tenantId: string, pagination: PaginationDto, filters?: { search?: string; departmentId?: string; status?: string }): Promise<PaginatedResponseDto<Employee>> {

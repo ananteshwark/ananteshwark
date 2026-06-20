@@ -5,6 +5,7 @@ export const hrApi = {
   getEmployees: (params?: any) => apiClient.get('/hr/employees', { params }),
   getEmployee: (id: string) => apiClient.get(`/hr/employees/${id}`),
   createEmployee: (data: any) => apiClient.post('/hr/employees', data),
+  bulkCreateEmployees: (rows: any[]) => apiClient.post('/hr/employees/bulk', { rows }),
   updateEmployee: (id: string, data: any) => apiClient.patch(`/hr/employees/${id}`, data),
   terminateEmployee: (id: string, data: any) => apiClient.post(`/hr/employees/${id}/terminate`, data),
   resignEmployee: (id: string, data: any) => apiClient.post(`/hr/employees/${id}/resign`, data),

@@ -8,6 +8,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import {
   CreateEmployeeDto, UpdateEmployeeDto,
+  BulkCreateEmployeeDto,
   CreateBusinessUnitDto, UpdateBusinessUnitDto,
   CreateDepartmentDto, UpdateDepartmentDto,
   CreateFunctionDto, UpdateFunctionDto,
@@ -46,6 +47,12 @@ export class EmployeeController {
   @RequirePermission('hr:employees:read')
   getReportees(@CurrentUser() user: any, @Param('id') id: string) {
     return this.employeeService.getReportees(user.tenantId, id);
+  }
+
+  @Post('employees/bulk')
+  @RequirePermission('hr:employees:create')
+  bulkCreateEmployees(@CurrentUser() user: any, @Body() dto: BulkCreateEmployeeDto) {
+    return this.employeeService.bulkCreateEmployees(user.tenantId, dto.rows);
   }
 
   @Post('employees')
