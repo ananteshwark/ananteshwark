@@ -29,6 +29,7 @@ import {
   BarChart2,
   X,
   Menu,
+  Key,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -123,6 +124,7 @@ const navItems: NavItem[] = [
   { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits' },
   { label: 'Analytics', icon: <BarChart2 className="h-4 w-4" />, path: '/analytics' },
   { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform' },
+  { label: 'Licensing', icon: <Key className="h-4 w-4" />, path: '/licensing' },
   {
     label: 'My Portal',
     icon: <UserCheck className="h-4 w-4" />,

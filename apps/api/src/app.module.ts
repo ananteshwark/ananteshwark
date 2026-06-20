@@ -29,6 +29,7 @@ import { BenefitsModule } from './modules/benefits/benefits.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
+import { LicensingModule } from './modules/licensing/licensing.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -75,6 +76,7 @@ import { getDatabaseConfig } from './config/database.config';
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,
+    LicensingModule,
   ],
 })
 export class AppModule {
