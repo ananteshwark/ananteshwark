@@ -51,8 +51,8 @@ export class GrnService {
   async createGrn(tenantId: string, dto: CreateGrnDto): Promise<any> {
     const po = await this.poService.findOne(tenantId, dto.poId);
     if (!po) throw new NotFoundException(`PO ${dto.poId} not found`);
-    if (![PoStatus.APPROVED, PoStatus.SENT, PoStatus.PARTIALLY_RECEIVED].includes(po.status)) {
-      throw new BadRequestException('GRN can only be created against APPROVED, SENT, or PARTIALLY_RECEIVED POs');
+    if (![PoStatus.APPROVED, PoStatus.RELEASED, PoStatus.SENT, PoStatus.PARTIALLY_RECEIVED].includes(po.status)) {
+      throw new BadRequestException('GRN can only be created against APPROVED, RELEASED, SENT, or PARTIALLY_RECEIVED POs');
     }
 
     const poLines = po.lines as any[];

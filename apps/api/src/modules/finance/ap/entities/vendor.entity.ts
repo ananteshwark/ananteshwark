@@ -54,6 +54,21 @@ export class Vendor {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ name: 'portal_enabled', type: 'boolean', default: false })
+  portalEnabled: boolean;
+
+  @Column({ name: 'portal_password_hash', length: 255, nullable: true })
+  portalPasswordHash: string | null;
+
+  @Column({ name: 'portal_last_login', type: 'timestamp', nullable: true })
+  portalLastLogin: Date | null;
+
+  @Column({ name: 'contact_person', length: 200, nullable: true })
+  contactPerson: string | null;
+
+  @Column({ name: 'portal_email', length: 255, nullable: true })
+  portalEmail: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

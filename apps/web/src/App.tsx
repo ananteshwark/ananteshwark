@@ -47,7 +47,11 @@ import {
   RFQPage,
   PurchaseOrdersPage,
   GRNPage,
+  VendorInvoicesPage,
+  ProcurementSettingsPage,
 } from './pages/procurement';
+import VendorLoginPage from './pages/vendor/VendorLoginPage';
+import VendorPortalPage from './pages/vendor/VendorPortalPage';
 import {
   AtsPage,
   OnboardingPage as TalentOnboardingPage,
@@ -113,6 +117,8 @@ export default function App() {
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
       <Route path="/onboarding" element={<PrivateRoute><OnboardingPage /></PrivateRoute>} />
+      <Route path="/vendor/login" element={<VendorLoginPage />} />
+      <Route path="/vendor/portal" element={<VendorPortalPage />} />
       <Route path="/" element={<PrivateRoute><AppLayout /></PrivateRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
@@ -149,6 +155,8 @@ export default function App() {
         <Route path="procurement/rfq" element={<RFQPage />} />
         <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />
         <Route path="procurement/grn" element={<GRNPage />} />
+        <Route path="procurement/vendor-invoices" element={<VendorInvoicesPage />} />
+        <Route path="procurement/settings" element={<ProcurementSettingsPage />} />
         <Route path="talent/hiring" element={<HiringPage />} />
         <Route path="talent/ats" element={<AtsPage />} />
         <Route path="talent/onboarding" element={<TalentOnboardingPage />} />

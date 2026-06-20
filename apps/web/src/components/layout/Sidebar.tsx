@@ -90,6 +90,8 @@ const navItems: NavItem[] = [
       { label: 'RFQ', path: '/procurement/rfq' },
       { label: 'Purchase Orders', path: '/procurement/purchase-orders' },
       { label: 'Goods Receipts', path: '/procurement/grn' },
+      { label: 'Vendor Invoices', path: '/procurement/vendor-invoices' },
+      { label: 'Settings', path: '/procurement/settings' },
     ],
   },
   {

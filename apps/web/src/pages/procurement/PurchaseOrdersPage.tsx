@@ -5,10 +5,13 @@ import { Plus } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-700',
+  PENDING_APPROVAL: 'bg-orange-100 text-orange-700',
   APPROVED: 'bg-green-100 text-green-700',
+  RELEASED: 'bg-cyan-100 text-cyan-700',
   SENT: 'bg-blue-100 text-blue-700',
   PARTIALLY_RECEIVED: 'bg-yellow-100 text-yellow-700',
   RECEIVED: 'bg-emerald-100 text-emerald-700',
+  INVOICED: 'bg-indigo-100 text-indigo-700',
   CLOSED: 'bg-purple-100 text-purple-700',
   CANCELLED: 'bg-red-100 text-red-700',
 };
@@ -132,7 +135,14 @@ export default function PurchaseOrdersPage() {
 
   const handleAction = async (action: string, id: string) => {
     try {
-      if (action === 'approve') await procurementApi.approvePurchaseOrder(id);
+      if (action === 'submit-for-approval') await procurementApi.submitPoForApproval(id);
+      else if (action === 'approve-level') await procurementApi.approvePoLevel(id, {});
+      else if (action === 'reject-approval') {
+        const comments = prompt('Reason for rejection (optional):') || undefined;
+        await procurementApi.rejectPoApproval(id, { comments });
+      }
+      else if (action === 'approve') await procurementApi.approvePurchaseOrder(id);
+      else if (action === 'release') await procurementApi.releasePo(id);
       else if (action === 'send') await procurementApi.sendPurchaseOrder(id);
       else if (action === 'cancel') await procurementApi.cancelPurchaseOrder(id);
       loadData();
@@ -192,10 +202,13 @@ export default function PurchaseOrdersPage() {
                   <td className="px-4 py-3 text-gray-500">{po.poDate}</td>
                   <td className="px-4 py-3 text-right font-medium">{po.total?.toLocaleString()} {po.currency}</td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-1">
-                      {po.status === 'DRAFT' && <button onClick={() => handleAction('approve', po.id)} className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100">Approve</button>}
-                      {po.status === 'APPROVED' && <button onClick={() => handleAction('send', po.id)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Send</button>}
-                      {['DRAFT', 'APPROVED', 'SENT'].includes(po.status) && <button onClick={() => handleAction('cancel', po.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">Cancel</button>}
+                    <div className="flex flex-wrap gap-1">
+                      {po.status === 'DRAFT' && <button onClick={() => handleAction('submit-for-approval', po.id)} className="text-xs px-2 py-1 bg-orange-50 text-orange-700 rounded hover:bg-orange-100">Submit for Approval</button>}
+                      {po.status === 'PENDING_APPROVAL' && <button onClick={() => handleAction('approve-level', po.id)} className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100">Approve{po.currentApprovalLevel ? ` (L${po.currentApprovalLevel + 1})` : ''}</button>}
+                      {po.status === 'PENDING_APPROVAL' && <button onClick={() => handleAction('reject-approval', po.id)} className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100">Reject</button>}
+                      {po.status === 'APPROVED' && <button onClick={() => handleAction('release', po.id)} className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded hover:bg-cyan-100">Release</button>}
+                      {['RELEASED', 'APPROVED'].includes(po.status) && <button onClick={() => handleAction('send', po.id)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Send</button>}
+                      {['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'RELEASED', 'SENT'].includes(po.status) && <button onClick={() => handleAction('cancel', po.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">Cancel</button>}
                     </div>
                   </td>
                 </tr>

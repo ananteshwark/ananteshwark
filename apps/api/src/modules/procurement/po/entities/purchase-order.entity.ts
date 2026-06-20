@@ -10,10 +10,13 @@ import { decimalTransformer } from '../../../../common/transformers/decimal.tran
 
 export enum PoStatus {
   DRAFT = 'DRAFT',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
+  RELEASED = 'RELEASED',
   SENT = 'SENT',
   PARTIALLY_RECEIVED = 'PARTIALLY_RECEIVED',
   RECEIVED = 'RECEIVED',
+  INVOICED = 'INVOICED',
   CLOSED = 'CLOSED',
   CANCELLED = 'CANCELLED',
 }
@@ -109,6 +112,25 @@ export class PurchaseOrder {
 
   @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true })
   journalEntryId: string | null;
+
+  @Column({ name: 'released_at', type: 'timestamp', nullable: true })
+  releasedAt: Date | null;
+
+  @Column({ name: 'released_by_id', type: 'uuid', nullable: true })
+  releasedById: string | null;
+
+  @Column({ name: 'current_approval_level', type: 'int', default: 0 })
+  currentApprovalLevel: number;
+
+  @Column({ name: 'approval_history', type: 'jsonb', nullable: true })
+  approvalHistory: Array<{
+    level: number;
+    approverId: string;
+    approverName: string;
+    action: string;
+    comments?: string;
+    actionedAt: string;
+  }> | null;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -10,6 +10,7 @@ import { PoLine } from './entities/po-line.entity';
 import { ApprovalMatrix } from '../entities/approval-matrix.entity';
 import { CreatePoDto, UpdatePoDto } from './dto/po.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { DoaService } from '../doa/doa.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -19,6 +20,7 @@ export class PoService {
     @InjectRepository(PurchaseOrder) private readonly poRepo: Repository<PurchaseOrder>,
     @InjectRepository(PoLine) private readonly lineRepo: Repository<PoLine>,
     @InjectRepository(ApprovalMatrix) private readonly matrixRepo: Repository<ApprovalMatrix>,
+    private readonly doaService: DoaService,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -211,5 +213,103 @@ export class PoService {
       if (l.maxAmount !== null && poTotal >= l.maxAmount) return false;
       return true;
     });
+  }
+
+  // ─── New workflow methods ─────────────────────────────────────
+
+  async submitForApproval(tenantId: string, id: string): Promise<any> {
+    const po = await this.poRepo.findOne({ where: { id, tenantId } });
+    if (!po) throw new NotFoundException(`Purchase Order ${id} not found`);
+    if (po.status !== PoStatus.DRAFT) throw new BadRequestException('Only DRAFT POs can be submitted for approval');
+
+    const requiredApprovers = await this.doaService.getRequiredApprovers(tenantId, 'PO', po.total);
+    if (requiredApprovers.length === 0) {
+      // No approval required — auto-approve
+      po.status = PoStatus.APPROVED;
+      po.approvedAt = new Date();
+    } else {
+      po.status = PoStatus.PENDING_APPROVAL;
+      po.currentApprovalLevel = 0;
+    }
+    await this.poRepo.save(po);
+    return this.findOne(tenantId, id);
+  }
+
+  async approveByLevel(
+    tenantId: string,
+    id: string,
+    userId: string,
+    userName: string,
+    comments?: string,
+  ): Promise<any> {
+    const po = await this.poRepo.findOne({ where: { id, tenantId } });
+    if (!po) throw new NotFoundException(`Purchase Order ${id} not found`);
+    if (po.status !== PoStatus.PENDING_APPROVAL) {
+      throw new BadRequestException('PO is not pending approval');
+    }
+
+    const requiredApprovers = await this.doaService.getRequiredApprovers(tenantId, 'PO', po.total);
+    const nextLevel = (po.currentApprovalLevel || 0) + 1;
+
+    const historyEntry = {
+      level: nextLevel,
+      approverId: userId,
+      approverName: userName,
+      action: 'APPROVED',
+      comments: comments || '',
+      actionedAt: new Date().toISOString(),
+    };
+
+    po.approvalHistory = [...(po.approvalHistory || []), historyEntry];
+    po.currentApprovalLevel = nextLevel;
+
+    const maxLevel = requiredApprovers.reduce((max, r) => Math.max(max, r.level), 0);
+    if (nextLevel >= maxLevel) {
+      po.status = PoStatus.APPROVED;
+      po.approvedById = userId;
+      po.approvedAt = new Date();
+    }
+
+    await this.poRepo.save(po);
+    return this.findOne(tenantId, id);
+  }
+
+  async rejectApproval(
+    tenantId: string,
+    id: string,
+    userId: string,
+    comments?: string,
+  ): Promise<any> {
+    const po = await this.poRepo.findOne({ where: { id, tenantId } });
+    if (!po) throw new NotFoundException(`Purchase Order ${id} not found`);
+    if (po.status !== PoStatus.PENDING_APPROVAL) {
+      throw new BadRequestException('PO is not pending approval');
+    }
+
+    const historyEntry = {
+      level: po.currentApprovalLevel || 0,
+      approverId: userId,
+      approverName: userId,
+      action: 'REJECTED',
+      comments: comments || '',
+      actionedAt: new Date().toISOString(),
+    };
+
+    po.approvalHistory = [...(po.approvalHistory || []), historyEntry];
+    po.status = PoStatus.DRAFT;
+    po.currentApprovalLevel = 0;
+    await this.poRepo.save(po);
+    return this.findOne(tenantId, id);
+  }
+
+  async releasePo(tenantId: string, id: string, userId: string): Promise<any> {
+    const po = await this.poRepo.findOne({ where: { id, tenantId } });
+    if (!po) throw new NotFoundException(`Purchase Order ${id} not found`);
+    if (po.status !== PoStatus.APPROVED) throw new BadRequestException('Only APPROVED POs can be released');
+    po.status = PoStatus.RELEASED;
+    po.releasedAt = new Date();
+    po.releasedById = userId;
+    await this.poRepo.save(po);
+    return this.findOne(tenantId, id);
   }
 }

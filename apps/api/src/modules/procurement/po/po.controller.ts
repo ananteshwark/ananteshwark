@@ -90,6 +90,44 @@ export class PoController {
     return this.service.cancelPo(user.tenantId, id);
   }
 
+  @Post(':id/submit-for-approval')
+  @RequirePermission('procurement:po:create')
+  @ApiOperation({ summary: 'Submit a DRAFT PO for approval' })
+  submitForApproval(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.submitForApproval(user.tenantId, id);
+  }
+
+  @Post(':id/approve-level')
+  @RequirePermission('procurement:po:approve')
+  @ApiOperation({ summary: 'Approve a PO at current level' })
+  approveByLevel(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { userId?: string; userName?: string; comments?: string },
+  ) {
+    const userId = body.userId || user.id;
+    const userName = body.userName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || userId;
+    return this.service.approveByLevel(user.tenantId, id, userId, userName, body.comments);
+  }
+
+  @Post(':id/reject-approval')
+  @RequirePermission('procurement:po:approve')
+  @ApiOperation({ summary: 'Reject a PO approval' })
+  rejectApproval(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { comments?: string },
+  ) {
+    return this.service.rejectApproval(user.tenantId, id, user.id, body.comments);
+  }
+
+  @Post(':id/release')
+  @RequirePermission('procurement:po:approve')
+  @ApiOperation({ summary: 'Release an APPROVED PO to vendor' })
+  release(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.releasePo(user.tenantId, id, user.id);
+  }
+
   // ─── Approval Matrix ──────────────────────────────────────────
 
   @Post('approval-matrix')
