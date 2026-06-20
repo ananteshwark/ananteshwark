@@ -161,6 +161,13 @@ export class AttendanceService {
     return qb.orderBy('te.date', 'DESC').getMany();
   }
 
+  async listTimesheets(tenantId: string, filters?: { employeeId?: string; status?: string }): Promise<Timesheet[]> {
+    const where: any = { tenantId };
+    if (filters?.employeeId) where.employeeId = filters.employeeId;
+    if (filters?.status) where.status = filters.status as TimesheetStatus;
+    return this.timesheetRepo.find({ where, order: { weekStart: 'DESC' } });
+  }
+
   async submitTimesheet(tenantId: string, employeeId: string, weekStart: string, weekEnd: string): Promise<Timesheet> {
     const existing = await this.timesheetRepo.findOne({ where: { tenantId, employeeId, weekStart } });
     if (existing) {

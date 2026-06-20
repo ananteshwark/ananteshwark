@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThanOrEqual } from 'typeorm';
 import { Equipment } from './entities/equipment.entity';
 import { MaintenancePlan } from './entities/maintenance-plan.entity';
 import { MaintenanceOrder, MaintenanceOrderStatus, MaintenanceOrderType } from './entities/maintenance-order.entity';
@@ -57,6 +57,15 @@ export class MaintenanceService {
       take: limit,
     });
     return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  // Plans whose next due date has arrived (today or earlier).
+  async getDuePlans(tenantId: string): Promise<MaintenancePlan[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    return this.planRepo.find({
+      where: { tenantId, nextDueDate: LessThanOrEqual(today) },
+      order: { nextDueDate: 'ASC' },
+    });
   }
 
   // ---- Maintenance Orders ----

@@ -54,6 +54,30 @@ export class WarehouseController {
   }
 }
 
+// ─── Category Controller ──────────────────────────────────────────────────────
+
+@ApiTags('inventory-categories')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RbacGuard)
+@Controller('inventory/categories')
+export class CategoryController {
+  constructor(private readonly service: InventoryService) {}
+
+  @Get()
+  @RequirePermission('inventory:items:read')
+  @ApiOperation({ summary: 'List item categories' })
+  list(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
+    return this.service.findCategories(user.tenantId, pagination);
+  }
+
+  @Post()
+  @RequirePermission('inventory:items:create')
+  @ApiOperation({ summary: 'Create item category' })
+  create(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.createCategory(user.tenantId, dto);
+  }
+}
+
 // ─── Item Controller ──────────────────────────────────────────────────────────
 
 @ApiTags('inventory-items')

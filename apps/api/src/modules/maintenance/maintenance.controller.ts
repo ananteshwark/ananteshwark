@@ -38,6 +38,13 @@ export class MaintenanceController {
   }
 
   // Maintenance Plans
+  // Declared before 'plans' detail routes so the literal 'due' path resolves.
+  @Get('plans/due')
+  @RequirePermission('maintenance:read')
+  getDuePlans(@CurrentUser() user: any) {
+    return this.service.getDuePlans(user.tenantId);
+  }
+
   @Get('plans')
   @RequirePermission('maintenance:read')
   listPlans(@CurrentUser() user: any, @Query() pagination: PaginationDto) {

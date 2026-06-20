@@ -113,6 +113,16 @@ export class AttendanceController {
     return this.attendanceService.createTimeEntry(user.tenantId, dto);
   }
 
+  @Get('timesheets')
+  @RequirePermission('hr:attendance:read')
+  listTimesheets(
+    @CurrentUser() user: any,
+    @Query('employeeId') employeeId?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.attendanceService.listTimesheets(user.tenantId, { employeeId, status });
+  }
+
   @Post('timesheets/submit')
   @RequirePermission('hr:attendance:create')
   submitTimesheet(

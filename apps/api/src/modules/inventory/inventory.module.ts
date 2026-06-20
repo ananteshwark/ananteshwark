@@ -14,6 +14,7 @@ import { Rma } from './entities/rma.entity';
 import { InventoryService } from './inventory.service';
 import {
   WarehouseController,
+  CategoryController,
   ItemController,
   StockController,
   AdjustmentController,
@@ -40,7 +41,7 @@ import { RbacModule } from '../rbac/rbac.module';
     ]),
     RbacModule,
   ],
-  controllers: [WarehouseController, ItemController, StockController, AdjustmentController, InventoryV2Controller],
+  controllers: [WarehouseController, CategoryController, ItemController, StockController, AdjustmentController, InventoryV2Controller],
   providers: [InventoryService, InventoryV2Service],
   exports: [InventoryService, InventoryV2Service],
 })
