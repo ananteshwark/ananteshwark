@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import {
@@ -52,6 +52,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Reset password with token' })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @ApiOperation({ summary: 'Get the current authenticated user and tenant' })
+  me(@CurrentUser() user: any) {
+    return this.authService.getProfile(user.id, user.tenantId);
   }
 
   @ApiBearerAuth()

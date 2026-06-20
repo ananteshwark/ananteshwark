@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { useAuthStore } from './store/authStore';
+import { apiClient } from './api/client';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import OnboardingPage from './pages/onboarding/OnboardingPage';
@@ -87,6 +89,24 @@ function SuperAdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { isAuthenticated, setUser, setTenant } = useAuthStore();
+
+  // Refresh the current user + tenant on app load so server-side changes
+  // (e.g. super-admin grant, plan/module updates) propagate without a re-login.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiClient
+      .get('/auth/me')
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        if (data?.user) setUser(data.user);
+        if (data?.tenant) setTenant(data.tenant);
+      })
+      .catch(() => {
+        /* 401s are handled by the client interceptor; ignore other errors */
+      });
+  }, [isAuthenticated, setUser, setTenant]);
+
   return (
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />

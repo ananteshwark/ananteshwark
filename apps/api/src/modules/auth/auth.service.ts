@@ -72,6 +72,26 @@ export class AuthService {
     return { ...tokens, tenant };
   }
 
+  // Returns the current user + tenant, used by the client to refresh the
+  // session on app load so newly added fields (e.g. isSuperAdmin) propagate
+  // without forcing a manual re-login.
+  async getProfile(userId: string, tenantId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId, tenantId } });
+    if (!user) throw new UnauthorizedException();
+    const tenant = await this.tenantsService.findById(tenantId);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        tenantId: user.tenantId,
+        isSuperAdmin: user.isSuperAdmin,
+      },
+      tenant,
+    };
+  }
+
   async register(dto: RegisterDto) {
     const slugBase = dto.companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     const slug = `${slugBase}-${Date.now().toString(36)}`;
