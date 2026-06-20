@@ -137,7 +137,7 @@ export class AuthService {
   }
 
   private async generateTokens(user: User) {
-    const payload = { sub: user.id, email: user.email, tenantId: user.tenantId };
+    const payload = { sub: user.id, email: user.email, tenantId: user.tenantId, isSuperAdmin: user.isSuperAdmin };
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get('JWT_EXPIRATION', '15m'),
     });
@@ -154,6 +154,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         tenantId: user.tenantId,
+        isSuperAdmin: user.isSuperAdmin,
       },
     };
   }

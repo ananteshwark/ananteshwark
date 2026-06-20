@@ -69,6 +69,7 @@ import { BenefitsPage } from './pages/benefits';
 import { AnalyticsPage } from './pages/analytics';
 import { PlatformPage } from './pages/platform';
 import { LicensingPage } from './pages/licensing';
+import { TenantsPage } from './pages/admin';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -78,6 +79,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
   return !isAuthenticated ? <>{children}</> : <Navigate to="/dashboard" replace />;
+}
+
+function SuperAdminRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore();
+  return user?.isSuperAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />;
 }
 
 export default function App() {
@@ -142,6 +148,7 @@ export default function App() {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="platform" element={<PlatformPage />} />
         <Route path="licensing" element={<LicensingPage />} />
+        <Route path="admin/tenants" element={<SuperAdminRoute><TenantsPage /></SuperAdminRoute>} />
         <Route path="ess" element={<ESSPage />} />
         <Route path="mss" element={<MSSPage />} />
       </Route>

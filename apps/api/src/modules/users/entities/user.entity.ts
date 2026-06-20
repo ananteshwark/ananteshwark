@@ -66,6 +66,11 @@ export class User {
   @Column({ name: 'employee_id', nullable: true })
   employeeId: string;
 
+  // Platform-level super admin: can manage all tenants and their licenses,
+  // independent of tenant-scoped RBAC.
+  @Column({ name: 'is_super_admin', default: false })
+  isSuperAdmin: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

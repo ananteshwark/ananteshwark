@@ -39,6 +39,7 @@ interface NavItem {
   path?: string;
   children?: { label: string; path: string }[];
   module?: string;
+  superAdmin?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -125,6 +126,7 @@ const navItems: NavItem[] = [
   { label: 'Analytics', icon: <BarChart2 className="h-4 w-4" />, path: '/analytics' },
   { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform' },
   { label: 'Licensing', icon: <Key className="h-4 w-4" />, path: '/licensing' },
+  { label: 'Tenant Management', icon: <Building2 className="h-4 w-4" />, path: '/admin/tenants', superAdmin: true },
   {
     label: 'My Portal',
     icon: <UserCheck className="h-4 w-4" />,
@@ -156,7 +158,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(['Settings']);
-  const { tenant } = useAuthStore();
+  const { tenant, user } = useAuthStore();
   const enabledModules = tenant?.settings?.enabledModules || [];
   const location = useLocation();
 
@@ -167,6 +169,7 @@ export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
   };
 
   const isItemVisible = (item: NavItem) => {
+    if (item.superAdmin && !user?.isSuperAdmin) return false;
     if (!item.module) return true;
     return enabledModules.includes(item.module);
   };

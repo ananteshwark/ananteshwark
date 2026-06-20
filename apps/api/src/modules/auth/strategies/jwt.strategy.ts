@@ -27,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       tenantId: user.tenantId,
       firstName: user.firstName,
       lastName: user.lastName,
+      isSuperAdmin: user.isSuperAdmin,
     };
   }
 }

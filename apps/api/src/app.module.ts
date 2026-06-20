@@ -30,6 +30,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
 import { LicensingModule } from './modules/licensing/licensing.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -77,6 +78,7 @@ import { getDatabaseConfig } from './config/database.config';
     PlatformModule,
     LocalizationPacksModule,
     LicensingModule,
+    AdminModule,
   ],
 })
 export class AppModule {

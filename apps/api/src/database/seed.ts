@@ -27,6 +27,8 @@ import {
 import { TaxRegime } from '../modules/payroll/statutory/entities/tax-slab.entity';
 import { ComplianceType, ComplianceFrequency } from '../modules/payroll/statutory/entities/compliance-calendar-item.entity';
 import { DataSource } from 'typeorm';
+import { AdminService } from '../modules/admin/admin.service';
+import { TenantLicenseTier } from '../modules/admin/entities/tenant-license.entity';
 import { TaxSlab } from '../modules/payroll/statutory/entities/tax-slab.entity';
 
 async function seed() {
@@ -91,6 +93,25 @@ async function seed() {
     }
   } catch (e) {
     console.log('Admin role assignment skipped:', (e as Error).message);
+  }
+
+  // Make admin@demo.com a platform super admin and allocate a license to the demo tenant.
+  try {
+    const ds = app.get(DataSource);
+    await ds.query(`UPDATE users SET is_super_admin = true WHERE email = 'admin@demo.com'`);
+    console.log('Granted super admin to admin@demo.com');
+    const adminService = app.get(AdminService);
+    await adminService.allocateLicense(tenant.id, {
+      tier: TenantLicenseTier.ENTERPRISE,
+      maxUsers: 100,
+      maxEmployees: 1000,
+      enabledModules: ['hr', 'finance', 'payroll', 'procurement', 'inventory', 'crm', 'projects', 'expenses', 'talent'],
+      validFrom: '2026-01-01',
+      validTo: '2026-12-31',
+    });
+    console.log('Allocated ENTERPRISE license to demo tenant');
+  } catch (e) {
+    console.log('Super admin / license seed skipped:', (e as Error).message);
   }
 
   console.log('Seeding demo users...');
