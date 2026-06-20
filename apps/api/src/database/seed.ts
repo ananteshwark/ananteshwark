@@ -3,6 +3,7 @@ import { AppModule } from '../app.module';
 import { TenantsService } from '../modules/tenants/tenants.service';
 import { UsersService } from '../modules/users/users.service';
 import { RbacService } from '../modules/rbac/rbac.service';
+import { PermissionsService } from '../modules/rbac/permissions.service';
 import { RequisitionService } from '../modules/procurement/requisition/requisition.service';
 import { PoService } from '../modules/procurement/po/po.service';
 import { GrnService } from '../modules/procurement/grn/grn.service';
@@ -34,6 +35,7 @@ async function seed() {
   const tenantsService = app.get(TenantsService);
   const usersService = app.get(UsersService);
   const rbacService = app.get(RbacService);
+  const permissionsService = app.get(PermissionsService);
   const workflowService = app.get(WorkflowService);
 
   console.log('Seeding demo tenant...');
@@ -76,6 +78,19 @@ async function seed() {
     console.log('Admin user created:', adminUser.id);
   } catch (e) {
     console.log('Admin user already exists');
+  }
+
+  // Grant the admin user the Tenant Admin role (idempotent).
+  try {
+    const adminUser = await usersService.findByEmail('admin@demo.com', tenant.id);
+    const roles = await rbacService.findAll(tenant.id);
+    const adminRole = roles.find((r) => r.name === 'Tenant Admin');
+    if (adminUser && adminRole) {
+      await permissionsService.assignRole(adminUser.id, adminRole.id, tenant.id, adminUser.id);
+      console.log('Assigned Tenant Admin role to admin@demo.com');
+    }
+  } catch (e) {
+    console.log('Admin role assignment skipped:', (e as Error).message);
   }
 
   console.log('Seeding demo users...');

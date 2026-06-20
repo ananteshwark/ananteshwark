@@ -24,6 +24,9 @@ export const getDatabaseConfig = (config: ConfigService): TypeOrmModuleOptions =
     NotificationTemplate,
     AuditLog,
   ],
+  // Pull in every entity registered via TypeOrmModule.forFeature() across all
+  // feature modules so synchronize can create their tables too.
+  autoLoadEntities: true,
   synchronize: config.get('APP_ENV') === 'development',
   logging: config.get('APP_ENV') === 'development',
   migrations: ['dist/database/migrations/*.js'],

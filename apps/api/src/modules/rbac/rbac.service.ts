@@ -53,6 +53,11 @@ export class RbacService {
           isSystemRole: true,
         });
         await this.roleRepository.save(role);
+      } else {
+        // Keep system role permissions in sync as new modules are added.
+        existing.permissions = roleData.permissions;
+        existing.isSystemRole = true;
+        await this.roleRepository.save(existing);
       }
     }
   }

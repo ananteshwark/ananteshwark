@@ -52,6 +52,43 @@ export const ALL_PERMISSIONS = [
   'talent:appraisal:read', 'talent:appraisal:manage',
   // Localization module
   'localization:read',
+  // Finance — extended (fixed assets, periods, AR manage)
+  'finance:ar:manage',
+  'finance:fixed-assets:read', 'finance:fixed-assets:manage',
+  'finance:periods:manage',
+  // HR — extended
+  'hr:employees:manage',
+  // Inventory module
+  'inventory:read', 'inventory:manage',
+  'inventory:items:read', 'inventory:items:create', 'inventory:items:update',
+  'inventory:stock:read', 'inventory:stock:transact',
+  'inventory:adjustments:manage',
+  // Projects module
+  'projects:read', 'projects:create', 'projects:update', 'projects:manage',
+  // Expenses module
+  'expenses:claims:read', 'expenses:claims:create', 'expenses:claims:approve',
+  // CRM module
+  'crm:contacts:read', 'crm:contacts:create', 'crm:contacts:update',
+  'crm:opportunities:manage', 'crm:quotes:manage',
+  // Sales module
+  'sales:orders:read', 'sales:orders:create', 'sales:orders:update', 'sales:orders:manage',
+  // Contracts module
+  'contracts:read', 'contracts:manage',
+  // Manufacturing module
+  'manufacturing:read', 'manufacturing:manage',
+  // Quality module
+  'quality:read', 'quality:manage',
+  // Maintenance module
+  'maintenance:read', 'maintenance:manage',
+  // Benefits & Compensation module
+  'benefits:read', 'benefits:manage',
+  'compensation:read', 'compensation:manage',
+  // Analytics module
+  'analytics:read', 'analytics:manage',
+  // Platform module
+  'platform:read', 'platform:manage',
+  // Licensing module
+  'licensing:read', 'licensing:manage',
 ];
 
 export const SYSTEM_ROLES = {
