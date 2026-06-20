@@ -5,6 +5,9 @@ import { Tenant, TenantStatus } from '../tenants/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
 import { TenantLicense, TenantLicenseStatus } from './entities/tenant-license.entity';
 import { CreateTenantDto, UpdateTenantDto, AllocateLicenseDto, UpdateLicenseDto } from './dto/admin.dto';
+import { UsersService } from '../users/users.service';
+import { RbacService } from '../rbac/rbac.service';
+import { PermissionsService } from '../rbac/permissions.service';
 
 @Injectable()
 export class AdminService {
@@ -15,6 +18,9 @@ export class AdminService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(TenantLicense)
     private readonly licenseRepo: Repository<TenantLicense>,
+    private readonly usersService: UsersService,
+    private readonly rbacService: RbacService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   // ---- Tenants (cross-tenant; super admin only) ----
@@ -44,10 +50,33 @@ export class AdminService {
     return { ...tenant, license: license ?? null, userCount };
   }
 
-  async createTenant(dto: CreateTenantDto): Promise<Tenant> {
+  async createTenant(dto: CreateTenantDto): Promise<any> {
     const existing = await this.tenantRepo.findOne({ where: { slug: dto.slug } });
     if (existing) throw new ConflictException(`Tenant slug ${dto.slug} already exists`);
-    return this.tenantRepo.save(this.tenantRepo.create({ ...dto, settings: {} }));
+
+    // Login resolves the tenant by email, so the admin email must be globally unique.
+    const emailTaken = await this.userRepo.findOne({ where: { email: dto.adminEmail.toLowerCase() } });
+    if (emailTaken) throw new ConflictException(`Email ${dto.adminEmail} is already in use`);
+
+    const tenant = await this.tenantRepo.save(
+      this.tenantRepo.create({ name: dto.name, slug: dto.slug, plan: dto.plan, settings: {} }),
+    );
+
+    // Provision system roles and the default tenant admin for the new tenant.
+    await this.rbacService.seedSystemRoles(tenant.id);
+    const adminUser = await this.usersService.create(tenant.id, {
+      email: dto.adminEmail,
+      firstName: dto.adminFirstName,
+      lastName: dto.adminLastName,
+      password: dto.adminPassword,
+    } as any);
+    const roles = await this.rbacService.findAll(tenant.id);
+    const adminRole = roles.find((r) => r.name === 'Tenant Admin');
+    if (adminRole) {
+      await this.permissionsService.assignRole(adminUser.id, adminRole.id, tenant.id, adminUser.id);
+    }
+
+    return { ...tenant, adminUser: { id: adminUser.id, email: adminUser.email } };
   }
 
   async updateTenant(id: string, dto: UpdateTenantDto): Promise<Tenant> {

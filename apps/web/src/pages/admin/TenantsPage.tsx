@@ -22,7 +22,7 @@ export default function TenantsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [showTenantModal, setShowTenantModal] = useState(false);
-  const [tenantForm, setTenantForm] = useState({ name: '', slug: '', plan: 'TRIAL' });
+  const [tenantForm, setTenantForm] = useState({ name: '', slug: '', plan: 'trial', adminEmail: '', adminFirstName: '', adminLastName: '', adminPassword: '' });
 
   const [licenseFor, setLicenseFor] = useState<any | null>(null);
   const [licForm, setLicForm] = useState<any>({ tier: 'TRIAL', maxUsers: 10, maxEmployees: 50, enabledModules: [] as string[], validFrom: '', validTo: '', notes: '' });
@@ -52,7 +52,7 @@ export default function TenantsPage() {
     try {
       await adminApi.createTenant(tenantForm);
       setShowTenantModal(false);
-      setTenantForm({ name: '', slug: '', plan: 'TRIAL' });
+      setTenantForm({ name: '', slug: '', plan: 'trial', adminEmail: '', adminFirstName: '', adminLastName: '', adminPassword: '' });
       await fetchTenants();
     } catch (err: any) {
       setFormError(err?.response?.data?.message ?? 'Failed to create tenant');
@@ -202,6 +202,30 @@ export default function TenantsPage() {
                   {['trial', 'free', 'starter', 'professional', 'enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
+
+              <div className="pt-2 mt-2 border-t">
+                <p className="text-sm font-semibold text-gray-800 mb-1">Default Tenant Admin</p>
+                <p className="text-xs text-gray-400 mb-3">This user will be created with the Tenant Admin role and can sign in immediately.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                    <input required value={tenantForm.adminFirstName} onChange={e => setTenantForm(f => ({ ...f, adminFirstName: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                    <input required value={tenantForm.adminLastName} onChange={e => setTenantForm(f => ({ ...f, adminLastName: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email *</label>
+                  <input required type="email" value={tenantForm.adminEmail} onChange={e => setTenantForm(f => ({ ...f, adminEmail: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="admin@acme.com" />
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Temporary Password *</label>
+                  <input required type="password" minLength={8} value={tenantForm.adminPassword} onChange={e => setTenantForm(f => ({ ...f, adminPassword: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="At least 8 characters" />
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowTenantModal(false)} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={submitting} className="flex-1 bg-indigo-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{submitting ? 'Creating...' : 'Create'}</button>

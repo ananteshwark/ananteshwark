@@ -16,16 +16,15 @@ export default function LoginPage() {
   const [form, setForm] = useState({
     email: '',
     password: '',
-    tenantSlug: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Tenant is resolved automatically from the user's account.
       const data = await loginMutation.mutateAsync({
         email: form.email,
         password: form.password,
-        tenantSlug: form.tenantSlug || undefined,
       });
       login(data.user, data.tenant || null, data.accessToken, data.refreshToken);
       navigate('/dashboard');
@@ -64,15 +63,6 @@ export default function LoginPage() {
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
-            />
-            <Input
-              label="Tenant Slug (optional)"
-              type="text"
-              name="tenantSlug"
-              placeholder="your-company"
-              value={form.tenantSlug}
-              onChange={(e) => setForm({ ...form, tenantSlug: e.target.value })}
-              helperText="Leave blank to auto-detect from domain"
             />
 
             <div className="flex items-center justify-between">

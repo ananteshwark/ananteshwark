@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsArray, IsDateString, Matches, MinLength, Min } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsInt, IsArray, IsDateString, Matches, MinLength, Min, IsEmail } from 'class-validator';
 import { PartialType } from '@nestjs/swagger';
 import { TenantPlan, TenantStatus } from '../../tenants/entities/tenant.entity';
 import { TenantLicenseTier, TenantLicenseStatus } from '../entities/tenant-license.entity';
@@ -15,6 +15,22 @@ export class CreateTenantDto {
   @IsOptional()
   @IsEnum(TenantPlan)
   plan?: TenantPlan;
+
+  // Default tenant admin to create alongside the tenant.
+  @IsEmail()
+  adminEmail: string;
+
+  @IsString()
+  @MinLength(1)
+  adminFirstName: string;
+
+  @IsString()
+  @MinLength(1)
+  adminLastName: string;
+
+  @IsString()
+  @MinLength(8)
+  adminPassword: string;
 }
 
 export class UpdateTenantDto {
