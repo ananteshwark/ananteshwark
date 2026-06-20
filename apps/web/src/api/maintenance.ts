@@ -18,7 +18,7 @@ export const maintenanceApi = {
   completeOrder: (id: string, data: any) => apiClient.post(`/maintenance/orders/${id}/complete`, data),
 
   // Breakdown Notifications
-  getBreakdowns: (params?: any) => apiClient.get('/maintenance/breakdowns', { params }),
-  reportBreakdown: (data: any) => apiClient.post('/maintenance/breakdowns', data),
-  resolveBreakdown: (id: string, data: any) => apiClient.post(`/maintenance/breakdowns/${id}/resolve`, data),
+  getBreakdowns: (params?: any) => apiClient.get('/maintenance/breakdown-notifications', { params }),
+  reportBreakdown: (data: any) => apiClient.post('/maintenance/breakdown-notifications', data),
+  createOrderFromBreakdown: (id: string) => apiClient.post(`/maintenance/breakdown-notifications/${id}/create-order`),
 };

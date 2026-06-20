@@ -47,7 +47,7 @@ export class AtsService {
     const qb = this.jobRepo.createQueryBuilder('j').where('j.tenant_id = :tenantId', { tenantId });
     if (filters?.status) qb.andWhere('j.status = :status', { status: filters.status });
     if (filters?.departmentId) qb.andWhere('j.department_id = :departmentId', { departmentId: filters.departmentId });
-    qb.orderBy('j.created_at', 'DESC');
+    qb.orderBy('j.createdAt', 'DESC');
     const page = pagination.page || 1;
     const limit = pagination.limit || 20;
     qb.skip((page - 1) * limit).take(limit);

@@ -3,19 +3,19 @@ import { apiClient } from './client';
 // Chart of Accounts
 export const financeApi = {
   // GL Accounts
-  getAccounts: (params?: any) => apiClient.get('/finance/gl/accounts', { params }),
-  getAccountTree: () => apiClient.get('/finance/gl/accounts/tree'),
-  createAccount: (data: any) => apiClient.post('/finance/gl/accounts', data),
-  updateAccount: (id: string, data: any) => apiClient.patch(`/finance/gl/accounts/${id}`, data),
+  getAccounts: (params?: any) => apiClient.get('/finance/accounts', { params }),
+  getAccountTree: () => apiClient.get('/finance/accounts/tree'),
+  createAccount: (data: any) => apiClient.post('/finance/accounts', data),
+  updateAccount: (id: string, data: any) => apiClient.patch(`/finance/accounts/${id}`, data),
 
   // Journal Entries
-  getJournalEntries: (params?: any) => apiClient.get('/finance/gl/journal-entries', { params }),
-  getJournalEntry: (id: string) => apiClient.get(`/finance/gl/journal-entries/${id}`),
-  createJournalEntry: (data: any) => apiClient.post('/finance/gl/journal-entries', data),
-  updateJournalEntry: (id: string, data: any) => apiClient.patch(`/finance/gl/journal-entries/${id}`, data),
-  postJournalEntry: (id: string) => apiClient.post(`/finance/gl/journal-entries/${id}/post`),
-  reverseJournalEntry: (id: string) => apiClient.post(`/finance/gl/journal-entries/${id}/reverse`),
-  deleteJournalEntry: (id: string) => apiClient.delete(`/finance/gl/journal-entries/${id}`),
+  getJournalEntries: (params?: any) => apiClient.get('/finance/journal-entries', { params }),
+  getJournalEntry: (id: string) => apiClient.get(`/finance/journal-entries/${id}`),
+  createJournalEntry: (data: any) => apiClient.post('/finance/journal-entries', data),
+  updateJournalEntry: (id: string, data: any) => apiClient.patch(`/finance/journal-entries/${id}`, data),
+  postJournalEntry: (id: string) => apiClient.post(`/finance/journal-entries/${id}/post`),
+  reverseJournalEntry: (id: string) => apiClient.post(`/finance/journal-entries/${id}/reverse`),
+  deleteJournalEntry: (id: string) => apiClient.delete(`/finance/journal-entries/${id}`),
 
   // Vendors
   getVendors: (params?: any) => apiClient.get('/finance/ap/vendors', { params }),

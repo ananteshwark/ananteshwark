@@ -33,6 +33,20 @@ export class ContractsController {
     return this.service.getExpiringContracts(user.tenantId, days ? parseInt(days) : 30);
   }
 
+  // Templates — must be declared before the ':id' route so the literal
+  // 'templates' path isn't captured as an :id lookup.
+  @Get('templates')
+  @RequirePermission('contracts:read')
+  listTemplates(@CurrentUser() user: any, @Query('type') type?: string) {
+    return this.service.listTemplates(user.tenantId, type as any);
+  }
+
+  @Post('templates')
+  @RequirePermission('contracts:manage')
+  createTemplate(@CurrentUser() user: any, @Body() dto: CreateTemplateDto) {
+    return this.service.createTemplate(user.tenantId, dto);
+  }
+
   @Get(':id')
   @RequirePermission('contracts:read')
   getContract(@CurrentUser() user: any, @Param('id') id: string) {
@@ -86,18 +100,5 @@ export class ContractsController {
   @RequirePermission('contracts:manage')
   completeMilestone(@CurrentUser() user: any, @Param('milestoneId') id: string) {
     return this.service.completeMilestone(user.tenantId, id);
-  }
-
-  // Templates
-  @Get('templates')
-  @RequirePermission('contracts:read')
-  listTemplates(@CurrentUser() user: any, @Query('type') type?: string) {
-    return this.service.listTemplates(user.tenantId, type as any);
-  }
-
-  @Post('templates')
-  @RequirePermission('contracts:manage')
-  createTemplate(@CurrentUser() user: any, @Body() dto: CreateTemplateDto) {
-    return this.service.createTemplate(user.tenantId, dto);
   }
 }

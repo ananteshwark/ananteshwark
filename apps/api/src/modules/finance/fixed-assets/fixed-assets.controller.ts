@@ -53,6 +53,20 @@ export class FixedAssetsController {
     return this.service.listAssets(user.tenantId, pagination, { status, categoryId, search });
   }
 
+  // Depreciation Runs — declared before ':id' so the literal
+  // 'depreciation-runs' path isn't captured as an :id lookup.
+  @Get('depreciation-runs')
+  @RequirePermission('finance:fixed-assets:read')
+  listRuns(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
+    return this.service.listDepreciationRuns(user.tenantId, pagination);
+  }
+
+  @Get('depreciation-runs/:id/lines')
+  @RequirePermission('finance:fixed-assets:read')
+  getRunLines(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.getDepreciationRunLines(user.tenantId, id);
+  }
+
   @Get(':id')
   @RequirePermission('finance:fixed-assets:read')
   getAsset(@CurrentUser() user: any, @Param('id') id: string) {
@@ -83,13 +97,7 @@ export class FixedAssetsController {
     return this.service.disposeAsset(user.tenantId, id, dto, user.id);
   }
 
-  // Depreciation Runs
-  @Get('depreciation-runs')
-  @RequirePermission('finance:fixed-assets:read')
-  listRuns(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
-    return this.service.listDepreciationRuns(user.tenantId, pagination);
-  }
-
+  // Depreciation Runs (mutations)
   @Post('depreciation-runs')
   @RequirePermission('finance:fixed-assets:manage')
   runDepreciation(@CurrentUser() user: any, @Body() dto: RunDepreciationDto) {
@@ -100,11 +108,5 @@ export class FixedAssetsController {
   @RequirePermission('finance:fixed-assets:manage')
   postRun(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.postDepreciationRun(user.tenantId, id, user.id);
-  }
-
-  @Get('depreciation-runs/:id/lines')
-  @RequirePermission('finance:fixed-assets:read')
-  getRunLines(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.service.getDepreciationRunLines(user.tenantId, id);
   }
 }

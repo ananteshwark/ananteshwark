@@ -39,6 +39,15 @@ export class PoController {
     return this.service.findAll(user.tenantId, pagination, { status, vendorId });
   }
 
+  // Declared before ':id' so the literal 'approval-matrix' path isn't
+  // captured as an :id lookup.
+  @Get('approval-matrix')
+  @RequirePermission('procurement:po:read')
+  @ApiOperation({ summary: 'List approval matrices' })
+  listMatrices(@CurrentUser() user: any) {
+    return this.service.listApprovalMatrices(user.tenantId);
+  }
+
   @Get(':id')
   @RequirePermission('procurement:po:read')
   @ApiOperation({ summary: 'Get PO with lines' })
@@ -82,13 +91,6 @@ export class PoController {
   }
 
   // ─── Approval Matrix ──────────────────────────────────────────
-
-  @Get('approval-matrix')
-  @RequirePermission('procurement:po:read')
-  @ApiOperation({ summary: 'List approval matrices' })
-  listMatrices(@CurrentUser() user: any) {
-    return this.service.listApprovalMatrices(user.tenantId);
-  }
 
   @Post('approval-matrix')
   @RequirePermission('procurement:po:approve')
