@@ -9,6 +9,10 @@ import { WorkflowInstance } from '../modules/workflow/entities/workflow-instance
 import { Notification } from '../modules/notifications/entities/notification.entity';
 import { NotificationTemplate } from '../modules/notifications/entities/notification-template.entity';
 import { AuditLog } from '../modules/audit/entities/audit-log.entity';
+import { TaxCode } from '../modules/finance/tax/entities/tax-code.entity';
+import { TaxLine } from '../modules/finance/tax/entities/tax-line.entity';
+import { Bill } from '../modules/finance/ap/entities/bill.entity';
+import { Invoice } from '../modules/finance/ar/entities/invoice.entity';
 
 export const getDatabaseConfig = (config: ConfigService): TypeOrmModuleOptions => ({
   type: 'postgres',
@@ -23,10 +27,11 @@ export const getDatabaseConfig = (config: ConfigService): TypeOrmModuleOptions =
     Notification,
     NotificationTemplate,
     AuditLog,
+    TaxCode,
+    TaxLine,
+    Bill,
+    Invoice,
   ],
-  // Pull in every entity registered via TypeOrmModule.forFeature() across all
-  // feature modules so synchronize can create their tables too.
-  autoLoadEntities: true,
   synchronize: config.get('APP_ENV') === 'development',
   logging: config.get('APP_ENV') === 'development',
   migrations: ['dist/database/migrations/*.js'],

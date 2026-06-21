@@ -1,431 +1,262 @@
-import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle, Ban } from 'lucide-react';
-import { financeApi } from '../../api/finance';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Send } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { apiClient } from '../../api/client';
+import { taxApi } from '../../api/tax';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
+import { Card, CardContent } from '../../components/ui/Card';
 
-interface Customer {
-  id: string;
-  name: string;
-}
-
-interface InvoiceLine {
-  description: string;
-  accountId: string;
-  quantity: string;
-  unitPrice: string;
-  taxRate: string;
-}
-
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  customerId: string;
-  customer?: { name: string };
-  invoiceDate: string;
-  dueDate?: string;
-  total: number;
-  balanceDue: number;
-  status: 'DRAFT' | 'SENT' | 'PARTIAL' | 'PAID' | 'VOID' | 'OVERDUE';
-}
-
-const STATUS_FILTERS = ['All', 'DRAFT', 'SENT', 'PARTIAL', 'PAID', 'VOID', 'OVERDUE'];
-
-const statusColors: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700',
-  SENT: 'bg-blue-100 text-blue-800',
-  PARTIAL: 'bg-yellow-100 text-yellow-800',
-  PAID: 'bg-green-100 text-green-800',
-  VOID: 'bg-red-100 text-red-800',
-  OVERDUE: 'bg-orange-100 text-orange-800',
+const STATUS_VARIANT: Record<string, any> = {
+  DRAFT: 'default',
+  POSTED: 'info',
+  PAID: 'success',
+  CANCELLED: 'error',
 };
 
-const emptyLine = (): InvoiceLine => ({
-  description: '',
-  accountId: '',
-  quantity: '1',
-  unitPrice: '0',
-  taxRate: '0',
+interface InvoiceForm {
+  invoiceNumber: string;
+  customerName: string;
+  invoiceDate: string;
+  dueDate: string;
+  subTotal: string;
+  taxCodeId: string;
+  notes: string;
+}
+
+const emptyForm = (): InvoiceForm => ({
+  invoiceNumber: '',
+  customerName: '',
+  invoiceDate: new Date().toISOString().slice(0, 10),
+  dueDate: '',
+  subTotal: '',
+  taxCodeId: '',
+  notes: '',
 });
 
-const defaultForm = {
-  customerId: '',
-  invoiceNumber: '',
-  invoiceDate: new Date().toISOString().split('T')[0],
-  dueDate: '',
-};
+function TaxPreview({ taxCodeId, subTotal }: { taxCodeId: string; subTotal: string }) {
+  const amount = parseFloat(subTotal);
+  const { data } = useQuery({
+    queryKey: ['taxPreview', taxCodeId, amount],
+    queryFn: () =>
+      taxApi.calculate(taxCodeId, amount).then((r) => r.data?.data ?? r.data),
+    enabled: !!taxCodeId && !isNaN(amount) && amount > 0,
+  });
 
-export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(defaultForm);
-  const [lines, setLines] = useState<InvoiceLine[]>([emptyLine()]);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  if (!taxCodeId || !subTotal || isNaN(amount) || amount <= 0) return null;
+  if (!data) return <p className="text-xs text-gray-400 mt-1">Calculating...</p>;
 
-  const fetchInvoices = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = statusFilter !== 'All' ? { status: statusFilter } : {};
-      const res = await financeApi.getInvoices(params);
-      setInvoices(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to load invoices');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const lines: any[] = Array.isArray(data) ? data : [];
+  return (
+    <div className="mt-1 text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">
+      Tax breakdown: {lines.map((l) => `${l.componentName} ₹${l.taxAmount}`).join(' + ')}
+    </div>
+  );
+}
 
-  const fetchCustomers = async () => {
-    try {
-      const res = await financeApi.getCustomers();
-      setCustomers(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
-    } catch {
-      // non-critical
-    }
-  };
+function InvoiceModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<InvoiceForm>(emptyForm());
 
   useEffect(() => {
-    fetchInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+    if (isOpen) setForm(emptyForm());
+  }, [isOpen]);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  const { data: taxCodesRaw } = useQuery({
+    queryKey: ['taxCodes'],
+    queryFn: () => taxApi.listCodes().then((r) => r.data?.data ?? r.data),
+  });
+  const taxCodes: any[] = Array.isArray(taxCodesRaw) ? taxCodesRaw : [];
 
-  const handleLineChange = (i: number, field: keyof InvoiceLine, value: string) => {
-    const updated = [...lines];
-    updated[i] = { ...updated[i], [field]: value };
-    setLines(updated);
-  };
+  const createMut = useMutation({
+    mutationFn: (data: any) =>
+      apiClient.post('/finance/ar/invoices', data).then((r) => r.data?.data ?? r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast.success('Invoice created');
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to create invoice'),
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    setFormError(null);
-    try {
-      await financeApi.createInvoice({
-        ...form,
-        dueDate: form.dueDate || undefined,
-        lines: lines
-          .filter((l) => l.description || l.accountId)
-          .map((l) => ({
-            description: l.description,
-            accountId: l.accountId,
-            quantity: parseFloat(l.quantity) || 1,
-            unitPrice: parseFloat(l.unitPrice) || 0,
-            taxRate: parseFloat(l.taxRate) || 0,
-          })),
-      });
-      setShowModal(false);
-      setForm(defaultForm);
-      setLines([emptyLine()]);
-      fetchInvoices();
-    } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create invoice');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handlePost = async (id: string) => {
-    setActionError(null);
-    try {
-      await financeApi.postInvoice(id);
-      fetchInvoices();
-    } catch (err: any) {
-      setActionError(err?.response?.data?.message ?? 'Failed to post invoice');
-    }
-  };
-
-  const handleVoid = async (id: string) => {
-    if (!window.confirm('Void this invoice?')) return;
-    setActionError(null);
-    try {
-      await financeApi.voidInvoice(id);
-      fetchInvoices();
-    } catch (err: any) {
-      setActionError(err?.response?.data?.message ?? 'Failed to void invoice');
-    }
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setForm(defaultForm);
-    setLines([emptyLine()]);
-    setFormError(null);
+    createMut.mutate({
+      ...form,
+      subTotal: parseFloat(form.subTotal),
+      taxCodeId: form.taxCodeId || undefined,
+      dueDate: form.dueDate || undefined,
+    });
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Invoices</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Invoice
-        </button>
-      </div>
-
-      {/* Status Filter */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {STATUS_FILTERS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-              statusFilter === s
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      {actionError && <p className="mb-4 text-sm text-red-600">{actionError}</p>}
-      {loading && <p className="text-gray-500">Loading...</p>}
-      {error && <p className="text-red-600">{error}</p>}
-
-      {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance Due</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {invoices.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">No invoices found</td>
-                </tr>
-              )}
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-mono text-gray-900">{invoice.invoiceNumber}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {invoice.customer?.name ?? customers.find((c) => c.id === invoice.customerId)?.name ?? invoice.customerId}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{invoice.invoiceDate?.split('T')[0]}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{invoice.dueDate?.split('T')[0] ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700 text-right">{Number(invoice.total).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700 text-right">{Number(invoice.balanceDue).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[invoice.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                      {invoice.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {invoice.status === 'DRAFT' && (
-                        <button
-                          onClick={() => handlePost(invoice.id)}
-                          title="Post"
-                          className="p-1 text-green-600 hover:text-green-800"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                      )}
-                      {(invoice.status === 'SENT' || invoice.status === 'PARTIAL') && (
-                        <button
-                          onClick={() => handleVoid(invoice.id)}
-                          title="Void"
-                          className="p-1 text-red-500 hover:text-red-700"
-                        >
-                          <Ban className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <Modal isOpen={isOpen} onClose={onClose} title="New Invoice" size="lg">
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Invoice Number"
+            value={form.invoiceNumber}
+            onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })}
+            required
+          />
+          <Input
+            label="Customer Name"
+            value={form.customerName}
+            onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+            required
+          />
         </div>
-      )}
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Invoice Date"
+            type="date"
+            value={form.invoiceDate}
+            onChange={(e) => setForm({ ...form, invoiceDate: e.target.value })}
+            required
+          />
+          <Input
+            label="Due Date"
+            type="date"
+            value={form.dueDate}
+            onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+          />
+        </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white">
-              <h2 className="text-lg font-semibold text-gray-900">New Invoice</h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
+        <div>
+          <Input
+            label="Sub Total (₹)"
+            type="number"
+            min={0}
+            step={0.01}
+            value={form.subTotal}
+            onChange={(e) => setForm({ ...form, subTotal: e.target.value })}
+            required
+          />
+        </div>
+
+        <div>
+          <Select
+            label="Tax Code"
+            value={form.taxCodeId}
+            onChange={(e) => setForm({ ...form, taxCodeId: e.target.value })}
+            options={taxCodes.map((tc) => ({ value: tc.id, label: `${tc.code} — ${tc.name} (${tc.rate}%)` }))}
+            placeholder="None / No Tax"
+          />
+          <TaxPreview taxCodeId={form.taxCodeId} subTotal={form.subTotal} />
+        </div>
+
+        <Input
+          label="Notes"
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          placeholder="Optional notes"
+        />
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={createMut.isPending}>Create Invoice</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export default function InvoicesPage() {
+  const queryClient = useQueryClient();
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const { data: rawData, isLoading } = useQuery({
+    queryKey: ['invoices'],
+    queryFn: () => apiClient.get('/finance/ar/invoices').then((r) => r.data?.data ?? r.data),
+  });
+  const invoices: any[] = Array.isArray(rawData) ? rawData : [];
+
+  const postMut = useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post(`/finance/ar/invoices/${id}/post`).then((r) => r.data?.data ?? r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast.success('Invoice posted');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to post'),
+  });
+
+  const fmt = (v: any) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(v));
+
+  return (
+    <div>
+      <PageHeader
+        title="Invoices"
+        description="Accounts Receivable — manage customer invoices"
+        actions={
+          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModalOpen(true)}>
+            New Invoice
+          </Button>
+        }
+      />
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="text-center py-10 text-gray-500">Loading...</div>
+          ) : invoices.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">No invoices yet</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Invoice #</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Sub Total</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Tax</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((inv: any) => (
+                    <tr key={inv.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-gray-900">{inv.invoiceNumber}</td>
+                      <td className="px-4 py-3 text-gray-700">{inv.customerName}</td>
+                      <td className="px-4 py-3 text-gray-500">{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString() : '-'}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{fmt(inv.subTotal)}</td>
+                      <td className="px-4 py-3 text-right text-blue-600">{fmt(inv.taxAmount)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmt(inv.totalAmount)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={STATUS_VARIANT[inv.status] || 'default'}>{inv.status}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {inv.status === 'DRAFT' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            leftIcon={<Send className="h-3 w-3" />}
+                            onClick={() => postMut.mutate(inv.id)}
+                            loading={postMut.isPending}
+                          >
+                            Post
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-              {formError && <p className="text-sm text-red-600">{formError}</p>}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-                  <select
-                    required
-                    value={form.customerId}
-                    onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Select customer...</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.invoiceNumber}
-                    onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="INV-0001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={form.invoiceDate}
-                    onChange={(e) => setForm({ ...form, invoiceDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date (optional)</label>
-                  <input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
+          )}
+        </CardContent>
+      </Card>
 
-              {/* Line Items */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Line Items</label>
-                <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Account ID</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Unit Price</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Tax %</th>
-                        <th className="px-3 py-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {lines.map((line, i) => (
-                        <tr key={i}>
-                          <td className="px-2 py-1">
-                            <input
-                              type="text"
-                              value={line.description}
-                              onChange={(e) => handleLineChange(i, 'description', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="Description"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="text"
-                              value={line.accountId}
-                              onChange={(e) => handleLineChange(i, 'accountId', e.target.value)}
-                              className="w-28 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="Account ID"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.001"
-                              value={line.quantity}
-                              onChange={(e) => handleLineChange(i, 'quantity', e.target.value)}
-                              className="w-16 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={line.unitPrice}
-                              onChange={(e) => handleLineChange(i, 'unitPrice', e.target.value)}
-                              className="w-24 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={line.taxRate}
-                              onChange={(e) => handleLineChange(i, 'taxRate', e.target.value)}
-                              className="w-16 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            {lines.length > 1 && (
-                              <button type="button" onClick={() => setLines(lines.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600">
-                                <X className="w-4 h-4" />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setLines([...lines, emptyLine()])}
-                  className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" /> Add Line
-                </button>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Creating...' : 'Create Invoice'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <InvoiceModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 }

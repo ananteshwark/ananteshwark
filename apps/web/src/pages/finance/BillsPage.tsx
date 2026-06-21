@@ -1,430 +1,262 @@
-import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle, Ban } from 'lucide-react';
-import { financeApi } from '../../api/finance';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Send } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { apiClient } from '../../api/client';
+import { taxApi } from '../../api/tax';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
+import { Card, CardContent } from '../../components/ui/Card';
 
-interface Vendor {
-  id: string;
-  name: string;
-}
+const STATUS_VARIANT: Record<string, any> = {
+  DRAFT: 'default',
+  POSTED: 'info',
+  PAID: 'success',
+  CANCELLED: 'error',
+};
 
-interface Account {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface BillLine {
-  description: string;
-  accountId: string;
-  quantity: string;
-  unitPrice: string;
-}
-
-interface Bill {
-  id: string;
+interface BillForm {
   billNumber: string;
-  vendorId: string;
-  vendor?: { name: string };
+  vendorName: string;
   billDate: string;
-  dueDate?: string;
-  total: number;
-  status: 'DRAFT' | 'POSTED' | 'VOID' | 'PARTIAL';
+  dueDate: string;
+  subTotal: string;
+  taxCodeId: string;
+  notes: string;
 }
 
-const STATUS_FILTERS = ['All', 'DRAFT', 'POSTED', 'VOID'];
-
-const statusColors: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700',
-  POSTED: 'bg-green-100 text-green-800',
-  VOID: 'bg-red-100 text-red-800',
-  PARTIAL: 'bg-yellow-100 text-yellow-800',
-};
-
-const emptyLine = (): BillLine => ({ description: '', accountId: '', quantity: '1', unitPrice: '0' });
-
-const defaultForm = {
+const emptyForm = (): BillForm => ({
   billNumber: '',
-  vendorId: '',
-  billDate: new Date().toISOString().split('T')[0],
+  vendorName: '',
+  billDate: new Date().toISOString().slice(0, 10),
   dueDate: '',
-};
+  subTotal: '',
+  taxCodeId: '',
+  notes: '',
+});
 
-export default function BillsPage() {
-  const [bills, setBills] = useState<Bill[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(defaultForm);
-  const [lines, setLines] = useState<BillLine[]>([emptyLine()]);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+function TaxPreview({ taxCodeId, subTotal }: { taxCodeId: string; subTotal: string }) {
+  const amount = parseFloat(subTotal);
+  const { data } = useQuery({
+    queryKey: ['taxPreview', taxCodeId, amount],
+    queryFn: () =>
+      taxApi.calculate(taxCodeId, amount).then((r) => r.data?.data ?? r.data),
+    enabled: !!taxCodeId && !isNaN(amount) && amount > 0,
+  });
 
-  const fetchBills = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = statusFilter !== 'All' ? { status: statusFilter } : {};
-      const res = await financeApi.getBills(params);
-      setBills(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to load bills');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!taxCodeId || !subTotal || isNaN(amount) || amount <= 0) return null;
+  if (!data) return <p className="text-xs text-gray-400 mt-1">Calculating...</p>;
 
-  const fetchVendors = async () => {
-    try {
-      const res = await financeApi.getVendors();
-      setVendors(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
-    } catch {
-      // non-critical
-    }
-  };
+  const lines: any[] = Array.isArray(data) ? data : [];
+  return (
+    <div className="mt-1 text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">
+      Tax breakdown: {lines.map((l) => `${l.componentName} ₹${l.taxAmount}`).join(' + ')}
+    </div>
+  );
+}
 
-  const fetchAccounts = async () => {
-    try {
-      const res = await financeApi.getAccounts({ limit: 200 });
-      setAccounts(res.data?.items ?? res.data?.data?.items ?? res.data?.data ?? []);
-    } catch {
-      // non-critical
-    }
-  };
+function BillModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<BillForm>(emptyForm());
 
   useEffect(() => {
-    fetchBills();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+    if (isOpen) setForm(emptyForm());
+  }, [isOpen]);
 
-  useEffect(() => {
-    fetchVendors();
-    fetchAccounts();
-  }, []);
+  const { data: taxCodesRaw } = useQuery({
+    queryKey: ['taxCodes'],
+    queryFn: () => taxApi.listCodes().then((r) => r.data?.data ?? r.data),
+  });
+  const taxCodes: any[] = Array.isArray(taxCodesRaw) ? taxCodesRaw : [];
 
-  const handleLineChange = (i: number, field: keyof BillLine, value: string) => {
-    const updated = [...lines];
-    updated[i] = { ...updated[i], [field]: value };
-    setLines(updated);
-  };
+  const createMut = useMutation({
+    mutationFn: (data: any) =>
+      apiClient.post('/finance/ap/bills', data).then((r) => r.data?.data ?? r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+      toast.success('Bill created');
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to create bill'),
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    setFormError(null);
-    try {
-      await financeApi.createBill({
-        ...form,
-        dueDate: form.dueDate || undefined,
-        lines: lines
-          .filter((l) => l.description || l.accountId)
-          .map((l) => ({
-            description: l.description,
-            accountId: l.accountId,
-            quantity: parseFloat(l.quantity) || 1,
-            unitPrice: parseFloat(l.unitPrice) || 0,
-          })),
-      });
-      setShowModal(false);
-      setForm(defaultForm);
-      setLines([emptyLine()]);
-      fetchBills();
-    } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create bill');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handlePost = async (id: string) => {
-    setActionError(null);
-    try {
-      await financeApi.postBill(id);
-      fetchBills();
-    } catch (err: any) {
-      setActionError(err?.response?.data?.message ?? 'Failed to post bill');
-    }
-  };
-
-  const handleVoid = async (id: string) => {
-    if (!window.confirm('Void this bill?')) return;
-    setActionError(null);
-    try {
-      await financeApi.voidBill(id);
-      fetchBills();
-    } catch (err: any) {
-      setActionError(err?.response?.data?.message ?? 'Failed to void bill');
-    }
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setForm(defaultForm);
-    setLines([emptyLine()]);
-    setFormError(null);
+    createMut.mutate({
+      ...form,
+      subTotal: parseFloat(form.subTotal),
+      taxCodeId: form.taxCodeId || undefined,
+      dueDate: form.dueDate || undefined,
+    });
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Bills</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Bill
-        </button>
-      </div>
-
-      {/* Status Filter */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {STATUS_FILTERS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-              statusFilter === s
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      {actionError && <p className="mb-4 text-sm text-red-600">{actionError}</p>}
-      {loading && <p className="text-gray-500">Loading...</p>}
-      {error && <p className="text-red-600">{error}</p>}
-
-      {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill #</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {bills.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">No bills found</td>
-                </tr>
-              )}
-              {bills.map((bill) => (
-                <tr key={bill.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-mono text-gray-900">{bill.billNumber}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {bill.vendor?.name ?? vendors.find((v) => v.id === bill.vendorId)?.name ?? bill.vendorId}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{bill.billDate?.split('T')[0]}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{bill.dueDate?.split('T')[0] ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700 text-right">{Number(bill.total).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[bill.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                      {bill.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {bill.status === 'DRAFT' && (
-                        <button
-                          onClick={() => handlePost(bill.id)}
-                          title="Post"
-                          className="p-1 text-green-600 hover:text-green-800"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                      )}
-                      {bill.status === 'POSTED' && (
-                        <button
-                          onClick={() => handleVoid(bill.id)}
-                          title="Void"
-                          className="p-1 text-red-500 hover:text-red-700"
-                        >
-                          <Ban className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <Modal isOpen={isOpen} onClose={onClose} title="New Bill" size="lg">
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Bill Number"
+            value={form.billNumber}
+            onChange={(e) => setForm({ ...form, billNumber: e.target.value })}
+            required
+          />
+          <Input
+            label="Vendor Name"
+            value={form.vendorName}
+            onChange={(e) => setForm({ ...form, vendorName: e.target.value })}
+            required
+          />
         </div>
-      )}
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Bill Date"
+            type="date"
+            value={form.billDate}
+            onChange={(e) => setForm({ ...form, billDate: e.target.value })}
+            required
+          />
+          <Input
+            label="Due Date"
+            type="date"
+            value={form.dueDate}
+            onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+          />
+        </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white">
-              <h2 className="text-lg font-semibold text-gray-900">New Bill</h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
+        <div>
+          <Input
+            label="Sub Total (₹)"
+            type="number"
+            min={0}
+            step={0.01}
+            value={form.subTotal}
+            onChange={(e) => setForm({ ...form, subTotal: e.target.value })}
+            required
+          />
+        </div>
+
+        <div>
+          <Select
+            label="Tax Code"
+            value={form.taxCodeId}
+            onChange={(e) => setForm({ ...form, taxCodeId: e.target.value })}
+            options={taxCodes.map((tc) => ({ value: tc.id, label: `${tc.code} — ${tc.name} (${tc.rate}%)` }))}
+            placeholder="None / No Tax"
+          />
+          <TaxPreview taxCodeId={form.taxCodeId} subTotal={form.subTotal} />
+        </div>
+
+        <Input
+          label="Notes"
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          placeholder="Optional notes"
+        />
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={createMut.isPending}>Create Bill</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export default function BillsPage() {
+  const queryClient = useQueryClient();
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const { data: rawData, isLoading } = useQuery({
+    queryKey: ['bills'],
+    queryFn: () => apiClient.get('/finance/ap/bills').then((r) => r.data?.data ?? r.data),
+  });
+  const bills: any[] = Array.isArray(rawData) ? rawData : [];
+
+  const postMut = useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post(`/finance/ap/bills/${id}/post`).then((r) => r.data?.data ?? r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+      toast.success('Bill posted');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to post'),
+  });
+
+  const fmt = (v: any) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(v));
+
+  return (
+    <div>
+      <PageHeader
+        title="Bills"
+        description="Accounts Payable — manage vendor bills"
+        actions={
+          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModalOpen(true)}>
+            New Bill
+          </Button>
+        }
+      />
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="text-center py-10 text-gray-500">Loading...</div>
+          ) : bills.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">No bills yet</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Bill #</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendor</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Sub Total</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Tax</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {bills.map((b: any) => (
+                    <tr key={b.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-gray-900">{b.billNumber}</td>
+                      <td className="px-4 py-3 text-gray-700">{b.vendorName}</td>
+                      <td className="px-4 py-3 text-gray-500">{b.billDate ? new Date(b.billDate).toLocaleDateString() : '-'}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{fmt(b.subTotal)}</td>
+                      <td className="px-4 py-3 text-right text-blue-600">{fmt(b.taxAmount)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmt(b.totalAmount)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={STATUS_VARIANT[b.status] || 'default'}>{b.status}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {b.status === 'DRAFT' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            leftIcon={<Send className="h-3 w-3" />}
+                            onClick={() => postMut.mutate(b.id)}
+                            loading={postMut.isPending}
+                          >
+                            Post
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-              {formError && <p className="text-sm text-red-600">{formError}</p>}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.billNumber}
-                    onChange={(e) => setForm({ ...form, billNumber: e.target.value })}
-                    placeholder="e.g. BILL-2024-001"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
-                  <select
-                    required
-                    value={form.vendorId}
-                    onChange={(e) => setForm({ ...form, vendorId: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Select vendor...</option>
-                    {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bill Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={form.billDate}
-                    onChange={(e) => setForm({ ...form, billDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date (optional)</label>
-                  <input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
+          )}
+        </CardContent>
+      </Card>
 
-              {/* Line Items */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Line Items</label>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Account</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Unit Price</th>
-                        <th className="px-3 py-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {lines.map((line, i) => (
-                        <tr key={i}>
-                          <td className="px-2 py-1">
-                            <input
-                              type="text"
-                              value={line.description}
-                              onChange={(e) => handleLineChange(i, 'description', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="Description"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <select
-                              required
-                              value={line.accountId}
-                              onChange={(e) => handleLineChange(i, 'accountId', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            >
-                              <option value="">Select account...</option>
-                              {accounts.map((a) => (
-                                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.001"
-                              value={line.quantity}
-                              onChange={(e) => handleLineChange(i, 'quantity', e.target.value)}
-                              className="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={line.unitPrice}
-                              onChange={(e) => handleLineChange(i, 'unitPrice', e.target.value)}
-                              className="w-24 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            {lines.length > 1 && (
-                              <button type="button" onClick={() => setLines(lines.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600">
-                                <X className="w-4 h-4" />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setLines([...lines, emptyLine()])}
-                  className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" /> Add Line
-                </button>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Creating...' : 'Create Bill'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <BillModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 }

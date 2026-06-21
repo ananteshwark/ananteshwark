@@ -15,22 +15,9 @@ import {
   UserCheck,
   Calculator,
   ShoppingCart,
-  Briefcase,
-  Target,
-  Package,
-  FolderOpen,
-  Receipt,
-  Users2,
-  TrendingUp,
-  FileText,
-  ClipboardCheck,
-  Wrench,
-  HeartHandshake,
-  BarChart2,
+  Percent,
   X,
   Menu,
-  Key,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -40,7 +27,6 @@ interface NavItem {
   path?: string;
   children?: { label: string; path: string }[];
   module?: string;
-  superAdmin?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -51,11 +37,8 @@ const navItems: NavItem[] = [
     module: 'hr',
     children: [
       { label: 'Employees', path: '/hr/employees' },
-      { label: 'Organization', path: '/hr/departments' },
       { label: 'Attendance', path: '/hr/attendance' },
-      { label: 'Timesheets', path: '/hr/timesheets' },
       { label: 'Leave', path: '/hr/leave' },
-      { label: 'Leave Approvals', path: '/hr/leave/approvals' },
     ],
   },
   {
@@ -63,15 +46,9 @@ const navItems: NavItem[] = [
     icon: <Calculator className="h-4 w-4" />,
     module: 'finance',
     children: [
-      { label: 'Chart of Accounts', path: '/finance/accounts' },
-      { label: 'Journal Entries', path: '/finance/journals' },
-      { label: 'Vendors', path: '/finance/vendors' },
-      { label: 'Bills', path: '/finance/bills' },
-      { label: 'Customers', path: '/finance/customers' },
-      { label: 'Invoices', path: '/finance/invoices' },
-      { label: 'Fixed Assets', path: '/finance/fixed-assets' },
-      { label: 'Currencies', path: '/finance/currencies' },
-      { label: 'Reports', path: '/finance/reports' },
+      { label: 'General Ledger', path: '/finance/gl' },
+      { label: 'Accounts Receivable', path: '/finance/ar' },
+      { label: 'Accounts Payable', path: '/finance/ap' },
     ],
   },
   {
@@ -88,56 +65,7 @@ const navItems: NavItem[] = [
     icon: <ShoppingCart className="h-4 w-4" />,
     module: 'procurement',
     children: [
-      { label: 'Requisitions', path: '/procurement/requisitions' },
-      { label: 'RFQ', path: '/procurement/rfq' },
-      { label: 'Purchase Orders', path: '/procurement/purchase-orders' },
-      { label: 'Goods Receipts', path: '/procurement/grn' },
-      { label: 'Vendor Invoices', path: '/procurement/vendor-invoices' },
-      { label: 'Settings', path: '/procurement/settings' },
-    ],
-  },
-  {
-    label: 'Talent',
-    icon: <Briefcase className="h-4 w-4" />,
-    module: 'talent',
-    children: [
-      { label: 'Hiring', path: '/talent/hiring' },
-      { label: 'ATS', path: '/talent/ats' },
-      { label: 'Onboarding', path: '/talent/onboarding' },
-      { label: 'Learning', path: '/talent/learning' },
-      { label: 'Goals & OKRs', path: '/talent/goals' },
-      { label: 'Performance', path: '/talent/performance' },
-      { label: 'Appraisal', path: '/talent/appraisal' },
-      { label: 'Succession', path: '/talent/succession' },
-    ],
-  },
-  { label: 'Inventory', icon: <Package className="h-4 w-4" />, path: '/inventory', module: 'inventory' },
-  { label: 'Projects', icon: <FolderOpen className="h-4 w-4" />, path: '/projects', module: 'projects' },
-  { label: 'Expenses', icon: <Receipt className="h-4 w-4" />, path: '/expenses', module: 'expenses' },
-  { label: 'CRM', icon: <Users2 className="h-4 w-4" />, path: '/crm', module: 'crm' },
-  {
-    label: 'Sales',
-    icon: <TrendingUp className="h-4 w-4" />,
-    module: 'sales',
-    children: [
-      { label: 'Sales Orders', path: '/sales/orders' },
-    ],
-  },
-  { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts', module: 'contracts' },
-  { label: 'Manufacturing', icon: <Package className="h-4 w-4" />, path: '/manufacturing', module: 'manufacturing' },
-  { label: 'Quality', icon: <ClipboardCheck className="h-4 w-4" />, path: '/quality', module: 'quality' },
-  { label: 'Maintenance', icon: <Wrench className="h-4 w-4" />, path: '/maintenance', module: 'maintenance' },
-  { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits', module: 'benefits' },
-  { label: 'Analytics', icon: <BarChart2 className="h-4 w-4" />, path: '/analytics', module: 'analytics' },
-  { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform', module: 'platform' },
-  { label: 'Licensing', icon: <Key className="h-4 w-4" />, path: '/licensing', module: 'licensing' },
-  { label: 'Tenant Management', icon: <Building2 className="h-4 w-4" />, path: '/admin/tenants', superAdmin: true },
-  {
-    label: 'My Portal',
-    icon: <UserCheck className="h-4 w-4" />,
-    children: [
-      { label: 'Employee Self-Service', path: '/ess' },
-      { label: 'Manager Self-Service', path: '/mss' },
+      { label: 'Purchase Orders', path: '/procurement/po' },
     ],
   },
   { label: 'Users', icon: <Users className="h-4 w-4" />, path: '/users' },
@@ -151,8 +79,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'General', path: '/settings/general' },
       { label: 'Modules', path: '/settings/modules' },
-      { label: 'Localization', path: '/settings/localization' },
-      { label: 'Field Configuration', path: '/settings/field-config' },
+      { label: 'Tax Codes', path: '/settings/tax-codes' },
     ],
   },
 ];
@@ -164,7 +91,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(['Settings']);
-  const { tenant, user } = useAuthStore();
+  const { tenant } = useAuthStore();
   const enabledModules = tenant?.settings?.enabledModules || [];
   const location = useLocation();
 
@@ -175,7 +102,6 @@ export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
   };
 
   const isItemVisible = (item: NavItem) => {
-    if (item.superAdmin && !user?.isSuperAdmin) return false;
     if (!item.module) return true;
     return enabledModules.includes(item.module);
   };

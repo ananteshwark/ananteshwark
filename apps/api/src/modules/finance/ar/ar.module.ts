@@ -1,26 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Customer } from './entities/customer.entity';
 import { Invoice } from './entities/invoice.entity';
-import { InvoiceLine } from './entities/invoice-line.entity';
-import { CustomerReceipt } from './entities/customer-receipt.entity';
-import { ReceiptAllocation } from './entities/receipt-allocation.entity';
-import { BankAccount } from '../bank/entities/bank-account.entity';
-import { ArService } from './ar.service';
-import { ArController } from './ar.controller';
-import { GlModule } from '../gl/gl.module';
-import { CurrencyModule } from '../currency/currency.module';
+import { InvoiceService } from './invoice.service';
+import { InvoiceController } from './invoice.controller';
+import { TaxModule } from '../tax/tax.module';
 import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Customer, Invoice, InvoiceLine, CustomerReceipt, ReceiptAllocation, BankAccount]),
-    GlModule,
-    CurrencyModule,
-    RbacModule,
-  ],
-  controllers: [ArController],
-  providers: [ArService],
-  exports: [ArService, TypeOrmModule],
+  imports: [TypeOrmModule.forFeature([Invoice]), TaxModule, RbacModule],
+  controllers: [InvoiceController],
+  providers: [InvoiceService],
+  exports: [InvoiceService],
 })
 export class ArModule {}

@@ -1,5 +1,4 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
@@ -11,29 +10,8 @@ import { RbacModule } from './modules/rbac/rbac.module';
 import { WorkflowModule } from './modules/workflow/workflow.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
-import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { HealthModule } from './modules/health/health.module';
 import { FinanceModule } from './modules/finance/finance.module';
-import { HrModule } from './modules/hr/hr.module';
-import { PayrollModule } from './modules/payroll/payroll.module';
-import { ProcurementModule } from './modules/procurement/procurement.module';
-import { TalentModule } from './modules/talent/talent.module';
-import { InventoryModule } from './modules/inventory/inventory.module';
-import { ProjectsModule } from './modules/projects/projects.module';
-import { ExpensesModule } from './modules/expenses/expenses.module';
-import { CrmModule } from './modules/crm/crm.module';
-import { SalesModule } from './modules/sales/sales.module';
-import { ContractsModule } from './modules/contracts/contracts.module';
-import { ManufacturingModule } from './modules/manufacturing/manufacturing.module';
-import { QualityModule } from './modules/quality/quality.module';
-import { MaintenanceModule } from './modules/maintenance/maintenance.module';
-import { BenefitsModule } from './modules/benefits/benefits.module';
-import { AnalyticsModule } from './modules/analytics/analytics.module';
-import { PlatformModule } from './modules/platform/platform.module';
-import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
-import { LicensingModule } from './modules/licensing/licensing.module';
-import { AdminModule } from './modules/admin/admin.module';
-import { SettingsModule } from './modules/settings/field-config.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -63,32 +41,6 @@ import { getDatabaseConfig } from './config/database.config';
     AuditModule,
     HealthModule,
     FinanceModule,
-    HrModule,
-    PayrollModule,
-    ProcurementModule,
-    TalentModule,
-    InventoryModule,
-    ProjectsModule,
-    ExpensesModule,
-    CrmModule,
-    SalesModule,
-    ContractsModule,
-    ManufacturingModule,
-    QualityModule,
-    MaintenanceModule,
-    BenefitsModule,
-    AnalyticsModule,
-    PlatformModule,
-    LocalizationPacksModule,
-    LicensingModule,
-    AdminModule,
-    SettingsModule,
-  ],
-  providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: AuditInterceptor,
-    },
   ],
 })
 export class AppModule {
