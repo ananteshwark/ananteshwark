@@ -11,13 +11,23 @@ export const hrApi = {
   resignEmployee: (id: string, data: any) => apiClient.post(`/hr/employees/${id}/resign`, data),
   getReportees: (id: string) => apiClient.get(`/hr/employees/${id}/reportees`),
 
-  // Org hierarchy: Business Unit > Department > Function > Sub Function
+  // Org hierarchy: Legal Entity > Business Unit > Division > Department > Function > Sub Function > Team
   getOrgTree: () => apiClient.get('/hr/departments/tree'),
+
+  // Legal Entities
+  getLegalEntities: (params?: any) => apiClient.get('/hr/legal-entities', { params }),
+  createLegalEntity: (data: any) => apiClient.post('/hr/legal-entities', data),
+  updateLegalEntity: (id: string, data: any) => apiClient.patch(`/hr/legal-entities/${id}`, data),
 
   // Business Units
   getBusinessUnits: (params?: any) => apiClient.get('/hr/business-units', { params }),
   createBusinessUnit: (data: any) => apiClient.post('/hr/business-units', data),
   updateBusinessUnit: (id: string, data: any) => apiClient.patch(`/hr/business-units/${id}`, data),
+
+  // Divisions
+  getDivisions: (params?: any) => apiClient.get('/hr/divisions', { params }),
+  createDivision: (data: any) => apiClient.post('/hr/divisions', data),
+  updateDivision: (id: string, data: any) => apiClient.patch(`/hr/divisions/${id}`, data),
 
   // Departments
   getDepartments: (params?: any) => apiClient.get('/hr/departments', { params }),
@@ -35,6 +45,11 @@ export const hrApi = {
   getSubFunctions: (params?: any) => apiClient.get('/hr/sub-functions', { params }),
   createSubFunction: (data: any) => apiClient.post('/hr/sub-functions', data),
   updateSubFunction: (id: string, data: any) => apiClient.patch(`/hr/sub-functions/${id}`, data),
+
+  // Teams
+  getTeams: (params?: any) => apiClient.get('/hr/teams', { params }),
+  createTeam: (data: any) => apiClient.post('/hr/teams', data),
+  updateTeam: (id: string, data: any) => apiClient.patch(`/hr/teams/${id}`, data),
 
   // Designations
   getDesignations: (params?: any) => apiClient.get('/hr/designations', { params }),

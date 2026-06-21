@@ -15,9 +15,13 @@ export class Department {
   @Column({ length: 200 })
   name: string;
 
-  // Department sits under a Business Unit in the org hierarchy.
+  // Department sits under a Business Unit (optionally via a Division) in the
+  // org hierarchy, and may itself nest under a parent Department.
   @Column({ name: 'business_unit_id', type: 'uuid', nullable: true })
   businessUnitId: string | null;
+
+  @Column({ name: 'division_id', type: 'uuid', nullable: true })
+  divisionId: string | null;
 
   @Column({ name: 'parent_id', type: 'uuid', nullable: true })
   parentId: string | null;

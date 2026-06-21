@@ -223,12 +223,45 @@ export class BulkCreateEmployeeDto {
   rows: CreateEmployeeDto[];
 }
 
+export class CreateLegalEntityDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  registrationNo?: string;
+
+  @IsOptional()
+  @IsString()
+  taxId?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsUUID()
+  headEmployeeId?: string;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdateLegalEntityDto extends PartialType(CreateLegalEntityDto) {}
+
 export class CreateBusinessUnitDto {
   @IsString()
   code: string;
 
   @IsString()
   name: string;
+
+  @IsOptional()
+  @IsUUID()
+  legalEntityId?: string;
 
   @IsOptional()
   @IsUUID()
@@ -240,7 +273,7 @@ export class CreateBusinessUnitDto {
 
 export class UpdateBusinessUnitDto extends PartialType(CreateBusinessUnitDto) {}
 
-export class CreateDepartmentDto {
+export class CreateDivisionDto {
   @IsString()
   code: string;
 
@@ -249,6 +282,34 @@ export class CreateDepartmentDto {
 
   @IsUUID()
   businessUnitId: string;
+
+  @IsOptional()
+  @IsUUID()
+  headEmployeeId?: string;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdateDivisionDto extends PartialType(CreateDivisionDto) {}
+
+export class CreateDepartmentDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  // A department roots under a Business Unit, optionally via a Division, and may
+  // nest under a parent Department. businessUnitId is optional when a division
+  // or parent department is supplied (the BU is inferred from them).
+  @IsOptional()
+  @IsUUID()
+  businessUnitId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
 
   @IsOptional()
   @IsUUID()
@@ -300,6 +361,26 @@ export class CreateSubFunctionDto {
 
 export class UpdateSubFunctionDto extends PartialType(CreateSubFunctionDto) {}
 
+export class CreateTeamDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  @IsUUID()
+  subFunctionId: string;
+
+  @IsOptional()
+  @IsUUID()
+  headEmployeeId?: string;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdateTeamDto extends PartialType(CreateTeamDto) {}
+
 export class CreateDesignationDto {
   @IsString()
   code: string;
@@ -338,6 +419,14 @@ export class CreateLocationDto {
   @IsOptional()
   @IsString()
   country?: string;
+
+  @IsOptional()
+  @IsString()
+  region?: string;
+
+  @IsOptional()
+  @IsString()
+  zone?: string;
 
   @IsOptional()
   @IsString()

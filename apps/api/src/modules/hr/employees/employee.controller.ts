@@ -9,10 +9,13 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import {
   CreateEmployeeDto, UpdateEmployeeDto,
   BulkCreateEmployeeDto,
+  CreateLegalEntityDto, UpdateLegalEntityDto,
   CreateBusinessUnitDto, UpdateBusinessUnitDto,
+  CreateDivisionDto, UpdateDivisionDto,
   CreateDepartmentDto, UpdateDepartmentDto,
   CreateFunctionDto, UpdateFunctionDto,
   CreateSubFunctionDto, UpdateSubFunctionDto,
+  CreateTeamDto, UpdateTeamDto,
   CreateDesignationDto, UpdateDesignationDto,
   CreateLocationDto, UpdateLocationDto,
 } from './dto/employee.dto';
@@ -77,6 +80,44 @@ export class EmployeeController {
   @RequirePermission('hr:employees:update')
   resignEmployee(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { dateOfLeaving: string }) {
     return this.employeeService.resignEmployee(user.tenantId, id, body.dateOfLeaving);
+  }
+
+  // Legal Entities
+  @Get('legal-entities')
+  @RequirePermission('hr:employees:read')
+  listLegalEntities(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
+    return this.employeeService.findLegalEntities(user.tenantId, pagination);
+  }
+
+  @Post('legal-entities')
+  @RequirePermission('hr:org:manage')
+  createLegalEntity(@CurrentUser() user: any, @Body() dto: CreateLegalEntityDto) {
+    return this.employeeService.createLegalEntity(user.tenantId, dto);
+  }
+
+  @Patch('legal-entities/:id')
+  @RequirePermission('hr:org:manage')
+  updateLegalEntity(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateLegalEntityDto) {
+    return this.employeeService.updateLegalEntity(user.tenantId, id, dto);
+  }
+
+  // Divisions
+  @Get('divisions')
+  @RequirePermission('hr:employees:read')
+  listDivisions(@CurrentUser() user: any, @Query() pagination: PaginationDto, @Query('businessUnitId') businessUnitId?: string) {
+    return this.employeeService.findDivisions(user.tenantId, pagination, businessUnitId);
+  }
+
+  @Post('divisions')
+  @RequirePermission('hr:org:manage')
+  createDivision(@CurrentUser() user: any, @Body() dto: CreateDivisionDto) {
+    return this.employeeService.createDivision(user.tenantId, dto);
+  }
+
+  @Patch('divisions/:id')
+  @RequirePermission('hr:org:manage')
+  updateDivision(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateDivisionDto) {
+    return this.employeeService.updateDivision(user.tenantId, id, dto);
   }
 
   // Business Units
@@ -165,6 +206,25 @@ export class EmployeeController {
   @RequirePermission('hr:org:manage')
   updateSubFunction(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateSubFunctionDto) {
     return this.employeeService.updateSubFunction(user.tenantId, id, dto);
+  }
+
+  // Teams
+  @Get('teams')
+  @RequirePermission('hr:employees:read')
+  listTeams(@CurrentUser() user: any, @Query() pagination: PaginationDto, @Query('subFunctionId') subFunctionId?: string) {
+    return this.employeeService.findTeams(user.tenantId, pagination, subFunctionId);
+  }
+
+  @Post('teams')
+  @RequirePermission('hr:org:manage')
+  createTeam(@CurrentUser() user: any, @Body() dto: CreateTeamDto) {
+    return this.employeeService.createTeam(user.tenantId, dto);
+  }
+
+  @Patch('teams/:id')
+  @RequirePermission('hr:org:manage')
+  updateTeam(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateTeamDto) {
+    return this.employeeService.updateTeam(user.tenantId, id, dto);
   }
 
   // Designations

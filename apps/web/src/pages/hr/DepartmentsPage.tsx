@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Plus, X, ChevronRight, Building2, Boxes, Network, GitBranch } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Plus, X, ChevronRight, Landmark, Building2, Layers, Boxes, Network, GitBranch, Users,
+  ListTree, Table as TableIcon, Search,
+} from 'lucide-react';
 import { hrApi } from '../../api/hr';
 
-type Level = 'businessUnit' | 'department' | 'function' | 'subFunction';
+type Level = 'legalEntity' | 'businessUnit' | 'division' | 'department' | 'function' | 'subFunction' | 'team';
 
 interface OrgNode {
   id: string;
@@ -10,17 +13,29 @@ interface OrgNode {
   name: string;
   level: Level;
   isActive?: boolean;
+  businessUnitId?: string | null;
+  divisionId?: string | null;
+  parentId?: string | null;
+  legalEntityId?: string | null;
+  departmentId?: string | null;
+  functionId?: string | null;
+  subFunctionId?: string | null;
   children?: OrgNode[];
 }
 
 const LEVEL_META: Record<Level, { label: string; icon: any; color: string }> = {
-  businessUnit: { label: 'Business Unit', icon: Building2, color: 'text-indigo-600' },
-  department: { label: 'Department', icon: Boxes, color: 'text-blue-600' },
-  function: { label: 'Function', icon: Network, color: 'text-teal-600' },
-  subFunction: { label: 'Sub Function', icon: GitBranch, color: 'text-amber-600' },
+  legalEntity:  { label: 'Legal Entity',  icon: Landmark,  color: 'text-indigo-600' },
+  businessUnit: { label: 'Business Unit', icon: Building2,  color: 'text-blue-600' },
+  division:     { label: 'Division',      icon: Layers,    color: 'text-sky-600' },
+  department:   { label: 'Department',    icon: Boxes,     color: 'text-teal-600' },
+  function:     { label: 'Function',      icon: Network,   color: 'text-cyan-600' },
+  subFunction:  { label: 'Sub Function',  icon: GitBranch, color: 'text-amber-600' },
+  team:         { label: 'Team',          icon: Users,     color: 'text-rose-600' },
 };
 
-function OrgNodeRow({ node, level = 0 }: { node: OrgNode; level?: number }) {
+const LEVEL_ORDER: Level[] = ['legalEntity', 'businessUnit', 'division', 'department', 'function', 'subFunction', 'team'];
+
+function OrgNodeRow({ node, depth = 0 }: { node: OrgNode; depth?: number }) {
   const [expanded, setExpanded] = useState(true);
   const meta = LEVEL_META[node.level] ?? LEVEL_META.department;
   const Icon = meta.icon;
@@ -29,7 +44,7 @@ function OrgNodeRow({ node, level = 0 }: { node: OrgNode; level?: number }) {
     <div>
       <div
         className="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 border-b border-gray-100"
-        style={{ paddingLeft: `${16 + level * 24}px` }}
+        style={{ paddingLeft: `${16 + depth * 24}px` }}
       >
         {hasChildren ? (
           <button onClick={() => setExpanded(e => !e)} className="text-gray-400">
@@ -47,19 +62,68 @@ function OrgNodeRow({ node, level = 0 }: { node: OrgNode; level?: number }) {
         </span>
       </div>
       {expanded && node.children?.map(child => (
-        <OrgNodeRow key={child.id} node={child} level={level + 1} />
+        <OrgNodeRow key={child.id} node={child} depth={depth + 1} />
       ))}
     </div>
   );
 }
 
-const emptyForm = { level: 'businessUnit' as Level, code: '', name: '', businessUnitId: '', departmentId: '', functionId: '' };
+interface FlatRow {
+  id: string;
+  code: string;
+  name: string;
+  level: Level;
+  isActive?: boolean;
+  parentName: string;
+  parentLevel: Level | null;
+}
+
+// Walk the tree to collect (a) per-level lists for the parent dropdowns and
+// (b) flat rows (with resolved parent) for the list view. Synthetic nodes
+// (e.g. the "Unassigned" bucket, id prefixed with "__") are skipped.
+function walkTree(tree: OrgNode[]) {
+  const byLevel: Record<Level, OrgNode[]> = {
+    legalEntity: [], businessUnit: [], division: [], department: [], function: [], subFunction: [], team: [],
+  };
+  const rows: FlatRow[] = [];
+
+  const visit = (node: OrgNode, parent: OrgNode | null) => {
+    const synthetic = node.id.startsWith('__');
+    if (!synthetic) {
+      byLevel[node.level]?.push(node);
+      rows.push({
+        id: node.id,
+        code: node.code,
+        name: node.name,
+        level: node.level,
+        isActive: node.isActive,
+        parentName: parent && !parent.id.startsWith('__') ? parent.name : '—',
+        parentLevel: parent && !parent.id.startsWith('__') ? parent.level : null,
+      });
+    }
+    node.children?.forEach(child => visit(child, synthetic ? null : node));
+  };
+
+  tree.forEach(root => visit(root, null));
+  return { byLevel, rows };
+}
+
+const emptyForm = {
+  level: 'legalEntity' as Level,
+  code: '',
+  name: '',
+  legalEntityId: '',
+  businessUnitId: '',
+  divisionId: '',
+  parentId: '',
+  departmentId: '',
+  functionId: '',
+  subFunctionId: '',
+};
 
 export default function DepartmentsPage() {
   const [tree, setTree] = useState<OrgNode[]>([]);
-  const [businessUnits, setBusinessUnits] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [functions, setFunctions] = useState<any[]>([]);
+  const [view, setView] = useState<'tree' | 'list'>('tree');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -67,20 +131,16 @@ export default function DepartmentsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetchAll = async () => {
+  // List-view filters
+  const [search, setSearch] = useState('');
+  const [levelFilter, setLevelFilter] = useState<Level | 'all'>('all');
+
+  const fetchTree = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [treeRes, buRes, deptRes, fnRes] = await Promise.all([
-        hrApi.getOrgTree(),
-        hrApi.getBusinessUnits({ limit: 200 }),
-        hrApi.getDepartments({ limit: 200 }),
-        hrApi.getFunctions({ limit: 200 }),
-      ]);
-      setTree(treeRes.data?.data ?? treeRes.data ?? []);
-      setBusinessUnits(buRes.data?.items ?? buRes.data?.data?.items ?? []);
-      setDepartments(deptRes.data?.items ?? deptRes.data?.data?.items ?? []);
-      setFunctions(fnRes.data?.items ?? fnRes.data?.data?.items ?? []);
+      const res = await hrApi.getOrgTree();
+      setTree(res.data?.data ?? res.data ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load organization structure');
     } finally {
@@ -88,7 +148,19 @@ export default function DepartmentsPage() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchTree(); }, []);
+
+  // Dropdown source lists + flat rows are derived from the tree, so they scale
+  // to the largest organisations without any pagination cap.
+  const { byLevel, rows } = useMemo(() => walkTree(tree), [tree]);
+
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows
+      .filter(r => levelFilter === 'all' || r.level === levelFilter)
+      .filter(r => !q || r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q))
+      .sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level) || a.name.localeCompare(b.name));
+  }, [rows, search, levelFilter]);
 
   const openModal = (level: Level) => {
     setForm({ ...emptyForm, level });
@@ -96,54 +168,130 @@ export default function DepartmentsPage() {
     setShowModal(true);
   };
 
+  // Parent department / division options narrow to the chosen business unit.
+  const divisionOptions = useMemo(
+    () => byLevel.division.filter(d => !form.businessUnitId || d.businessUnitId === form.businessUnitId),
+    [byLevel.division, form.businessUnitId],
+  );
+  const parentDeptOptions = useMemo(
+    () => byLevel.department.filter(d => !form.businessUnitId || d.businessUnitId === form.businessUnitId),
+    [byLevel.department, form.businessUnitId],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
+    const base = { code: form.code.trim(), name: form.name.trim() };
     try {
-      const base = { code: form.code, name: form.name };
-      if (form.level === 'businessUnit') {
-        await hrApi.createBusinessUnit(base);
-      } else if (form.level === 'department') {
-        if (!form.businessUnitId) { setFormError('Business Unit is required for a department'); setSubmitting(false); return; }
-        await hrApi.createDepartment({ ...base, businessUnitId: form.businessUnitId });
-      } else if (form.level === 'function') {
-        if (!form.departmentId) { setFormError('Department is required for a function'); setSubmitting(false); return; }
-        await hrApi.createFunction({ ...base, departmentId: form.departmentId });
-      } else {
-        if (!form.functionId) { setFormError('Function is required for a sub function'); setSubmitting(false); return; }
-        await hrApi.createSubFunction({ ...base, functionId: form.functionId });
+      switch (form.level) {
+        case 'legalEntity':
+          await hrApi.createLegalEntity(base);
+          break;
+        case 'businessUnit':
+          await hrApi.createBusinessUnit({ ...base, legalEntityId: form.legalEntityId || undefined });
+          break;
+        case 'division':
+          if (!form.businessUnitId) throw new ValidationError('Business Unit is required for a division');
+          await hrApi.createDivision({ ...base, businessUnitId: form.businessUnitId });
+          break;
+        case 'department':
+          if (!form.businessUnitId) throw new ValidationError('Business Unit is required for a department');
+          await hrApi.createDepartment({
+            ...base,
+            businessUnitId: form.businessUnitId,
+            divisionId: form.divisionId || undefined,
+            parentId: form.parentId || undefined,
+          });
+          break;
+        case 'function':
+          if (!form.departmentId) throw new ValidationError('Department is required for a function');
+          await hrApi.createFunction({ ...base, departmentId: form.departmentId });
+          break;
+        case 'subFunction':
+          if (!form.functionId) throw new ValidationError('Function is required for a sub function');
+          await hrApi.createSubFunction({ ...base, functionId: form.functionId });
+          break;
+        case 'team':
+          if (!form.subFunctionId) throw new ValidationError('Sub Function is required for a team');
+          await hrApi.createTeam({ ...base, subFunctionId: form.subFunctionId });
+          break;
       }
       setShowModal(false);
       setForm(emptyForm);
-      await fetchAll();
+      await fetchTree();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create');
+      if (err instanceof ValidationError) setFormError(err.message);
+      else setFormError(err?.response?.data?.message ?? 'Failed to create');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const Select = ({ label, value, onChange, options, placeholder, required }: {
+    label: string; value: string; onChange: (v: string) => void;
+    options: { id: string; code: string; name: string }[]; placeholder: string; required?: boolean;
+  }) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && ' *'}</label>
+      <select
+        required={required}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">{placeholder}</option>
+        {options.map(o => <option key={o.id} value={o.id}>{o.code} — {o.name}</option>)}
+      </select>
+      {required && options.length === 0 && (
+        <p className="text-xs text-amber-600 mt-1">Create a parent level first.</p>
+      )}
+    </div>
+  );
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Organization Structure</h1>
-          <p className="text-sm text-gray-500 mt-1">Business Unit → Department → Function → Sub Function</p>
+          <p className="text-sm text-gray-500 mt-1">Legal Entity → Business Unit → Division → Department → Function → Sub Function → Team</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => openModal('businessUnit')} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"><Plus className="h-4 w-4" /> Business Unit</button>
-          <button onClick={() => openModal('department')} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"><Plus className="h-4 w-4" /> Department</button>
-          <button onClick={() => openModal('function')} className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium"><Plus className="h-4 w-4" /> Function</button>
-          <button onClick={() => openModal('subFunction')} className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium"><Plus className="h-4 w-4" /> Sub Function</button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            <button onClick={() => setView('tree')} title="Tree view"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium ${view === 'tree' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
+              <ListTree className="h-4 w-4" /> Tree
+            </button>
+            <button onClick={() => setView('list')} title="List view"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium ${view === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
+              <TableIcon className="h-4 w-4" /> List
+            </button>
+          </div>
+          <button onClick={() => openModal('legalEntity')} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
+            <Plus className="h-4 w-4" /> New Org Unit
+          </button>
         </div>
+      </div>
+
+      {/* Quick-add chips for each level */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {LEVEL_ORDER.map(lvl => {
+          const meta = LEVEL_META[lvl];
+          const Icon = meta.icon;
+          return (
+            <button key={lvl} onClick={() => openModal(lvl)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300">
+              <Icon className={`h-3.5 w-3.5 ${meta.color}`} /> {meta.label}
+            </button>
+          );
+        })}
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>
-      ) : (
+      ) : view === 'tree' ? (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600 uppercase tracking-wider">
             <div className="w-4" />
@@ -154,10 +302,62 @@ export default function DepartmentsPage() {
             <span>Status</span>
           </div>
           {tree.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">No organization units yet. Start by adding a Business Unit.</div>
+            <div className="text-center py-8 text-gray-400">No organization units yet. Start by adding a Legal Entity or Business Unit.</div>
           ) : (
             tree.map(node => <OrgNodeRow key={node.id} node={node} />)
           )}
+        </div>
+      ) : (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search code or name..."
+                className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <select value={levelFilter} onChange={e => setLevelFilter(e.target.value as Level | 'all')}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="all">All levels</option>
+              {LEVEL_ORDER.map(l => <option key={l} value={l}>{LEVEL_META[l].label}</option>)}
+            </select>
+            <span className="text-sm text-gray-400">{filteredRows.length} unit{filteredRows.length === 1 ? '' : 's'}</span>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {['Code', 'Name', 'Level', 'Parent', 'Status'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {filteredRows.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No matching units</td></tr>
+                ) : filteredRows.map(r => {
+                  const meta = LEVEL_META[r.level];
+                  const Icon = meta.icon;
+                  return (
+                    <tr key={r.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{r.code}</td>
+                      <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{r.name}</td>
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                          <Icon className={`h-3.5 w-3.5 ${meta.color}`} /> {meta.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-sm text-gray-600">{r.parentName}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${r.isActive === false ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'}`}>
+                          {r.isActive === false ? 'Inactive' : 'Active'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -172,11 +372,8 @@ export default function DepartmentsPage() {
               {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
-                <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value as Level }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="businessUnit">Business Unit</option>
-                  <option value="department">Department</option>
-                  <option value="function">Function</option>
-                  <option value="subFunction">Sub Function</option>
+                <select value={form.level} onChange={e => setForm({ ...emptyForm, level: e.target.value as Level })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {LEVEL_ORDER.map(l => <option key={l} value={l}>{LEVEL_META[l].label}</option>)}
                 </select>
               </div>
               <div>
@@ -188,34 +385,40 @@ export default function DepartmentsPage() {
                 <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Engineering" />
               </div>
 
+              {form.level === 'businessUnit' && (
+                <Select label="Legal Entity" placeholder="Select legal entity (optional)..."
+                  value={form.legalEntityId} onChange={v => setForm(f => ({ ...f, legalEntityId: v }))} options={byLevel.legalEntity} />
+              )}
+
+              {form.level === 'division' && (
+                <Select label="Business Unit" required placeholder="Select business unit..."
+                  value={form.businessUnitId} onChange={v => setForm(f => ({ ...f, businessUnitId: v }))} options={byLevel.businessUnit} />
+              )}
+
               {form.level === 'department' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Unit *</label>
-                  <select required value={form.businessUnitId} onChange={e => setForm(f => ({ ...f, businessUnitId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select business unit...</option>
-                    {businessUnits.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
+                <>
+                  <Select label="Business Unit" required placeholder="Select business unit..."
+                    value={form.businessUnitId} onChange={v => setForm(f => ({ ...f, businessUnitId: v, divisionId: '', parentId: '' }))} options={byLevel.businessUnit} />
+                  <Select label="Division" placeholder="Select division (optional)..."
+                    value={form.divisionId} onChange={v => setForm(f => ({ ...f, divisionId: v }))} options={divisionOptions} />
+                  <Select label="Parent Department" placeholder="Select parent department (optional)..."
+                    value={form.parentId} onChange={v => setForm(f => ({ ...f, parentId: v }))} options={parentDeptOptions} />
+                </>
               )}
 
               {form.level === 'function' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-                  <select required value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select department...</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
+                <Select label="Department" required placeholder="Select department..."
+                  value={form.departmentId} onChange={v => setForm(f => ({ ...f, departmentId: v }))} options={byLevel.department} />
               )}
 
               {form.level === 'subFunction' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Function *</label>
-                  <select required value={form.functionId} onChange={e => setForm(f => ({ ...f, functionId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select function...</option>
-                    {functions.map(fn => <option key={fn.id} value={fn.id}>{fn.name}</option>)}
-                  </select>
-                </div>
+                <Select label="Function" required placeholder="Select function..."
+                  value={form.functionId} onChange={v => setForm(f => ({ ...f, functionId: v }))} options={byLevel.function} />
+              )}
+
+              {form.level === 'team' && (
+                <Select label="Sub Function" required placeholder="Select sub function..."
+                  value={form.subFunctionId} onChange={v => setForm(f => ({ ...f, subFunctionId: v }))} options={byLevel.subFunction} />
               )}
 
               <div className="flex gap-3 pt-2">
@@ -229,3 +432,7 @@ export default function DepartmentsPage() {
     </div>
   );
 }
+
+// Lightweight client-side validation error so missing-parent messages surface
+// in the modal without hitting the API.
+class ValidationError extends Error {}

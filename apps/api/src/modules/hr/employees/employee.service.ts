@@ -4,18 +4,24 @@ import { Repository } from 'typeorm';
 import { Employee, EmployeeStatus } from './entities/employee.entity';
 import { Department } from './entities/department.entity';
 import { BusinessUnit } from './entities/business-unit.entity';
+import { LegalEntity } from './entities/legal-entity.entity';
+import { Division } from './entities/division.entity';
 import { OrgFunction } from './entities/org-function.entity';
 import { SubFunction } from './entities/sub-function.entity';
+import { Team } from './entities/team.entity';
 import { Designation } from './entities/designation.entity';
 import { Location } from './entities/location.entity';
 import { EmployeeDocument } from './entities/employee-document.entity';
 import { EmployeeTransfer, TransferStatus } from './entities/employee-transfer.entity';
 import {
   CreateEmployeeDto, UpdateEmployeeDto,
+  CreateLegalEntityDto, UpdateLegalEntityDto,
   CreateBusinessUnitDto, UpdateBusinessUnitDto,
+  CreateDivisionDto, UpdateDivisionDto,
   CreateDepartmentDto, UpdateDepartmentDto,
   CreateFunctionDto, UpdateFunctionDto,
   CreateSubFunctionDto, UpdateSubFunctionDto,
+  CreateTeamDto, UpdateTeamDto,
   CreateDesignationDto, UpdateDesignationDto,
   CreateLocationDto, UpdateLocationDto,
 } from './dto/employee.dto';
@@ -33,10 +39,16 @@ export class EmployeeService {
     private readonly departmentRepo: Repository<Department>,
     @InjectRepository(BusinessUnit)
     private readonly businessUnitRepo: Repository<BusinessUnit>,
+    @InjectRepository(LegalEntity)
+    private readonly legalEntityRepo: Repository<LegalEntity>,
+    @InjectRepository(Division)
+    private readonly divisionRepo: Repository<Division>,
     @InjectRepository(OrgFunction)
     private readonly functionRepo: Repository<OrgFunction>,
     @InjectRepository(SubFunction)
     private readonly subFunctionRepo: Repository<SubFunction>,
+    @InjectRepository(Team)
+    private readonly teamRepo: Repository<Team>,
     @InjectRepository(Designation)
     private readonly designationRepo: Repository<Designation>,
     @InjectRepository(Location)
@@ -174,6 +186,48 @@ export class EmployeeService {
     return this.departmentRepo.save(dept);
   }
 
+  // ---- Legal Entities ----
+  async createLegalEntity(tenantId: string, dto: CreateLegalEntityDto): Promise<LegalEntity> {
+    const existing = await this.legalEntityRepo.findOne({ where: { tenantId, code: dto.code } });
+    if (existing) throw new ConflictException(`Legal entity code ${dto.code} already exists`);
+    return this.legalEntityRepo.save(this.legalEntityRepo.create({ ...dto, tenantId }));
+  }
+
+  async findLegalEntities(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<LegalEntity>> {
+    const { page = 1, limit = 100 } = pagination;
+    const [items, total] = await this.legalEntityRepo.findAndCount({ where: { tenantId }, skip: (page - 1) * limit, take: limit });
+    return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  async updateLegalEntity(tenantId: string, id: string, dto: UpdateLegalEntityDto): Promise<LegalEntity> {
+    const le = await this.legalEntityRepo.findOne({ where: { tenantId, id } });
+    if (!le) throw new NotFoundException(`Legal entity ${id} not found`);
+    Object.assign(le, dto);
+    return this.legalEntityRepo.save(le);
+  }
+
+  // ---- Divisions ----
+  async createDivision(tenantId: string, dto: CreateDivisionDto): Promise<Division> {
+    const existing = await this.divisionRepo.findOne({ where: { tenantId, code: dto.code } });
+    if (existing) throw new ConflictException(`Division code ${dto.code} already exists`);
+    return this.divisionRepo.save(this.divisionRepo.create({ ...dto, tenantId }));
+  }
+
+  async findDivisions(tenantId: string, pagination: PaginationDto, businessUnitId?: string): Promise<PaginatedResponseDto<Division>> {
+    const { page = 1, limit = 100 } = pagination;
+    const where: any = { tenantId };
+    if (businessUnitId) where.businessUnitId = businessUnitId;
+    const [items, total] = await this.divisionRepo.findAndCount({ where, skip: (page - 1) * limit, take: limit });
+    return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  async updateDivision(tenantId: string, id: string, dto: UpdateDivisionDto): Promise<Division> {
+    const div = await this.divisionRepo.findOne({ where: { tenantId, id } });
+    if (!div) throw new NotFoundException(`Division ${id} not found`);
+    Object.assign(div, dto);
+    return this.divisionRepo.save(div);
+  }
+
   // ---- Business Units ----
   async createBusinessUnit(tenantId: string, dto: CreateBusinessUnitDto): Promise<BusinessUnit> {
     const existing = await this.businessUnitRepo.findOne({ where: { tenantId, code: dto.code } });
@@ -238,46 +292,111 @@ export class EmployeeService {
     return this.subFunctionRepo.save(sf);
   }
 
-  // Full org hierarchy: Business Unit > Department > Function > Sub Function.
+  // ---- Teams ----
+  async createTeam(tenantId: string, dto: CreateTeamDto): Promise<Team> {
+    const existing = await this.teamRepo.findOne({ where: { tenantId, code: dto.code } });
+    if (existing) throw new ConflictException(`Team code ${dto.code} already exists`);
+    return this.teamRepo.save(this.teamRepo.create({ ...dto, tenantId }));
+  }
+
+  async findTeams(tenantId: string, pagination: PaginationDto, subFunctionId?: string): Promise<PaginatedResponseDto<Team>> {
+    const { page = 1, limit = 100 } = pagination;
+    const where: any = { tenantId };
+    if (subFunctionId) where.subFunctionId = subFunctionId;
+    const [items, total] = await this.teamRepo.findAndCount({ where, skip: (page - 1) * limit, take: limit });
+    return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  async updateTeam(tenantId: string, id: string, dto: UpdateTeamDto): Promise<Team> {
+    const team = await this.teamRepo.findOne({ where: { tenantId, id } });
+    if (!team) throw new NotFoundException(`Team ${id} not found`);
+    Object.assign(team, dto);
+    return this.teamRepo.save(team);
+  }
+
+  // Full org hierarchy:
+  // Legal Entity > Business Unit > Division > Department (self-nesting) > Function > Sub Function > Team.
+  // Orphans at any level are surfaced under a synthetic "Unassigned" node of the
+  // appropriate parent level so nothing is ever hidden from the tree.
   async getOrgTree(tenantId: string): Promise<any[]> {
-    const [bus, depts, fns, subs] = await Promise.all([
+    const [les, bus, divs, depts, fns, subs, teams] = await Promise.all([
+      this.legalEntityRepo.find({ where: { tenantId } }),
       this.businessUnitRepo.find({ where: { tenantId } }),
+      this.divisionRepo.find({ where: { tenantId } }),
       this.departmentRepo.find({ where: { tenantId } }),
       this.functionRepo.find({ where: { tenantId } }),
       this.subFunctionRepo.find({ where: { tenantId } }),
+      this.teamRepo.find({ where: { tenantId } }),
     ]);
 
-    const subsByFn = new Map<string, any[]>();
-    subs.forEach(s => {
-      const arr = subsByFn.get(s.functionId) ?? [];
-      arr.push({ ...s, level: 'subFunction' });
-      subsByFn.set(s.functionId, arr);
+    const groupBy = <T>(rows: T[], keyFn: (r: T) => string | null | undefined) => {
+      const map = new Map<string, T[]>();
+      for (const r of rows) {
+        const key = keyFn(r) ?? '__none__';
+        const arr = map.get(key) ?? [];
+        arr.push(r);
+        map.set(key, arr);
+      }
+      return map;
+    };
+
+    // Teams grouped under their sub function.
+    const teamsBySub = groupBy(teams, t => t.subFunctionId);
+    // Sub functions grouped under their function, carrying team children.
+    const subsByFn = groupBy(subs, s => s.functionId);
+    // Functions grouped under their department, carrying sub-function children.
+    const fnsByDept = groupBy(fns, f => f.departmentId);
+
+    const buildSub = (s: any) => ({ ...s, level: 'subFunction', children: (teamsBySub.get(s.id) ?? []).map(t => ({ ...t, level: 'team' })) });
+    const buildFn = (f: any) => ({ ...f, level: 'function', children: (subsByFn.get(f.id) ?? []).map(buildSub) });
+
+    // Departments self-nest via parentId. Build each department's children as
+    // its functions plus any child departments, recursively.
+    const deptsByParent = groupBy(depts.filter(d => d.parentId), d => d.parentId);
+    const buildDept = (d: any): any => ({
+      ...d,
+      level: 'department',
+      children: [
+        ...(deptsByParent.get(d.id) ?? []).map(buildDept),
+        ...(fnsByDept.get(d.id) ?? []).map(buildFn),
+      ],
     });
 
-    const fnsByDept = new Map<string, any[]>();
-    fns.forEach(f => {
-      const node = { ...f, level: 'function', children: f.id ? (subsByFn.get(f.id) ?? []) : [] };
-      const key = f.departmentId ?? '__none__';
-      const arr = fnsByDept.get(key) ?? [];
-      arr.push(node);
-      fnsByDept.set(key, arr);
+    // Root departments (no parent) attach to their division, else business unit.
+    const rootDepts = depts.filter(d => !d.parentId);
+    const rootDeptsByDiv = groupBy(rootDepts.filter(d => d.divisionId), d => d.divisionId);
+    const rootDeptsByBu = groupBy(rootDepts.filter(d => !d.divisionId), d => d.businessUnitId);
+
+    const buildDiv = (v: any) => ({ ...v, level: 'division', children: (rootDeptsByDiv.get(v.id) ?? []).map(buildDept) });
+    const divsByBu = groupBy(divs, v => v.businessUnitId);
+
+    const buildBu = (b: any) => ({
+      ...b,
+      level: 'businessUnit',
+      children: [
+        ...(divsByBu.get(b.id) ?? []).map(buildDiv),
+        ...(rootDeptsByBu.get(b.id) ?? []).map(buildDept),
+      ],
     });
+    const busByLe = groupBy(bus, b => b.legalEntityId);
 
-    const deptsByBu = new Map<string, any[]>();
-    depts.forEach(d => {
-      const node = { ...d, level: 'department', children: fnsByDept.get(d.id) ?? [] };
-      const key = d.businessUnitId ?? '__none__';
-      const arr = deptsByBu.get(key) ?? [];
-      arr.push(node);
-      deptsByBu.set(key, arr);
-    });
+    const roots: any[] = les.map(le => ({ ...le, level: 'legalEntity', children: (busByLe.get(le.id) ?? []).map(buildBu) }));
 
-    const roots = bus.map(b => ({ ...b, level: 'businessUnit', children: deptsByBu.get(b.id) ?? [] }));
+    // Surface orphans so nothing is hidden.
+    const orphanBus = (busByLe.get('__none__') ?? []).map(buildBu);
+    const orphanDivs = (divsByBu.get('__none__') ?? []).map(buildDiv);
+    const orphanRootDeptsByBu = (rootDeptsByBu.get('__none__') ?? []).map(buildDept);
+    const orphanRootDeptsByDiv = (rootDeptsByDiv.get('__none__') ?? []).map(buildDept);
+    const orphanFns = (fnsByDept.get('__none__') ?? []).map(buildFn);
+    const orphanSubs = (subsByFn.get('__none__') ?? []).map(buildSub);
+    const orphanTeams = (teamsBySub.get('__none__') ?? []).map((t: any) => ({ ...t, level: 'team' }));
 
-    // Surface any departments not yet linked to a business unit so nothing is hidden.
-    const orphanDepts = deptsByBu.get('__none__') ?? [];
-    if (orphanDepts.length) {
-      roots.push({ id: '__unassigned__', code: 'UNASSIGNED', name: 'Unassigned', level: 'businessUnit', children: orphanDepts } as any);
+    const orphans = [
+      ...orphanBus, ...orphanDivs, ...orphanRootDeptsByBu, ...orphanRootDeptsByDiv,
+      ...orphanFns, ...orphanSubs, ...orphanTeams,
+    ];
+    if (orphans.length) {
+      roots.push({ id: '__unassigned__', code: 'UNASSIGNED', name: 'Unassigned', level: 'legalEntity', isActive: true, children: orphans } as any);
     }
     return roots;
   }

@@ -1,19 +1,17 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
-// Top level of the org hierarchy beneath the Organization (tenant):
-// Organization > Business Unit > Department > Function > Sub Function.
-@Entity('hr_business_units')
+// Division sits between Business Unit and Department in the org hierarchy.
+@Entity('hr_divisions')
 @Index(['code', 'tenantId'], { unique: true })
-export class BusinessUnit {
+export class Division {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
-  // Business Unit may belong to a Legal Entity (operating company).
-  @Column({ name: 'legal_entity_id', type: 'uuid', nullable: true })
-  legalEntityId: string | null;
+  @Column({ name: 'business_unit_id', type: 'uuid', nullable: true })
+  businessUnitId: string | null;
 
   @Column({ length: 50 })
   code: string;

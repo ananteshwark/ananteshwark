@@ -27,6 +27,13 @@ export class Location {
   @Column({ length: 100, nullable: true })
   country: string | null;
 
+  // Geographic grouping for large multi-site organisations.
+  @Column({ length: 100, nullable: true })
+  region: string | null;
+
+  @Column({ length: 100, nullable: true })
+  zone: string | null;
+
   @Column({ length: 100, default: 'Asia/Kolkata' })
   timezone: string;
 
