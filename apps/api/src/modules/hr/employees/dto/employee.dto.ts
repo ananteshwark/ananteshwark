@@ -178,8 +178,16 @@ export class CreateEmployeeDto {
   @IsUUID()
   designationId?: string;
 
+  @IsOptional()
+  @IsUUID()
+  legalEntityId?: string;
+
   @IsUUID()
   businessUnitId: string;
+
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
 
   @IsUUID()
   departmentId: string;
@@ -190,6 +198,10 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsUUID()
   subFunctionId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
 
   @IsOptional()
   @IsUUID()

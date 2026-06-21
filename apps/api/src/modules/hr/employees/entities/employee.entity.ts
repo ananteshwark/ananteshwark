@@ -174,8 +174,14 @@ export class Employee {
   @Column({ name: 'designation_id', type: 'uuid', nullable: true })
   designationId: string | null;
 
+  @Column({ name: 'legal_entity_id', type: 'uuid', nullable: true })
+  legalEntityId: string | null;
+
   @Column({ name: 'business_unit_id', type: 'uuid', nullable: true })
   businessUnitId: string | null;
+
+  @Column({ name: 'division_id', type: 'uuid', nullable: true })
+  divisionId: string | null;
 
   @Column({ name: 'department_id', type: 'uuid', nullable: true })
   departmentId: string | null;
@@ -185,6 +191,9 @@ export class Employee {
 
   @Column({ name: 'sub_function_id', type: 'uuid', nullable: true })
   subFunctionId: string | null;
+
+  @Column({ name: 'team_id', type: 'uuid', nullable: true })
+  teamId: string | null;
 
   @Column({ name: 'manager_id', type: 'uuid', nullable: true })
   managerId: string | null;

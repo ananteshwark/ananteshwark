@@ -33,7 +33,7 @@ const makeDefaultForm = () => ({
   employeeCode: '', dateOfJoining: '', probationEndDate: '', confirmationDate: '',
   firstName: '', middleName: '', lastName: '',
   email: '', phone: '',
-  businessUnitId: '', departmentId: '', functionId: '', subFunctionId: '',
+  legalEntityId: '', businessUnitId: '', divisionId: '', departmentId: '', functionId: '', subFunctionId: '', teamId: '',
   designationId: '', managerId: '', locationId: '',
   employmentType: 'FULL_TIME', status: 'ACTIVE',
   // Personal
@@ -59,6 +59,7 @@ const CSV_COLUMNS = [
   'employeeCode', 'firstName', 'lastName', 'email', 'dateOfJoining',
   'businessUnitId', 'departmentId', 'functionId', 'phone', 'gender',
   'dateOfBirth', 'employmentType', 'designationId', 'locationId',
+  'legalEntityId', 'divisionId', 'subFunctionId', 'teamId',
 ];
 
 function parseCSV(text: string): Record<string, string>[] {
@@ -78,6 +79,7 @@ function downloadTemplate(bus: any[], depts: any[], fns: any[], desigs: any[], l
     bus[0]?.id ?? '', depts[0]?.id ?? '', fns[0]?.id ?? '',
     '+91-9999999999', 'MALE', '1990-05-20', 'FULL_TIME',
     desigs[0]?.id ?? '', locs[0]?.id ?? '',
+    '', '', '', '', // legalEntityId, divisionId, subFunctionId, teamId (optional)
   ].join(',');
   const blob = new Blob([header + '\n' + example], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
@@ -88,10 +90,13 @@ function downloadTemplate(bus: any[], depts: any[], fns: any[], desigs: any[], l
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [legalEntities, setLegalEntities] = useState<any[]>([]);
   const [businessUnits, setBusinessUnits] = useState<any[]>([]);
+  const [divisions, setDivisions] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [functions, setFunctions] = useState<any[]>([]);
   const [subFunctions, setSubFunctions] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [designations, setDesignations] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [allEmployees, setAllEmployees] = useState<any[]>([]); // for manager dropdown
@@ -118,28 +123,34 @@ export default function EmployeesPage() {
       const params: any = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
-      const [empRes, buRes, deptRes, fnRes, subFnRes, desigRes, locRes, allEmpRes] = await Promise.all([
+      const unwrap = (res: any) => {
+        const d = res.data?.data ?? res.data ?? {};
+        return d.items ?? d ?? [];
+      };
+      const [empRes, leRes, buRes, divRes, deptRes, fnRes, subFnRes, teamRes, desigRes, locRes, allEmpRes] = await Promise.all([
         hrApi.getEmployees(params),
-        hrApi.getBusinessUnits({ limit: 200 }),
-        hrApi.getDepartments({ limit: 200 }),
-        hrApi.getFunctions({ limit: 200 }),
-        hrApi.getSubFunctions({ limit: 200 }),
-        hrApi.getDesignations({ limit: 100 }),
-        hrApi.getLocations({ limit: 100 }),
-        hrApi.getEmployees({ limit: 500 }),
+        hrApi.getLegalEntities({ limit: 500 }),
+        hrApi.getBusinessUnits({ limit: 500 }),
+        hrApi.getDivisions({ limit: 1000 }),
+        hrApi.getDepartments({ limit: 1000 }),
+        hrApi.getFunctions({ limit: 1000 }),
+        hrApi.getSubFunctions({ limit: 1000 }),
+        hrApi.getTeams({ limit: 1000 }),
+        hrApi.getDesignations({ limit: 500 }),
+        hrApi.getLocations({ limit: 500 }),
+        hrApi.getEmployees({ limit: 1000 }),
       ]);
-      const empData = empRes.data?.data ?? empRes.data ?? {};
-      setEmployees(empData.items ?? empData ?? []);
-      setBusinessUnits(buRes.data?.items ?? buRes.data?.data?.items ?? []);
-      const deptData = deptRes.data?.data ?? deptRes.data ?? {};
-      setDepartments(deptData.items ?? deptData ?? []);
-      setFunctions(fnRes.data?.items ?? fnRes.data?.data?.items ?? []);
-      setSubFunctions(subFnRes.data?.items ?? subFnRes.data?.data?.items ?? []);
-      const desigData = desigRes.data?.data ?? desigRes.data ?? {};
-      setDesignations(desigData.items ?? desigData ?? []);
-      setLocations(locRes.data?.items ?? locRes.data?.data?.items ?? []);
-      const allEmpData = allEmpRes.data?.data ?? allEmpRes.data ?? {};
-      setAllEmployees(allEmpData.items ?? allEmpData ?? []);
+      setEmployees(unwrap(empRes));
+      setLegalEntities(unwrap(leRes));
+      setBusinessUnits(unwrap(buRes));
+      setDivisions(unwrap(divRes));
+      setDepartments(unwrap(deptRes));
+      setFunctions(unwrap(fnRes));
+      setSubFunctions(unwrap(subFnRes));
+      setTeams(unwrap(teamRes));
+      setDesignations(unwrap(desigRes));
+      setLocations(unwrap(locRes));
+      setAllEmployees(unwrap(allEmpRes));
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load employees');
     } finally {
@@ -159,7 +170,8 @@ export default function EmployeesPage() {
       const payload: any = { ...form };
       // Strip empty optional fields
       const optional = [
-        'middleName', 'phone', 'homePhone', 'personalEmail', 'subFunctionId', 'designationId',
+        'middleName', 'phone', 'homePhone', 'personalEmail',
+        'legalEntityId', 'divisionId', 'subFunctionId', 'teamId', 'designationId',
         'managerId', 'locationId', 'dateOfBirth', 'gender', 'maritalStatus', 'nationality',
         'bloodGroup', 'pan', 'aadhar', 'passportNumber', 'passportExpiry',
         'probationEndDate', 'confirmationDate',
@@ -208,9 +220,14 @@ export default function EmployeesPage() {
   const INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
   const LABEL = 'block text-sm font-medium text-gray-700 mb-1';
 
-  const filteredDepts = departments.filter(d => !form.businessUnitId || d.businessUnitId === form.businessUnitId);
+  const filteredBus = businessUnits.filter(b => !form.legalEntityId || b.legalEntityId === form.legalEntityId);
+  const filteredDivs = divisions.filter(v => !form.businessUnitId || v.businessUnitId === form.businessUnitId);
+  const filteredDepts = departments.filter(d =>
+    (!form.businessUnitId || d.businessUnitId === form.businessUnitId) &&
+    (!form.divisionId || d.divisionId === form.divisionId));
   const filteredFns = functions.filter(fn => !form.departmentId || fn.departmentId === form.departmentId);
   const filteredSubFns = subFunctions.filter(sf => !form.functionId || sf.functionId === form.functionId);
+  const filteredTeams = teams.filter(t => !form.subFunctionId || t.subFunctionId === form.subFunctionId);
 
   return (
     <div className="p-6">
@@ -426,15 +443,31 @@ export default function EmployeesPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
+                        <label className={LABEL}>Legal Entity <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <select value={form.legalEntityId} onChange={e => setF({ legalEntityId: e.target.value, businessUnitId: '', divisionId: '', departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
+                          <option value="">Select Legal Entity...</option>
+                          {legalEntities.map(le => <option key={le.id} value={le.id}>{le.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
                         <label className={LABEL}>Business Unit *</label>
-                        <select required value={form.businessUnitId} onChange={e => setF({ businessUnitId: e.target.value, departmentId: '', functionId: '', subFunctionId: '' })} className={INPUT}>
+                        <select required value={form.businessUnitId} onChange={e => setF({ businessUnitId: e.target.value, divisionId: '', departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
                           <option value="">Select Business Unit...</option>
-                          {businessUnits.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                          {filteredBus.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Division <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <select value={form.divisionId} onChange={e => setF({ divisionId: e.target.value, departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
+                          <option value="">Select Division...</option>
+                          {filteredDivs.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className={LABEL}>Department *</label>
-                        <select required value={form.departmentId} onChange={e => setF({ departmentId: e.target.value, functionId: '', subFunctionId: '' })} className={INPUT}>
+                        <select required value={form.departmentId} onChange={e => setF({ departmentId: e.target.value, functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
                           <option value="">Select Department...</option>
                           {filteredDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
@@ -443,16 +476,25 @@ export default function EmployeesPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className={LABEL}>Function *</label>
-                        <select required value={form.functionId} onChange={e => setF({ functionId: e.target.value, subFunctionId: '' })} className={INPUT}>
+                        <select required value={form.functionId} onChange={e => setF({ functionId: e.target.value, subFunctionId: '', teamId: '' })} className={INPUT}>
                           <option value="">Select Function...</option>
                           {filteredFns.map(fn => <option key={fn.id} value={fn.id}>{fn.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className={LABEL}>Sub Function <span className="text-gray-400 font-normal">(optional)</span></label>
-                        <select value={form.subFunctionId} onChange={e => setF({ subFunctionId: e.target.value })} className={INPUT}>
+                        <select value={form.subFunctionId} onChange={e => setF({ subFunctionId: e.target.value, teamId: '' })} className={INPUT}>
                           <option value="">None</option>
                           {filteredSubFns.map(sf => <option key={sf.id} value={sf.id}>{sf.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={LABEL}>Team <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <select value={form.teamId} onChange={e => setF({ teamId: e.target.value })} className={INPUT}>
+                          <option value="">None</option>
+                          {filteredTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                       </div>
                     </div>
