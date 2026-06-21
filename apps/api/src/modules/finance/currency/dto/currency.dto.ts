@@ -76,3 +76,17 @@ export class CreateExchangeRateDto {
   @IsString()
   notes?: string;
 }
+
+export class RevaluationDto {
+  @ApiProperty({ example: 2026 })
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  year: number;
+
+  @ApiProperty({ example: 6, description: 'Month 1-12' })
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month: number;
+}

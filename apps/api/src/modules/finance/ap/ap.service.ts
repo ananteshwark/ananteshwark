@@ -14,6 +14,7 @@ import { PaymentAllocation } from './entities/payment-allocation.entity';
 import { Account } from '../gl/entities/account.entity';
 import { BankAccount } from '../bank/entities/bank-account.entity';
 import { GlService } from '../gl/gl.service';
+import { CurrencyService } from '../currency/currency.service';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../finance.constants';
 import {
@@ -42,6 +43,7 @@ export class ApService {
     @InjectRepository(Account) private readonly accountRepo: Repository<Account>,
     @InjectRepository(BankAccount) private readonly bankAccountRepo: Repository<BankAccount>,
     private readonly glService: GlService,
+    private readonly currencyService: CurrencyService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -318,6 +320,19 @@ export class ApService {
 
       bill.journalEntryId = je.id;
       bill.status = BillStatus.OPEN;
+
+      // FX conversion: store base-currency equivalent at posting time
+      const billDate = new Date(bill.billDate);
+      const fxResult = await this.currencyService.convert(
+        tenantId, bill.total, bill.currency,
+        billDate.getFullYear(), billDate.getMonth() + 1,
+      );
+      if (fxResult) {
+        bill.baseCurrency = fxResult.baseCurrency;
+        bill.exchangeRate = fxResult.rate;
+        bill.totalBase = fxResult.baseAmount;
+      }
+
       await manager.save(bill);
       return this.findBill(tenantId, id, manager);
     });

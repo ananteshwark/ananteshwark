@@ -71,6 +71,7 @@ export const financeApi = {
   getExchangeRates: (params?: any) => apiClient.get('/finance/currencies/rates', { params }),
   upsertExchangeRate: (data: any) => apiClient.post('/finance/currencies/rates', data),
   deleteExchangeRate: (id: string) => apiClient.delete(`/finance/currencies/rates/${id}`),
+  runRevaluation: (data: { year: number; month: number }) => apiClient.post('/finance/currencies/revalue', data),
 
   // Reports
   getTrialBalance: (params?: any) => apiClient.get('/finance/reports/trial-balance', { params }),

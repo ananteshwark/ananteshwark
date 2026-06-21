@@ -59,6 +59,15 @@ export class Invoice {
   @Column({ length: 10, default: 'USD' })
   currency: string;
 
+  @Column({ name: 'base_currency', length: 10, nullable: true })
+  baseCurrency: string | null;
+
+  @Column({ name: 'exchange_rate', type: 'numeric', precision: 18, scale: 8, nullable: true, transformer: decimalTransformer })
+  exchangeRate: number | null;
+
+  @Column({ name: 'total_base', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer })
+  totalBase: number | null;
+
   @Column({ length: 200, nullable: true })
   reference: string;
 

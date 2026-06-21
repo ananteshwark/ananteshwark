@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Trash2, Star } from 'lucide-react';
+import { Plus, X, Trash2, Star, RefreshCw } from 'lucide-react';
 import { financeApi } from '../../api/finance';
 import { invalidateCurrencyCache } from '../../components/ui/CurrencySelect';
 
@@ -57,6 +57,8 @@ export default function CurrenciesPage() {
   });
   const [savingRate, setSavingRate] = useState(false);
   const [rateError, setRateError] = useState<string | null>(null);
+  const [revaluing, setRevaluing] = useState(false);
+  const [revalResult, setRevalResult] = useState<{ billsRevalued: number; invoicesRevalued: number; jeIds: string[] } | null>(null);
 
   const fetchCurrencies = async () => {
     setLoading(true);
@@ -149,6 +151,20 @@ export default function CurrenciesPage() {
     fetchRates();
   };
 
+  const runRevaluation = async () => {
+    if (!confirm(`Run FX revaluation for ${MONTHS[filterMonth - 1]} ${filterYear}? This will post journal entries for all open AP/AR documents in foreign currencies.`)) return;
+    setRevaluing(true);
+    setRevalResult(null);
+    try {
+      const res = await financeApi.runRevaluation({ year: filterYear, month: filterMonth });
+      setRevalResult(res.data?.data ?? res.data);
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? 'Revaluation failed');
+    } finally {
+      setRevaluing(false);
+    }
+  };
+
   const openRateModal = () => {
     setRateForm({
       fromCurrency: activeCodes[0] ?? '',
@@ -176,10 +192,17 @@ export default function CurrenciesPage() {
             <Plus className="w-4 h-4" /> New Currency
           </button>
         ) : (
-          <button onClick={openRateModal}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
-            <Plus className="w-4 h-4" /> New Rate
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={runRevaluation} disabled={revaluing}
+              className="flex items-center gap-2 border border-indigo-600 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-50 disabled:opacity-50">
+              <RefreshCw className={`w-4 h-4 ${revaluing ? 'animate-spin' : ''}`} />
+              {revaluing ? 'Running...' : 'Run Revaluation'}
+            </button>
+            <button onClick={openRateModal}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+              <Plus className="w-4 h-4" /> New Rate
+            </button>
+          </div>
         )}
       </div>
 
@@ -241,6 +264,12 @@ export default function CurrenciesPage() {
 
       {tab === 'rates' && (
         <div>
+          {revalResult && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+              Revaluation complete: {revalResult.billsRevalued} bills, {revalResult.invoicesRevalued} invoices revalued.
+              {revalResult.jeIds.length > 0 && ` Posted ${revalResult.jeIds.length} journal entr${revalResult.jeIds.length === 1 ? 'y' : 'ies'}.`}
+            </div>
+          )}
           <div className="flex items-center gap-3 mb-4">
             <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm">

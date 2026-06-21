@@ -9,6 +9,7 @@ import { BankAccount } from '../bank/entities/bank-account.entity';
 import { ApService } from './ap.service';
 import { ApController } from './ap.controller';
 import { GlModule } from '../gl/gl.module';
+import { CurrencyModule } from '../currency/currency.module';
 import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { RbacModule } from '../../rbac/rbac.module';
       BankAccount,
     ]),
     GlModule,
+    CurrencyModule,
     RbacModule,
   ],
   controllers: [ApController],

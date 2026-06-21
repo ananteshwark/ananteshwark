@@ -9,12 +9,14 @@ import { BankAccount } from '../bank/entities/bank-account.entity';
 import { ArService } from './ar.service';
 import { ArController } from './ar.controller';
 import { GlModule } from '../gl/gl.module';
+import { CurrencyModule } from '../currency/currency.module';
 import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Customer, Invoice, InvoiceLine, CustomerReceipt, ReceiptAllocation, BankAccount]),
     GlModule,
+    CurrencyModule,
     RbacModule,
   ],
   controllers: [ArController],

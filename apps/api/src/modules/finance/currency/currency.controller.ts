@@ -19,6 +19,7 @@ import {
   CreateCurrencyDto,
   UpdateCurrencyDto,
   CreateExchangeRateDto,
+  RevaluationDto,
 } from './dto/currency.dto';
 
 @ApiTags('finance-currency')
@@ -80,5 +81,13 @@ export class CurrencyController {
   @ApiOperation({ summary: 'Delete a monthly conversion rate' })
   deleteRate(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.deleteRate(user.tenantId, id);
+  }
+
+  // ─── FX Revaluation ─────────────────────────────────────────
+  @Post('revalue')
+  @RequirePermission('finance:currency:manage')
+  @ApiOperation({ summary: 'Run FX revaluation for a given month — posts gain/loss JEs and updates totalBase on open AP/AR documents' })
+  revalue(@CurrentUser() user: any, @Body() dto: RevaluationDto) {
+    return this.service.runRevaluation(user.tenantId, dto.year, dto.month, user.id);
   }
 }

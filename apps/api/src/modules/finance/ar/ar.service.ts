@@ -14,6 +14,7 @@ import { ReceiptAllocation } from './entities/receipt-allocation.entity';
 import { Account } from '../gl/entities/account.entity';
 import { BankAccount } from '../bank/entities/bank-account.entity';
 import { GlService } from '../gl/gl.service';
+import { CurrencyService } from '../currency/currency.service';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../finance.constants';
 import {
@@ -43,6 +44,7 @@ export class ArService {
     @InjectRepository(Account) private readonly accountRepo: Repository<Account>,
     @InjectRepository(BankAccount) private readonly bankAccountRepo: Repository<BankAccount>,
     private readonly glService: GlService,
+    private readonly currencyService: CurrencyService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -329,6 +331,19 @@ export class ArService {
 
       invoice.journalEntryId = je.id;
       invoice.status = InvoiceStatus.SENT;
+
+      // FX conversion: store base-currency equivalent at posting time
+      const invDate = new Date(invoice.invoiceDate);
+      const fxResult = await this.currencyService.convert(
+        tenantId, invoice.total, invoice.currency,
+        invDate.getFullYear(), invDate.getMonth() + 1,
+      );
+      if (fxResult) {
+        invoice.baseCurrency = fxResult.baseCurrency;
+        invoice.exchangeRate = fxResult.rate;
+        invoice.totalBase = fxResult.baseAmount;
+      }
+
       await manager.save(invoice);
 
       if (customer) {

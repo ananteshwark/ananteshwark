@@ -22,4 +22,7 @@ export const DEFAULT_ACCOUNT_CODES = {
   SALARY_EXPENSE: '6000',
   EMPLOYER_PF_EXPENSE: '6010',
   EMPLOYER_ESI_EXPENSE: '6020',
+  // FX revaluation
+  FX_GAIN: '7000',
+  FX_LOSS: '7010',
 };
