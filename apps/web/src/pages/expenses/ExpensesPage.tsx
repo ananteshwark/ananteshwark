@@ -10,6 +10,7 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ title: '', claimDate: new Date().toISOString().slice(0, 10), currency: 'INR' });
+  const [expenseLines, setExpenseLines] = useState([{ categoryId: '', description: '', amount: '', receiptUrl: '' }]);
 
   const fetchClaims = () => {
     setLoading(true);
@@ -42,8 +43,17 @@ export default function ExpensesPage() {
 
   const handleCreate = async () => {
     try {
-      await expensesApi.createClaim({ ...form, lines: [] });
+      const validLines = expenseLines
+        .filter(l => l.description && Number(l.amount) > 0)
+        .map(l => ({
+          categoryId: l.categoryId || undefined,
+          description: l.description,
+          amount: Number(l.amount),
+          receiptUrl: l.receiptUrl || undefined,
+        }));
+      await expensesApi.createClaim({ ...form, lines: validLines });
       setShowNew(false);
+      setExpenseLines([{ categoryId: '', description: '', amount: '', receiptUrl: '' }]);
       fetchClaims();
     } catch (e) { alert('Failed to create claim'); }
   };
@@ -171,23 +181,54 @@ export default function ExpensesPage() {
 
       {showNew && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">New Expense Claim</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Claim title" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Claim title" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input type="date" value={form.claimDate} onChange={(e) => setForm({ ...form, claimDate: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input type="date" value={form.claimDate} onChange={(e) => setForm({ ...form, claimDate: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Expense Lines</label>
+                  <button type="button" onClick={() => setExpenseLines(l => [...l, { categoryId: '', description: '', amount: '', receiptUrl: '' }])}
+                    className="text-xs text-blue-600 hover:underline">+ Add Line</button>
+                </div>
+                <div className="space-y-2">
+                  {expenseLines.map((line, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <select value={line.categoryId} onChange={e => setExpenseLines(ls => ls.map((l, idx) => idx === i ? { ...l, categoryId: e.target.value } : l))}
+                        className="col-span-3 border rounded-lg px-2 py-1.5 text-sm">
+                        <option value="">Category</option>
+                        {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                      <input value={line.description} onChange={e => setExpenseLines(ls => ls.map((l, idx) => idx === i ? { ...l, description: e.target.value } : l))}
+                        placeholder="Description *" className="col-span-4 border rounded-lg px-2 py-1.5 text-sm" />
+                      <input type="number" min="0" step="0.01" value={line.amount} onChange={e => setExpenseLines(ls => ls.map((l, idx) => idx === i ? { ...l, amount: e.target.value } : l))}
+                        placeholder="Amount *" className="col-span-3 border rounded-lg px-2 py-1.5 text-sm" />
+                      <button type="button" onClick={() => setExpenseLines(ls => ls.filter((_, idx) => idx !== i))}
+                        disabled={expenseLines.length === 1}
+                        className="col-span-1 text-red-400 hover:text-red-600 disabled:opacity-30 text-sm">✕</button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Total: {form.currency} {expenseLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={handleCreate} className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Create</button>
-              <button onClick={() => setShowNew(false)} className="flex-1 px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={() => { setShowNew(false); setExpenseLines([{ categoryId: '', description: '', amount: '', receiptUrl: '' }]); }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Cancel</button>
             </div>
           </div>
         </div>

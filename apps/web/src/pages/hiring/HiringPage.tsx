@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { hiringApi } from '../../api/hiring';
 import { hrApi } from '../../api/hr';
+import { talentApi } from '../../api/talent';
 
 type MainTab = 'dashboard' | 'requisitions' | 'pipeline' | 'interviews' | 'offers';
 
@@ -140,9 +141,8 @@ export default function HiringPage() {
 
   const fetchApplicants = async (jobPostingId?: string) => {
     try {
-      const res = await fetch(`/api/talent/ats/applicants?jobPostingId=${jobPostingId ?? ''}&limit=200`, { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } });
-      const json = await res.json();
-      setApplicants((json.data?.items ?? json.data ?? []).slice(0, 200));
+      const res = await talentApi.getApplicants({ jobPostingId: jobPostingId ?? undefined, limit: 200 });
+      setApplicants(res.data?.items ?? res.data?.data?.items ?? []);
     } catch (_) {}
   };
 

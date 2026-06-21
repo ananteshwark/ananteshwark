@@ -65,7 +65,7 @@ function ObjectiveCard({ obj, onRefresh }: { obj: any; onRefresh: () => void }) 
 
   const loadKrs = async () => {
     const r = await talentApi.getKeyResults(obj.id);
-    setKrs(r.data || []);
+    setKrs(r.data?.data || []);
   };
 
   const handleExpand = () => {
@@ -112,7 +112,7 @@ export default function GoalsPage() {
 
   const loadCycles = async () => {
     const r = await talentApi.getOkrCycles();
-    const list = r.data || [];
+    const list = r.data?.data || [];
     setCycles(list);
     if (list.length > 0) setSelectedCycle(list[0].id);
     setLoading(false);
@@ -124,8 +124,8 @@ export default function GoalsPage() {
       talentApi.getObjectives({ cycleId: selectedCycle, limit: 50 }),
       talentApi.getCycleDashboard(selectedCycle),
     ]);
-    setObjectives(objR.data || []);
-    setDashboard(dashR.data);
+    setObjectives(objR.data?.data || []);
+    setDashboard(dashR.data?.data ?? dashR.data);
   };
 
   useEffect(() => { loadCycles(); }, []);

@@ -276,7 +276,7 @@ export default function InventoryPage() {
     setLoading(true);
     try {
       const res = await inventoryApi.getLots();
-      setLots(res.data || []);
+      setLots(res.data?.data || []);
     } catch {
     } finally { setLoading(false); }
   };

@@ -94,8 +94,8 @@ export default function ESSPage() {
       hrApi.getLeaveBalance(),
       hrApi.getLeaveApplications({ limit: 20 }),
     ]).then(([lt, lb, la]) => {
-      setLeaveTypes(lt.data || []);
-      setLeaveBalance(lb.data || []);
+      setLeaveTypes(lt.data?.data || lt.data?.items || []);
+      setLeaveBalance(lb.data?.data || lb.data?.items || []);
       setLeaveApplications(la.data?.items || la.data || []);
     }).finally(() => setLoading(false));
   }, [user]);

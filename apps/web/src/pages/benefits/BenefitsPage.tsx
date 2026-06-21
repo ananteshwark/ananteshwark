@@ -38,10 +38,10 @@ export default function BenefitsPage() {
   const { data: allocsData } = useQuery({ queryKey: ['ben-allocs', selectedCycleId], queryFn: () => selectedCycleId ? benefitsApi.getAllocations(selectedCycleId) : null, enabled: !!selectedCycleId });
 
   const plans = plansData?.data?.items ?? [];
-  const enrollments = enrollData?.data ?? [];
-  const bands = bandsData?.data ?? [];
+  const enrollments = enrollData?.data?.data ?? enrollData?.data?.items ?? [];
+  const bands = bandsData?.data?.data ?? bandsData?.data?.items ?? [];
   const cycles = cyclesData?.data?.items ?? [];
-  const allocations = allocsData?.data ?? [];
+  const allocations = allocsData?.data?.data ?? allocsData?.data?.items ?? [];
 
   const createPlan = useMutation({ mutationFn: (d: any) => benefitsApi.createPlan(d), onSuccess: () => { qc.invalidateQueries({ queryKey: ['ben-plans'] }); setShowPlanModal(false); } });
   const enroll = useMutation({ mutationFn: (d: any) => benefitsApi.enroll(d), onSuccess: () => { qc.invalidateQueries({ queryKey: ['ben-enrollments'] }); setShowEnrollModal(false); } });

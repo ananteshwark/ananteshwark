@@ -3,10 +3,11 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto, UpdateTenantSettingsDto } from './dto/create-tenant.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { SuperAdminGuard } from '../../common/guards/super-admin.guard';
 
 @ApiTags('tenants')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
 @Controller('tenants')
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

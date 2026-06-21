@@ -179,7 +179,7 @@ export default function SuccessionPage() {
   const loadPlanDetail = async (plan: any) => {
     setSelectedPlan(plan);
     const res = await talentApi.getSuccessionPlan(plan.id);
-    const detail = res.data;
+    const detail = res.data?.data ?? res.data;
     setCandidates(detail?.candidates || []);
   };
 

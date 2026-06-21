@@ -112,7 +112,7 @@ export default function ContractsPage() {
       contractsApi.getExpiringContracts(30),
     ]).then(([r1, r2]) => {
       setContracts(r1.data?.items || []);
-      setExpiring(r2.data || []);
+      setExpiring(r2.data?.data || []);
     }).finally(() => setLoading(false));
   };
 

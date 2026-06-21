@@ -8,6 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
 export enum UserStatus {
@@ -51,6 +52,7 @@ export class User {
   @Column({ name: 'last_login_at', nullable: true })
   lastLoginAt: Date;
 
+  @Exclude()
   @Column({ name: 'password_hash', nullable: true })
   passwordHash: string;
 
@@ -60,6 +62,7 @@ export class User {
   @Column({ name: 'mfa_enabled', default: false })
   mfaEnabled: boolean;
 
+  @Exclude()
   @Column({ name: 'mfa_secret', nullable: true })
   mfaSecret: string;
 

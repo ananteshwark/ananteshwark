@@ -111,9 +111,9 @@ export default function PerformancePage() {
     talentApi.getReviewForms({ limit: 50 }),
     talentApi.listCalibrations(),
   ]).then(([r1, r2, r3]) => {
-    setCycles(r1.data || []);
+    setCycles(r1.data?.data || []);
     setForms(r2.data?.items || []);
-    setCalibrations(r3.data || []);
+    setCalibrations(r3.data?.data || []);
   }).finally(() => setLoading(false));
 
   useEffect(() => { loadData(); }, []);

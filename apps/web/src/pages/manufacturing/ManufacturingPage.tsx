@@ -158,7 +158,7 @@ export default function ManufacturingPage() {
     ]).then(([r1, r2, r3]) => {
       setOrders(r1.data?.items || []);
       setBoms(r2.data?.items || []);
-      setWorkCenters(r3.data || []);
+      setWorkCenters(r3.data?.data || []);
     }).finally(() => setLoading(false));
   };
 

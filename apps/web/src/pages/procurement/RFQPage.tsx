@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { procurementApi } from '../../api/procurement';
+import { financeApi } from '../../api/finance';
 import { Plus } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,10 +17,25 @@ function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     issueDate: new Date().toISOString().slice(0, 10),
     dueDate: '',
     notes: '',
+    vendorIds: [] as string[],
     lines: [{ description: '', quantity: 1, uom: 'EA' }],
   });
+  const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    financeApi.getVendors({ limit: 200 }).then(r => {
+      setVendors(r.data?.data?.items ?? r.data?.data ?? r.data?.items ?? []);
+    }).catch(() => {});
+  }, []);
+
+  const toggleVendor = (id: string) => {
+    setForm(f => ({
+      ...f,
+      vendorIds: f.vendorIds.includes(id) ? f.vendorIds.filter(v => v !== id) : [...f.vendorIds, id],
+    }));
+  };
 
   const addLine = () => setForm((f) => ({ ...f, lines: [...f.lines, { description: '', quantity: 1, uom: 'EA' }] }));
   const removeLine = (i: number) => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }));
@@ -61,6 +77,24 @@ function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} required />
             </div>
           </div>
+          {vendors.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Vendors *</label>
+              <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+                {vendors.map((v: any) => (
+                  <label key={v.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={form.vendorIds.includes(v.id)}
+                      onChange={() => toggleVendor(v.id)}
+                      className="rounded"
+                    />
+                    {v.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Lines *</label>

@@ -134,7 +134,7 @@ function OrderDetailPanel({ order, onClose, onUpdated }: { order: any; onClose: 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    salesApi.getOrderLines(order.id).then(r => setLines(r.data || [])).finally(() => setLoading(false));
+    salesApi.getOrderLines(order.id).then(r => setLines(r.data?.data || [])).finally(() => setLoading(false));
   }, [order.id]);
 
   const action = async (fn: () => Promise<any>) => {

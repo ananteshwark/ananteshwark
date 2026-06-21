@@ -97,7 +97,7 @@ function NewJobDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 function FunnelView({ jobId }: { jobId: string }) {
   const [funnel, setFunnel] = useState<Record<string, number>>({});
   useEffect(() => {
-    talentApi.getHiringFunnel(jobId).then(r => setFunnel(r.data));
+    talentApi.getHiringFunnel(jobId).then(r => setFunnel(r.data?.data || {}));
   }, [jobId]);
   const total = Object.values(funnel).reduce((a, b) => a + b, 0);
   const statuses = ['NEW', 'SCREENING', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'OFFER_MADE', 'HIRED', 'REJECTED'];

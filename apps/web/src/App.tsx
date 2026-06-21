@@ -40,6 +40,7 @@ import {
   PayrollRunsPage,
   PayrollRunDetailPage,
   PayslipPage,
+  PayslipsListPage,
   StatutoryPage,
 } from './pages/payroll';
 import {
@@ -149,6 +150,7 @@ export default function App() {
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />
         <Route path="payroll/runs/:id" element={<PayrollRunDetailPage />} />
+        <Route path="payroll/payslips" element={<PayslipsListPage />} />
         <Route path="payroll/payslips/:id" element={<PayslipPage />} />
         <Route path="payroll/statutory" element={<StatutoryPage />} />
         <Route path="procurement/requisitions" element={<RequisitionsPage />} />

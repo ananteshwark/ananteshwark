@@ -36,8 +36,8 @@ export default function OnboardingPage() {
   const handlePlanClick = async (plan: any) => {
     try {
       const r = await talentApi.getEmployeeOnboarding(plan.employeeId);
-      setSelectedPlan(r.data);
-      setTasks(r.data?.tasks || []);
+      setSelectedPlan(r.data?.data ?? r.data);
+      setTasks(r.data?.data?.tasks ?? r.data?.tasks ?? []);
     } catch {
       setSelectedPlan(plan);
       setTasks([]);

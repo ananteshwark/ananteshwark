@@ -7,6 +7,12 @@ interface Vendor {
   name: string;
 }
 
+interface Account {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface BillLine {
   description: string;
   accountId: string;
@@ -37,6 +43,7 @@ const statusColors: Record<string, string> = {
 const emptyLine = (): BillLine => ({ description: '', accountId: '', quantity: '1', unitPrice: '0' });
 
 const defaultForm = {
+  billNumber: '',
   vendorId: '',
   billDate: new Date().toISOString().split('T')[0],
   dueDate: '',
@@ -45,6 +52,7 @@ const defaultForm = {
 export default function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('All');
@@ -78,6 +86,15 @@ export default function BillsPage() {
     }
   };
 
+  const fetchAccounts = async () => {
+    try {
+      const res = await financeApi.getAccounts({ limit: 200 });
+      setAccounts(res.data?.items ?? res.data?.data?.items ?? res.data?.data ?? []);
+    } catch {
+      // non-critical
+    }
+  };
+
   useEffect(() => {
     fetchBills();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,6 +102,7 @@ export default function BillsPage() {
 
   useEffect(() => {
     fetchVendors();
+    fetchAccounts();
   }, []);
 
   const handleLineChange = (i: number, field: keyof BillLine, value: string) => {
@@ -258,19 +276,32 @@ export default function BillsPage() {
             </div>
             <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
               {formError && <p className="text-sm text-red-600">{formError}</p>}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
-                <select
-                  required
-                  value={form.vendorId}
-                  onChange={(e) => setForm({ ...form, vendorId: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select vendor...</option>
-                  {vendors.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.billNumber}
+                    onChange={(e) => setForm({ ...form, billNumber: e.target.value })}
+                    placeholder="e.g. BILL-2024-001"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                  <select
+                    required
+                    value={form.vendorId}
+                    onChange={(e) => setForm({ ...form, vendorId: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Select vendor...</option>
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -302,7 +333,7 @@ export default function BillsPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Account ID</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Account</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Unit Price</th>
                         <th className="px-3 py-2"></th>
@@ -321,13 +352,17 @@ export default function BillsPage() {
                             />
                           </td>
                           <td className="px-2 py-1">
-                            <input
-                              type="text"
+                            <select
+                              required
                               value={line.accountId}
                               onChange={(e) => handleLineChange(i, 'accountId', e.target.value)}
                               className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="Account ID"
-                            />
+                            >
+                              <option value="">Select account...</option>
+                              {accounts.map((a) => (
+                                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-2 py-1">
                             <input
