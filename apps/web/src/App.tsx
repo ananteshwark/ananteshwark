@@ -25,6 +25,7 @@ import {
   InvoicesPage,
   FinanceReportsPage,
   FixedAssetsPage,
+  CurrenciesPage,
 } from './pages/finance';
 import {
   EmployeesPage,
@@ -146,6 +147,7 @@ export default function App() {
         <Route path="finance/invoices" element={<InvoicesPage />} />
         <Route path="finance/reports" element={<FinanceReportsPage />} />
         <Route path="finance/fixed-assets" element={<FixedAssetsPage />} />
+        <Route path="finance/currencies" element={<CurrenciesPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />

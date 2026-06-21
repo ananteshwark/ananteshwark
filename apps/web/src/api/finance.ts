@@ -64,6 +64,14 @@ export const financeApi = {
   postDepreciationRun: (id: string) => apiClient.post(`/finance/fixed-assets/depreciation-runs/${id}/post`),
   getRunLines: (id: string) => apiClient.get(`/finance/fixed-assets/depreciation-runs/${id}/lines`),
 
+  // Currencies & Exchange Rates
+  getCurrencies: (params?: any) => apiClient.get('/finance/currencies', { params }),
+  createCurrency: (data: any) => apiClient.post('/finance/currencies', data),
+  updateCurrency: (id: string, data: any) => apiClient.patch(`/finance/currencies/${id}`, data),
+  getExchangeRates: (params?: any) => apiClient.get('/finance/currencies/rates', { params }),
+  upsertExchangeRate: (data: any) => apiClient.post('/finance/currencies/rates', data),
+  deleteExchangeRate: (id: string) => apiClient.delete(`/finance/currencies/rates/${id}`),
+
   // Reports
   getTrialBalance: (params?: any) => apiClient.get('/finance/reports/trial-balance', { params }),
   getProfitLoss: (params?: any) => apiClient.get('/finance/reports/profit-loss', { params }),

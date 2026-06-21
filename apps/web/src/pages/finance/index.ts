@@ -6,3 +6,4 @@ export { default as CustomersPage } from './CustomersPage';
 export { default as InvoicesPage } from './InvoicesPage';
 export { default as FinanceReportsPage } from './FinanceReportsPage';
 export { default as FixedAssetsPage } from './FixedAssetsPage';
+export { default as CurrenciesPage } from './CurrenciesPage';

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { procurementApi } from '../../api/procurement';
 import { financeApi } from '../../api/finance';
 import { Plus, CheckCircle2, XCircle, AlertTriangle, ScanLine, CreditCard } from 'lucide-react';
+import CurrencySelect from '../../components/ui/CurrencySelect';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-700',
@@ -128,7 +129,7 @@ function NewInvoiceDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-              <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))} />
+              <CurrencySelect className="w-full border rounded-lg px-3 py-2 text-sm" value={form.currency} onChange={(code) => setForm((f) => ({ ...f, currency: code }))} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date *</label>

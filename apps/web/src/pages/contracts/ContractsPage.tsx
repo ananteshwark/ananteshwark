@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { contractsApi } from '../../api/contracts';
+import CurrencySelect from '../../components/ui/CurrencySelect';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT:       'bg-gray-100 text-gray-600',
@@ -74,8 +75,8 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Currency</label>
-              <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.currency}
-                onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} />
+              <CurrencySelect className="w-full border rounded-lg px-3 py-2 text-sm" value={form.currency}
+                onChange={code => setForm(p => ({ ...p, currency: code }))} />
             </div>
           </div>
           <div>

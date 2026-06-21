@@ -56,6 +56,7 @@ export const ALL_PERMISSIONS = [
   'finance:ar:manage',
   'finance:fixed-assets:read', 'finance:fixed-assets:manage',
   'finance:periods:manage',
+  'finance:currency:read', 'finance:currency:manage',
   // HR — extended
   'hr:employees:manage',
   // Inventory module

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { financeApi } from '../../api/finance';
+import CurrencySelect from '../../components/ui/CurrencySelect';
 
 interface Customer {
   id: string;
@@ -194,12 +195,9 @@ export default function CustomersPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-                  <input
-                    type="text"
+                  <CurrencySelect
                     value={form.currency}
-                    onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="USD"
+                    onChange={(code) => setForm({ ...form, currency: code })}
                   />
                 </div>
                 <div>
