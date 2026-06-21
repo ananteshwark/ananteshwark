@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Search, Upload, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { hrApi } from '../../api/hr';
+import { settingsApi } from '../../api/settings';
 
 interface Employee {
   id: string;
@@ -109,6 +110,7 @@ export default function EmployeesPage() {
     subFunction:  { enabled: true, required: false },
     team:         { enabled: true, required: false },
   });
+  const [fieldConfig, setFieldConfig] = useState<Record<string, { enabled: boolean; required: boolean; label: string }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -136,7 +138,7 @@ export default function EmployeesPage() {
         const d = res.data?.data ?? res.data ?? {};
         return d.items ?? d ?? [];
       };
-      const [empRes, leRes, buRes, divRes, deptRes, fnRes, subFnRes, teamRes, desigRes, locRes, allEmpRes, cfgRes] = await Promise.all([
+      const [empRes, leRes, buRes, divRes, deptRes, fnRes, subFnRes, teamRes, desigRes, locRes, allEmpRes, cfgRes, fCfgRes] = await Promise.all([
         hrApi.getEmployees(params),
         hrApi.getLegalEntities({ limit: 500 }),
         hrApi.getBusinessUnits({ limit: 500 }),
@@ -149,6 +151,7 @@ export default function EmployeesPage() {
         hrApi.getLocations({ limit: 500 }),
         hrApi.getEmployees({ limit: 1000 }),
         hrApi.getOrgLevelConfig(),
+        settingsApi.getModuleFieldConfig('hr.employee'),
       ]);
       setEmployees(unwrap(empRes));
       setLegalEntities(unwrap(leRes));
@@ -165,6 +168,12 @@ export default function EmployeesPage() {
       if (cfgArr.length > 0) {
         setOrgConfig(Object.fromEntries(cfgArr.map((c: any) => [c.level, { enabled: c.enabled, required: c.required }])));
       }
+      const fCfgArr: any[] = fCfgRes.data?.data ?? fCfgRes.data ?? [];
+      const fCfgMap: Record<string, { enabled: boolean; required: boolean; label: string }> = {};
+      for (const c of fCfgArr) {
+        fCfgMap[c.field] = { enabled: c.enabled, required: c.required, label: c.customLabel ?? c.label };
+      }
+      setFieldConfig(fCfgMap);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load employees');
     } finally {
@@ -175,6 +184,12 @@ export default function EmployeesPage() {
   useEffect(() => { fetchData(); }, [search, statusFilter]);
 
   const setF = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+
+  const fc = (field: string, defaultLabel: string) => ({
+    enabled: fieldConfig[field]?.enabled ?? true,
+    required: fieldConfig[field]?.required ?? false,
+    label: fieldConfig[field]?.label ?? defaultLabel,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -408,10 +423,12 @@ export default function EmployeesPage() {
                         <label className={LABEL}>First Name *</label>
                         <input required value={form.firstName} onChange={e => setF({ firstName: e.target.value })} className={INPUT} />
                       </div>
-                      <div>
-                        <label className={LABEL}>Middle Name</label>
-                        <input value={form.middleName} onChange={e => setF({ middleName: e.target.value })} className={INPUT} />
-                      </div>
+                      {fc('middleName', 'Middle Name').enabled && (
+                        <div>
+                          <label className={LABEL}>{fc('middleName', 'Middle Name').label}{fc('middleName', 'Middle Name').required && ' *'}</label>
+                          <input required={fc('middleName', 'Middle Name').required} value={form.middleName} onChange={e => setF({ middleName: e.target.value })} className={INPUT} />
+                        </div>
+                      )}
                       <div>
                         <label className={LABEL}>Last Name *</label>
                         <input required value={form.lastName} onChange={e => setF({ lastName: e.target.value })} className={INPUT} />
@@ -422,10 +439,12 @@ export default function EmployeesPage() {
                         <label className={LABEL}>Work Email *</label>
                         <input required type="email" value={form.email} onChange={e => setF({ email: e.target.value })} className={INPUT} />
                       </div>
-                      <div>
-                        <label className={LABEL}>Mobile Phone</label>
-                        <input value={form.phone} onChange={e => setF({ phone: e.target.value })} className={INPUT} placeholder="+91-9999999999" />
-                      </div>
+                      {fc('phone', 'Mobile Phone').enabled && (
+                        <div>
+                          <label className={LABEL}>{fc('phone', 'Mobile Phone').label}{fc('phone', 'Mobile Phone').required && ' *'}</label>
+                          <input required={fc('phone', 'Mobile Phone').required} value={form.phone} onChange={e => setF({ phone: e.target.value })} className={INPUT} placeholder="+91-9999999999" />
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -445,16 +464,22 @@ export default function EmployeesPage() {
                         </select>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Probation End Date</label>
-                        <input type="date" value={form.probationEndDate} onChange={e => setF({ probationEndDate: e.target.value })} className={INPUT} />
+                    {(fc('probationEndDate', 'Probation End Date').enabled || fc('confirmationDate', 'Confirmation Date').enabled) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {fc('probationEndDate', 'Probation End Date').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('probationEndDate', 'Probation End Date').label}{fc('probationEndDate', 'Probation End Date').required && ' *'}</label>
+                            <input required={fc('probationEndDate', 'Probation End Date').required} type="date" value={form.probationEndDate} onChange={e => setF({ probationEndDate: e.target.value })} className={INPUT} />
+                          </div>
+                        )}
+                        {fc('confirmationDate', 'Confirmation Date').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('confirmationDate', 'Confirmation Date').label}{fc('confirmationDate', 'Confirmation Date').required && ' *'}</label>
+                            <input required={fc('confirmationDate', 'Confirmation Date').required} type="date" value={form.confirmationDate} onChange={e => setF({ confirmationDate: e.target.value })} className={INPUT} />
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className={LABEL}>Confirmation Date</label>
-                        <input type="date" value={form.confirmationDate} onChange={e => setF({ confirmationDate: e.target.value })} className={INPUT} />
-                      </div>
-                    </div>
+                    )}
                     {/* Org hierarchy — visibility and required state driven by tenant config */}
                     {(() => {
                       const le  = orgConfig['legalEntity']  ?? { enabled: true,  required: false };
@@ -548,219 +573,281 @@ export default function EmployeesPage() {
                         </>
                       );
                     })()}
-                    <div className="grid grid-cols-2 gap-4">
+                    {(fc('designationId', 'Designation').enabled || fc('locationId', 'Location').enabled) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {fc('designationId', 'Designation').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('designationId', 'Designation').label}{fc('designationId', 'Designation').required && ' *'}</label>
+                            <select required={fc('designationId', 'Designation').required} value={form.designationId} onChange={e => setF({ designationId: e.target.value })} className={INPUT}>
+                              <option value="">Select Designation</option>
+                              {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        {fc('locationId', 'Location').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('locationId', 'Location').label}{fc('locationId', 'Location').required && ' *'}</label>
+                            <select required={fc('locationId', 'Location').required} value={form.locationId} onChange={e => setF({ locationId: e.target.value })} className={INPUT}>
+                              <option value="">Select Location</option>
+                              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {fc('managerId', 'Reporting Manager').enabled && (
                       <div>
-                        <label className={LABEL}>Designation</label>
-                        <select value={form.designationId} onChange={e => setF({ designationId: e.target.value })} className={INPUT}>
-                          <option value="">Select Designation</option>
-                          {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        <label className={LABEL}>{fc('managerId', 'Reporting Manager').label}{fc('managerId', 'Reporting Manager').required && ' *'}</label>
+                        <select required={fc('managerId', 'Reporting Manager').required} value={form.managerId} onChange={e => setF({ managerId: e.target.value })} className={INPUT}>
+                          <option value="">None</option>
+                          {allEmployees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeCode})</option>)}
                         </select>
                       </div>
-                      <div>
-                        <label className={LABEL}>Location</label>
-                        <select value={form.locationId} onChange={e => setF({ locationId: e.target.value })} className={INPUT}>
-                          <option value="">Select Location</option>
-                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className={LABEL}>Reporting Manager</label>
-                      <select value={form.managerId} onChange={e => setF({ managerId: e.target.value })} className={INPUT}>
-                        <option value="">None</option>
-                        {allEmployees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeCode})</option>)}
-                      </select>
-                    </div>
+                    )}
                   </>
                 )}
 
                 {/* ── Personal ── */}
                 {activeTab === 'Personal' && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Date of Birth</label>
-                        <input type="date" value={form.dateOfBirth} onChange={e => setF({ dateOfBirth: e.target.value })} className={INPUT} />
+                    {(fc('dateOfBirth', 'Date of Birth').enabled || fc('gender', 'Gender').enabled) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {fc('dateOfBirth', 'Date of Birth').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('dateOfBirth', 'Date of Birth').label}{fc('dateOfBirth', 'Date of Birth').required && ' *'}</label>
+                            <input required={fc('dateOfBirth', 'Date of Birth').required} type="date" value={form.dateOfBirth} onChange={e => setF({ dateOfBirth: e.target.value })} className={INPUT} />
+                          </div>
+                        )}
+                        {fc('gender', 'Gender').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('gender', 'Gender').label}{fc('gender', 'Gender').required && ' *'}</label>
+                            <select required={fc('gender', 'Gender').required} value={form.gender} onChange={e => setF({ gender: e.target.value })} className={INPUT}>
+                              <option value="">Select</option>
+                              <option value="MALE">Male</option>
+                              <option value="FEMALE">Female</option>
+                              <option value="OTHER">Other</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className={LABEL}>Gender</label>
-                        <select value={form.gender} onChange={e => setF({ gender: e.target.value })} className={INPUT}>
-                          <option value="">Select</option>
-                          <option value="MALE">Male</option>
-                          <option value="FEMALE">Female</option>
-                          <option value="OTHER">Other</option>
-                        </select>
+                    )}
+                    {(fc('maritalStatus', 'Marital Status').enabled || fc('bloodGroup', 'Blood Group').enabled) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {fc('maritalStatus', 'Marital Status').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('maritalStatus', 'Marital Status').label}{fc('maritalStatus', 'Marital Status').required && ' *'}</label>
+                            <select required={fc('maritalStatus', 'Marital Status').required} value={form.maritalStatus} onChange={e => setF({ maritalStatus: e.target.value })} className={INPUT}>
+                              <option value="">Select</option>
+                              <option value="SINGLE">Single</option>
+                              <option value="MARRIED">Married</option>
+                              <option value="DIVORCED">Divorced</option>
+                              <option value="WIDOWED">Widowed</option>
+                            </select>
+                          </div>
+                        )}
+                        {fc('bloodGroup', 'Blood Group').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('bloodGroup', 'Blood Group').label}{fc('bloodGroup', 'Blood Group').required && ' *'}</label>
+                            <select required={fc('bloodGroup', 'Blood Group').required} value={form.bloodGroup} onChange={e => setF({ bloodGroup: e.target.value })} className={INPUT}>
+                              <option value="">Select</option>
+                              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Marital Status</label>
-                        <select value={form.maritalStatus} onChange={e => setF({ maritalStatus: e.target.value })} className={INPUT}>
-                          <option value="">Select</option>
-                          <option value="SINGLE">Single</option>
-                          <option value="MARRIED">Married</option>
-                          <option value="DIVORCED">Divorced</option>
-                          <option value="WIDOWED">Widowed</option>
-                        </select>
+                    )}
+                    {(fc('nationality', 'Nationality').enabled || fc('personalEmail', 'Personal Email').enabled) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {fc('nationality', 'Nationality').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('nationality', 'Nationality').label}{fc('nationality', 'Nationality').required && ' *'}</label>
+                            <input required={fc('nationality', 'Nationality').required} value={form.nationality} onChange={e => setF({ nationality: e.target.value })} className={INPUT} placeholder="Indian" />
+                          </div>
+                        )}
+                        {fc('personalEmail', 'Personal Email').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('personalEmail', 'Personal Email').label}{fc('personalEmail', 'Personal Email').required && ' *'}</label>
+                            <input required={fc('personalEmail', 'Personal Email').required} type="email" value={form.personalEmail} onChange={e => setF({ personalEmail: e.target.value })} className={INPUT} />
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className={LABEL}>Blood Group</label>
-                        <select value={form.bloodGroup} onChange={e => setF({ bloodGroup: e.target.value })} className={INPUT}>
-                          <option value="">Select</option>
-                          {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
-                        </select>
+                    )}
+                    {(fc('homePhone', 'Home Phone').enabled || fc('pan', 'PAN').enabled) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {fc('homePhone', 'Home Phone').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('homePhone', 'Home Phone').label}{fc('homePhone', 'Home Phone').required && ' *'}</label>
+                            <input required={fc('homePhone', 'Home Phone').required} value={form.homePhone} onChange={e => setF({ homePhone: e.target.value })} className={INPUT} />
+                          </div>
+                        )}
+                        {fc('pan', 'PAN').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('pan', 'PAN').label}{fc('pan', 'PAN').required && ' *'}</label>
+                            <input required={fc('pan', 'PAN').required} value={form.pan} onChange={e => setF({ pan: e.target.value })} className={INPUT} placeholder="ABCDE1234F" />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Nationality</label>
-                        <input value={form.nationality} onChange={e => setF({ nationality: e.target.value })} className={INPUT} placeholder="Indian" />
+                    )}
+                    {(fc('aadhar', 'Aadhar').enabled || fc('passportNumber', 'Passport Number').enabled) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {fc('aadhar', 'Aadhar').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('aadhar', 'Aadhar').label}{fc('aadhar', 'Aadhar').required && ' *'}</label>
+                            <input required={fc('aadhar', 'Aadhar').required} value={form.aadhar} onChange={e => setF({ aadhar: e.target.value })} className={INPUT} placeholder="XXXX XXXX XXXX" />
+                          </div>
+                        )}
+                        {fc('passportNumber', 'Passport Number').enabled && (
+                          <div>
+                            <label className={LABEL}>{fc('passportNumber', 'Passport Number').label}{fc('passportNumber', 'Passport Number').required && ' *'}</label>
+                            <input required={fc('passportNumber', 'Passport Number').required} value={form.passportNumber} onChange={e => setF({ passportNumber: e.target.value })} className={INPUT} />
+                          </div>
+                        )}
                       </div>
+                    )}
+                    {fc('passportExpiry', 'Passport Expiry').enabled && (
                       <div>
-                        <label className={LABEL}>Personal Email</label>
-                        <input type="email" value={form.personalEmail} onChange={e => setF({ personalEmail: e.target.value })} className={INPUT} />
+                        <label className={LABEL}>{fc('passportExpiry', 'Passport Expiry').label}{fc('passportExpiry', 'Passport Expiry').required && ' *'}</label>
+                        <input required={fc('passportExpiry', 'Passport Expiry').required} type="date" value={form.passportExpiry} onChange={e => setF({ passportExpiry: e.target.value })} className={INPUT} />
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Home Phone</label>
-                        <input value={form.homePhone} onChange={e => setF({ homePhone: e.target.value })} className={INPUT} />
-                      </div>
-                      <div>
-                        <label className={LABEL}>PAN</label>
-                        <input value={form.pan} onChange={e => setF({ pan: e.target.value })} className={INPUT} placeholder="ABCDE1234F" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Aadhar Number</label>
-                        <input value={form.aadhar} onChange={e => setF({ aadhar: e.target.value })} className={INPUT} placeholder="XXXX XXXX XXXX" />
-                      </div>
-                      <div>
-                        <label className={LABEL}>Passport Number</label>
-                        <input value={form.passportNumber} onChange={e => setF({ passportNumber: e.target.value })} className={INPUT} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={LABEL}>Passport Expiry</label>
-                      <input type="date" value={form.passportExpiry} onChange={e => setF({ passportExpiry: e.target.value })} className={INPUT} />
-                    </div>
+                    )}
                   </>
                 )}
 
                 {/* ── Address ── */}
                 {activeTab === 'Address' && (
                   <>
-                    <p className="text-sm font-semibold text-gray-700">Current Address</p>
-                    <div>
-                      <label className={LABEL}>Address Line 1</label>
-                      <input value={form.currentAddressLine1} onChange={e => setF({ currentAddressLine1: e.target.value })} className={INPUT} />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Address Line 2</label>
-                      <input value={form.currentAddressLine2} onChange={e => setF({ currentAddressLine2: e.target.value })} className={INPUT} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className={LABEL}>City</label>
-                        <input value={form.currentCity} onChange={e => setF({ currentCity: e.target.value })} className={INPUT} />
-                      </div>
-                      <div>
-                        <label className={LABEL}>State</label>
-                        <input value={form.currentState} onChange={e => setF({ currentState: e.target.value })} className={INPUT} />
-                      </div>
-                      <div>
-                        <label className={LABEL}>Country</label>
-                        <input value={form.currentCountry} onChange={e => setF({ currentCountry: e.target.value })} className={INPUT} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={LABEL}>Pincode</label>
-                      <input value={form.currentPincode} onChange={e => setF({ currentPincode: e.target.value })} className={INPUT} />
-                    </div>
+                    {fc('currentAddress', 'Current Address').enabled && (
+                      <>
+                        <p className="text-sm font-semibold text-gray-700">{fc('currentAddress', 'Current Address').label}{fc('currentAddress', 'Current Address').required && ' *'}</p>
+                        <div>
+                          <label className={LABEL}>Address Line 1</label>
+                          <input value={form.currentAddressLine1} onChange={e => setF({ currentAddressLine1: e.target.value })} className={INPUT} />
+                        </div>
+                        <div>
+                          <label className={LABEL}>Address Line 2</label>
+                          <input value={form.currentAddressLine2} onChange={e => setF({ currentAddressLine2: e.target.value })} className={INPUT} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className={LABEL}>City</label>
+                            <input value={form.currentCity} onChange={e => setF({ currentCity: e.target.value })} className={INPUT} />
+                          </div>
+                          <div>
+                            <label className={LABEL}>State</label>
+                            <input value={form.currentState} onChange={e => setF({ currentState: e.target.value })} className={INPUT} />
+                          </div>
+                          <div>
+                            <label className={LABEL}>Country</label>
+                            <input value={form.currentCountry} onChange={e => setF({ currentCountry: e.target.value })} className={INPUT} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={LABEL}>Pincode</label>
+                          <input value={form.currentPincode} onChange={e => setF({ currentPincode: e.target.value })} className={INPUT} />
+                        </div>
+                      </>
+                    )}
 
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                      <p className="text-sm font-semibold text-gray-700">Permanent Address</p>
-                      <button type="button" className="text-xs text-blue-600 hover:underline"
-                        onClick={() => setF({
-                          permanentAddressLine1: form.currentAddressLine1,
-                          permanentAddressLine2: form.currentAddressLine2,
-                          permanentCity: form.currentCity,
-                          permanentState: form.currentState,
-                          permanentCountry: form.currentCountry,
-                          permanentPincode: form.currentPincode,
-                        })}>
-                        Same as current
-                      </button>
-                    </div>
-                    <div>
-                      <label className={LABEL}>Address Line 1</label>
-                      <input value={form.permanentAddressLine1} onChange={e => setF({ permanentAddressLine1: e.target.value })} className={INPUT} />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Address Line 2</label>
-                      <input value={form.permanentAddressLine2} onChange={e => setF({ permanentAddressLine2: e.target.value })} className={INPUT} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className={LABEL}>City</label>
-                        <input value={form.permanentCity} onChange={e => setF({ permanentCity: e.target.value })} className={INPUT} />
-                      </div>
-                      <div>
-                        <label className={LABEL}>State</label>
-                        <input value={form.permanentState} onChange={e => setF({ permanentState: e.target.value })} className={INPUT} />
-                      </div>
-                      <div>
-                        <label className={LABEL}>Country</label>
-                        <input value={form.permanentCountry} onChange={e => setF({ permanentCountry: e.target.value })} className={INPUT} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={LABEL}>Pincode</label>
-                      <input value={form.permanentPincode} onChange={e => setF({ permanentPincode: e.target.value })} className={INPUT} />
-                    </div>
+                    {fc('permanentAddress', 'Permanent Address').enabled && (
+                      <>
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                          <p className="text-sm font-semibold text-gray-700">{fc('permanentAddress', 'Permanent Address').label}{fc('permanentAddress', 'Permanent Address').required && ' *'}</p>
+                          {fc('currentAddress', 'Current Address').enabled && (
+                            <button type="button" className="text-xs text-blue-600 hover:underline"
+                              onClick={() => setF({
+                                permanentAddressLine1: form.currentAddressLine1,
+                                permanentAddressLine2: form.currentAddressLine2,
+                                permanentCity: form.currentCity,
+                                permanentState: form.currentState,
+                                permanentCountry: form.currentCountry,
+                                permanentPincode: form.currentPincode,
+                              })}>
+                              Same as current
+                            </button>
+                          )}
+                        </div>
+                        <div>
+                          <label className={LABEL}>Address Line 1</label>
+                          <input value={form.permanentAddressLine1} onChange={e => setF({ permanentAddressLine1: e.target.value })} className={INPUT} />
+                        </div>
+                        <div>
+                          <label className={LABEL}>Address Line 2</label>
+                          <input value={form.permanentAddressLine2} onChange={e => setF({ permanentAddressLine2: e.target.value })} className={INPUT} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className={LABEL}>City</label>
+                            <input value={form.permanentCity} onChange={e => setF({ permanentCity: e.target.value })} className={INPUT} />
+                          </div>
+                          <div>
+                            <label className={LABEL}>State</label>
+                            <input value={form.permanentState} onChange={e => setF({ permanentState: e.target.value })} className={INPUT} />
+                          </div>
+                          <div>
+                            <label className={LABEL}>Country</label>
+                            <input value={form.permanentCountry} onChange={e => setF({ permanentCountry: e.target.value })} className={INPUT} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={LABEL}>Pincode</label>
+                          <input value={form.permanentPincode} onChange={e => setF({ permanentPincode: e.target.value })} className={INPUT} />
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
 
                 {/* ── Emergency Contact ── */}
                 {activeTab === 'Emergency' && (
                   <>
-                    <div>
-                      <label className={LABEL}>Contact Name</label>
-                      <input value={form.emergencyContactName} onChange={e => setF({ emergencyContactName: e.target.value })} className={INPUT} placeholder="Jane Doe" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Relationship</label>
-                      <input value={form.emergencyContactRelation} onChange={e => setF({ emergencyContactRelation: e.target.value })} className={INPUT} placeholder="Spouse, Parent, Sibling..." />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Phone Number</label>
-                      <input value={form.emergencyContactPhone} onChange={e => setF({ emergencyContactPhone: e.target.value })} className={INPUT} placeholder="+91-9999999999" />
-                    </div>
+                    {fc('emergencyContact', 'Emergency Contact').enabled ? (
+                      <>
+                        <div>
+                          <label className={LABEL}>Contact Name{fc('emergencyContact', 'Emergency Contact').required && ' *'}</label>
+                          <input required={fc('emergencyContact', 'Emergency Contact').required} value={form.emergencyContactName} onChange={e => setF({ emergencyContactName: e.target.value })} className={INPUT} placeholder="Jane Doe" />
+                        </div>
+                        <div>
+                          <label className={LABEL}>Relationship</label>
+                          <input value={form.emergencyContactRelation} onChange={e => setF({ emergencyContactRelation: e.target.value })} className={INPUT} placeholder="Spouse, Parent, Sibling..." />
+                        </div>
+                        <div>
+                          <label className={LABEL}>Phone Number</label>
+                          <input value={form.emergencyContactPhone} onChange={e => setF({ emergencyContactPhone: e.target.value })} className={INPUT} placeholder="+91-9999999999" />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 py-4 text-center">Emergency contact is disabled for this organisation.</p>
+                    )}
                   </>
                 )}
 
                 {/* ── Banking ── */}
                 {activeTab === 'Banking' && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Bank Name</label>
-                        <input value={form.bankName} onChange={e => setF({ bankName: e.target.value })} className={INPUT} placeholder="HDFC Bank" />
-                      </div>
-                      <div>
-                        <label className={LABEL}>Branch</label>
-                        <input value={form.bankBranch} onChange={e => setF({ bankBranch: e.target.value })} className={INPUT} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={LABEL}>Account Number</label>
-                      <input value={form.bankAccountNumber} onChange={e => setF({ bankAccountNumber: e.target.value })} className={INPUT} />
-                    </div>
-                    <div>
-                      <label className={LABEL}>IFSC Code</label>
-                      <input value={form.bankIfsc} onChange={e => setF({ bankIfsc: e.target.value })} className={INPUT} placeholder="HDFC0001234" />
-                    </div>
+                    {fc('bankDetails', 'Bank Details').enabled ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className={LABEL}>Bank Name{fc('bankDetails', 'Bank Details').required && ' *'}</label>
+                            <input required={fc('bankDetails', 'Bank Details').required} value={form.bankName} onChange={e => setF({ bankName: e.target.value })} className={INPUT} placeholder="HDFC Bank" />
+                          </div>
+                          <div>
+                            <label className={LABEL}>Branch</label>
+                            <input value={form.bankBranch} onChange={e => setF({ bankBranch: e.target.value })} className={INPUT} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={LABEL}>Account Number</label>
+                          <input value={form.bankAccountNumber} onChange={e => setF({ bankAccountNumber: e.target.value })} className={INPUT} />
+                        </div>
+                        <div>
+                          <label className={LABEL}>IFSC Code</label>
+                          <input value={form.bankIfsc} onChange={e => setF({ bankIfsc: e.target.value })} className={INPUT} placeholder="HDFC0001234" />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 py-4 text-center">Bank details are disabled for this organisation.</p>
+                    )}
                   </>
                 )}
 

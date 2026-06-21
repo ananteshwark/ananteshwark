@@ -30,6 +30,7 @@ import {
   X,
   Menu,
   Key,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -151,6 +152,7 @@ const navItems: NavItem[] = [
       { label: 'General', path: '/settings/general' },
       { label: 'Modules', path: '/settings/modules' },
       { label: 'Localization', path: '/settings/localization' },
+      { label: 'Field Configuration', path: '/settings/field-config' },
     ],
   },
 ];
