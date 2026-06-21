@@ -9,7 +9,7 @@ import { Rfq, RfqStatus } from './entities/rfq.entity';
 import { RfqLine } from './entities/rfq-line.entity';
 import { RfqVendor } from './entities/rfq-vendor.entity';
 import { RfqQuote } from './entities/rfq-quote.entity';
-import { CreateRfqDto, RecordQuoteDto } from './dto/rfq.dto';
+import { CreateRfqDto, RecordQuoteDto, AwardRfqDto } from './dto/rfq.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 
 @Injectable()
@@ -156,6 +156,18 @@ export class RfqService {
     });
 
     return { rfqId, lines: matrix, vendors: vendors.map((v) => v.vendorId) };
+  }
+
+  async awardRfq(tenantId: string, id: string, dto: AwardRfqDto): Promise<any> {
+    const rfq = await this.rfqRepo.findOne({ where: { id, tenantId } });
+    if (!rfq) throw new NotFoundException(`RFQ ${id} not found`);
+    if (rfq.status !== RfqStatus.CLOSED) throw new BadRequestException('Only CLOSED RFQs can be awarded');
+    const vendor = await this.vendorRepo.findOne({ where: { rfqId: id, vendorId: dto.vendorId, tenantId } });
+    if (!vendor) throw new BadRequestException('Vendor is not part of this RFQ');
+    rfq.awardedVendorId = dto.vendorId;
+    rfq.awardedAt = new Date();
+    await this.rfqRepo.save(rfq);
+    return this.findOne(tenantId, id);
   }
 
   async closeRfq(tenantId: string, id: string): Promise<any> {

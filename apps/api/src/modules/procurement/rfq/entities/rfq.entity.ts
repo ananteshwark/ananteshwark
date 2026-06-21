@@ -47,6 +47,12 @@ export class Rfq {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  @Column({ name: 'awarded_vendor_id', type: 'varchar', nullable: true })
+  awardedVendorId: string | null;
+
+  @Column({ name: 'awarded_at', type: 'timestamp', nullable: true })
+  awardedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

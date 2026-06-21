@@ -118,6 +118,25 @@ export const useApproveStep = () => {
   });
 };
 
+export const useRejectStep = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      instanceId,
+      stepId,
+      comment,
+    }: {
+      instanceId: string;
+      stepId: string;
+      comment?: string;
+    }) =>
+      apiClient
+        .post(`/workflows/instances/${instanceId}/steps/${stepId}/reject`, { comment })
+        .then((r) => r.data.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] }),
+  });
+};
+
 // Notification hooks
 export const useNotifications = (params?: { page?: number; limit?: number }) => {
   return useQuery({

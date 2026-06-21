@@ -27,6 +27,7 @@ export const payrollApi = {
   approveRun: (id: string) => apiClient.post(`/payroll/runs/${id}/approve`),
   markPaid: (id: string) => apiClient.post(`/payroll/runs/${id}/mark-paid`),
   cancelRun: (id: string) => apiClient.post(`/payroll/runs/${id}/cancel`),
+  getBankFile: (id: string) => apiClient.get(`/payroll/runs/${id}/bank-file`, { responseType: 'blob' }),
 
   // Payslips
   getPayslips: (params?: any) => apiClient.get('/payroll/payslips', { params }),

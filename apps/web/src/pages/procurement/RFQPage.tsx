@@ -138,11 +138,16 @@ export default function RFQPage() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAction = async (action: string, id: string) => {
+  const handleAction = async (action: string, id: string, extra?: any) => {
     try {
       if (action === 'issue') await procurementApi.issueRfq(id);
       else if (action === 'close') await procurementApi.closeRfq(id);
       else if (action === 'cancel') await procurementApi.cancelRfq(id);
+      else if (action === 'award') {
+        const vendorId = extra ?? prompt('Enter Vendor ID to award:');
+        if (!vendorId) return;
+        await procurementApi.awardRfq(id, { vendorId });
+      }
       loadData();
     } catch (e: any) {
       alert(e.response?.data?.message || 'Action failed');
@@ -206,6 +211,12 @@ export default function RFQPage() {
                       )}
                       {rfq.status === 'ISSUED' && (
                         <button onClick={() => handleAction('close', rfq.id)} className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100">Close</button>
+                      )}
+                      {rfq.status === 'CLOSED' && !rfq.awardedVendorId && (
+                        <button onClick={() => handleAction('award', rfq.id)} className="text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded hover:bg-purple-100">Award</button>
+                      )}
+                      {rfq.awardedVendorId && (
+                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded font-medium">Awarded</span>
                       )}
                       <button onClick={() => loadComparative(rfq.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100">Comparative</button>
                       {['DRAFT', 'ISSUED'].includes(rfq.status) && (

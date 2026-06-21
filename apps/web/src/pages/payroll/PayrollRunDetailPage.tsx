@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { payrollApi } from '../../api/payroll';
 
 interface Payslip {
@@ -37,6 +37,25 @@ export default function PayrollRunDetailPage() {
   const [run, setRun] = useState<RunDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadBankFile = async () => {
+    if (!id) return;
+    setDownloading(true);
+    try {
+      const res = await payrollApi.getBankFile(id);
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bank-file-${id}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Failed to download bank file');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchRun = async () => {
@@ -64,7 +83,18 @@ export default function PayrollRunDetailPage() {
       </button>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">{run.name}</h1>
-        <span className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">{run.status}</span>
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">{run.status}</span>
+          {run.status === 'PAID' && (
+            <button
+              onClick={downloadBankFile}
+              disabled={downloading}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" /> {downloading ? 'Downloading...' : 'Bank File'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

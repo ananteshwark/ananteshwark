@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { hrApi } from '../../api/hr';
+import { apiClient } from '../../api/client';
 
 type Tab = 'team' | 'leave-approvals' | 'timesheets';
 
@@ -21,13 +22,23 @@ export default function MSSPage() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      hrApi.getEmployees({ limit: 50, status: 'ACTIVE' }),
-      hrApi.getLeaveApplications({ limit: 50, status: 'PENDING' }),
-    ]).then(([emp, leaves]) => {
-      setEmployees(emp.data?.items || []);
-      setPendingLeaves(leaves.data?.items || leaves.data || []);
-    }).finally(() => setLoading(false));
+    // First resolve current user's employeeId, then fetch their reportees
+    apiClient.get('/users/me')
+      .then(r => r.data?.data ?? r.data)
+      .then(me => {
+        const employeeId = me?.employeeId;
+        return Promise.all([
+          employeeId
+            ? hrApi.getReportees(employeeId).then(r => r.data?.data ?? r.data ?? [])
+            : hrApi.getEmployees({ limit: 50, status: 'ACTIVE' }).then(r => r.data?.items ?? []),
+          hrApi.getLeaveApplications({ limit: 50, status: 'PENDING' }).then(r => r.data?.items ?? r.data ?? []),
+        ]);
+      })
+      .then(([reportees, leaves]) => {
+        setEmployees(Array.isArray(reportees) ? reportees : []);
+        setPendingLeaves(Array.isArray(leaves) ? leaves : []);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {

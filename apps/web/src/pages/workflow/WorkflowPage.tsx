@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/Badge';
 import { PageSpinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
-import { useWorkflowDefinitions, usePendingApprovals, useApproveStep } from '../../api/hooks';
+import { useWorkflowDefinitions, usePendingApprovals, useApproveStep, useRejectStep } from '../../api/hooks';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -29,6 +29,7 @@ export default function WorkflowPage() {
   const { data: definitions, isLoading: defsLoading } = useWorkflowDefinitions();
   const { data: pending, isLoading: pendingLoading } = usePendingApprovals();
   const approveStep = useApproveStep();
+  const rejectStep = useRejectStep();
 
   const handleApprove = async (instanceId: string, stepId: string) => {
     try {
@@ -38,6 +39,17 @@ export default function WorkflowPage() {
       setComment('');
     } catch {
       toast.error('Failed to approve step');
+    }
+  };
+
+  const handleReject = async (instanceId: string, stepId: string) => {
+    try {
+      await rejectStep.mutateAsync({ instanceId, stepId, comment });
+      toast.success('Step rejected');
+      setSelectedInstance(null);
+      setComment('');
+    } catch {
+      toast.error('Failed to reject step');
     }
   };
 
@@ -182,7 +194,8 @@ export default function WorkflowPage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => { setSelectedInstance(null); setComment(''); }}
+              onClick={() => handleReject(selectedInstance.id, selectedInstance.currentStep)}
+              loading={rejectStep.isPending}
               leftIcon={<XCircle className="h-4 w-4" />}
             >
               Reject

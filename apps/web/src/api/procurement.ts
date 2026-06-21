@@ -21,6 +21,7 @@ export const procurementApi = {
   issueRfq: (id: string) => apiClient.post(`/procurement/rfqs/${id}/issue`),
   recordQuote: (id: string, data: any) => apiClient.post(`/procurement/rfqs/${id}/quotes`, data),
   getComparative: (id: string) => apiClient.get(`/procurement/rfqs/${id}/comparative`),
+  awardRfq: (id: string, data: { vendorId: string }) => apiClient.post(`/procurement/rfqs/${id}/award`, data),
   closeRfq: (id: string) => apiClient.post(`/procurement/rfqs/${id}/close`),
   cancelRfq: (id: string) => apiClient.post(`/procurement/rfqs/${id}/cancel`),
 

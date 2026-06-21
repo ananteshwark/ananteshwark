@@ -65,6 +65,13 @@ export class RfqController {
     return this.service.comparativeStatement(user.tenantId, id);
   }
 
+  @Post(':id/award')
+  @RequirePermission('procurement:rfq:manage')
+  @ApiOperation({ summary: 'Award an RFQ to a vendor' })
+  award(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: AwardRfqDto) {
+    return this.service.awardRfq(user.tenantId, id, dto);
+  }
+
   @Post(':id/close')
   @RequirePermission('procurement:rfq:manage')
   @ApiOperation({ summary: 'Close an RFQ' })
