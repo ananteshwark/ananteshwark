@@ -1,9 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, X, ChevronRight, Landmark, Building2, Layers, Boxes, Network, GitBranch, Users,
-  ListTree, Table as TableIcon, Search,
+  ListTree, Table as TableIcon, Search, Settings,
 } from 'lucide-react';
 import { hrApi } from '../../api/hr';
+
+interface OrgLevelConfig {
+  id?: string;
+  level: Level;
+  enabled: boolean;
+  required: boolean;
+}
 
 type Level = 'legalEntity' | 'businessUnit' | 'division' | 'department' | 'function' | 'subFunction' | 'team';
 
@@ -121,6 +128,16 @@ const emptyForm = {
   subFunctionId: '',
 };
 
+const DEFAULT_CONFIGS: OrgLevelConfig[] = [
+  { level: 'legalEntity',  enabled: true, required: false },
+  { level: 'businessUnit', enabled: true, required: true  },
+  { level: 'division',     enabled: true, required: false },
+  { level: 'department',   enabled: true, required: true  },
+  { level: 'function',     enabled: true, required: true  },
+  { level: 'subFunction',  enabled: true, required: false },
+  { level: 'team',         enabled: true, required: false },
+];
+
 export default function DepartmentsPage() {
   const [tree, setTree] = useState<OrgNode[]>([]);
   const [view, setView] = useState<'tree' | 'list'>('tree');
@@ -135,6 +152,18 @@ export default function DepartmentsPage() {
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState<Level | 'all'>('all');
 
+  // Org level config
+  const [showConfig, setShowConfig] = useState(false);
+  const [configs, setConfigs] = useState<OrgLevelConfig[]>(DEFAULT_CONFIGS);
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [configSuccess, setConfigSuccess] = useState(false);
+
+  const cfgMap = useMemo(
+    () => Object.fromEntries(configs.map(c => [c.level, c])) as Record<Level, OrgLevelConfig>,
+    [configs],
+  );
+
   const fetchTree = async () => {
     setLoading(true);
     setError(null);
@@ -148,7 +177,17 @@ export default function DepartmentsPage() {
     }
   };
 
-  useEffect(() => { fetchTree(); }, []);
+  const fetchConfig = async () => {
+    try {
+      const res = await hrApi.getOrgLevelConfig();
+      const data: OrgLevelConfig[] = res.data?.data ?? res.data ?? [];
+      if (data.length > 0) setConfigs(data);
+    } catch {
+      // silently fall back to defaults
+    }
+  };
+
+  useEffect(() => { fetchTree(); fetchConfig(); }, []);
 
   // Dropdown source lists + flat rows are derived from the tree, so they scale
   // to the largest organisations without any pagination cap.
@@ -166,6 +205,32 @@ export default function DepartmentsPage() {
     setForm({ ...emptyForm, level });
     setFormError(null);
     setShowModal(true);
+  };
+
+  const toggleConfig = (level: Level, field: 'enabled' | 'required', value: boolean) => {
+    setConfigs(prev => prev.map(c => {
+      if (c.level !== level) return c;
+      if (field === 'required' && value) return { ...c, enabled: true, required: true };
+      if (field === 'enabled' && !value) return { ...c, enabled: false, required: false };
+      return { ...c, [field]: value };
+    }));
+  };
+
+  const saveConfig = async () => {
+    setConfigSaving(true);
+    setConfigError(null);
+    setConfigSuccess(false);
+    try {
+      const res = await hrApi.updateOrgLevelConfig(configs);
+      const saved: OrgLevelConfig[] = res.data?.data ?? res.data ?? [];
+      if (saved.length > 0) setConfigs(saved);
+      setConfigSuccess(true);
+      setTimeout(() => setConfigSuccess(false), 3000);
+    } catch (err: any) {
+      setConfigError(err?.response?.data?.message ?? 'Failed to save configuration');
+    } finally {
+      setConfigSaving(false);
+    }
   };
 
   // Parent department / division options narrow to the chosen business unit.
@@ -267,6 +332,11 @@ export default function DepartmentsPage() {
               <TableIcon className="h-4 w-4" /> List
             </button>
           </div>
+          <button onClick={() => { setShowConfig(true); setConfigError(null); setConfigSuccess(false); }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
+            title="Configure org levels">
+            <Settings className="h-4 w-4" /> Configure
+          </button>
           <button onClick={() => openModal('legalEntity')} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
             <Plus className="h-4 w-4" /> New Org Unit
           </button>
@@ -357,6 +427,78 @@ export default function DepartmentsPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Org Level Configuration Modal */}
+      {showConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between p-5 border-b">
+              <div>
+                <h2 className="text-lg font-semibold">Configure Org Levels</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Toggle which hierarchy levels are active and which are mandatory when creating employees.</p>
+              </div>
+              <button onClick={() => setShowConfig(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="p-5 space-y-2">
+              {configError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm mb-3">{configError}</div>}
+              {configSuccess && <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm mb-3">Configuration saved successfully.</div>}
+
+              {/* Header row */}
+              <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-2 pb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <span>Level</span>
+                <span className="w-20 text-center">Enabled</span>
+                <span className="w-20 text-center">Required</span>
+              </div>
+
+              {LEVEL_ORDER.map(lvl => {
+                const meta = LEVEL_META[lvl];
+                const Icon = meta.icon;
+                const cfg = cfgMap[lvl] ?? { enabled: true, required: false };
+                return (
+                  <div key={lvl} className={`grid grid-cols-[1fr_auto_auto] gap-4 items-center px-3 py-3 rounded-lg border ${cfg.enabled ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50'}`}>
+                    <div className="flex items-center gap-2.5">
+                      <Icon className={`h-4 w-4 ${cfg.enabled ? meta.color : 'text-gray-400'}`} />
+                      <span className={`text-sm font-medium ${cfg.enabled ? 'text-gray-900' : 'text-gray-400'}`}>{meta.label}</span>
+                    </div>
+                    {/* Enabled toggle */}
+                    <div className="w-20 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleConfig(lvl, 'enabled', !cfg.enabled)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${cfg.enabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${cfg.enabled ? 'translate-x-4' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    {/* Required toggle */}
+                    <div className="w-20 flex justify-center">
+                      <button
+                        type="button"
+                        disabled={!cfg.enabled}
+                        onClick={() => toggleConfig(lvl, 'required', !cfg.required)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${cfg.required ? 'bg-rose-500' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${cfg.required ? 'translate-x-4' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <p className="text-xs text-gray-400 pt-1">
+                <span className="inline-block w-3 h-3 bg-blue-600 rounded-full mr-1.5 align-middle" />Enabled = level is visible.&nbsp;
+                <span className="inline-block w-3 h-3 bg-rose-500 rounded-full mr-1.5 align-middle" />Required = employees must be assigned to this level.
+              </p>
+            </div>
+            <div className="flex gap-3 p-5 border-t">
+              <button type="button" onClick={() => setShowConfig(false)} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button type="button" onClick={saveConfig} disabled={configSaving} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                {configSaving ? 'Saving...' : 'Save Configuration'}
+              </button>
+            </div>
           </div>
         </div>
       )}

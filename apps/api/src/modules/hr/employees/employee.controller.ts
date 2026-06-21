@@ -18,6 +18,7 @@ import {
   CreateTeamDto, UpdateTeamDto,
   CreateDesignationDto, UpdateDesignationDto,
   CreateLocationDto, UpdateLocationDto,
+  UpdateOrgLevelConfigDto,
 } from './dto/employee.dto';
 
 @ApiTags('hr-employees')
@@ -275,6 +276,19 @@ export class EmployeeController {
   @RequirePermission('hr:org:manage')
   updateLocation(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateLocationDto) {
     return this.employeeService.updateLocation(user.tenantId, id, dto);
+  }
+
+  // Org Level Config
+  @Get('org-config')
+  @RequirePermission('hr:employees:read')
+  getOrgLevelConfig(@CurrentUser() user: any) {
+    return this.employeeService.getOrgLevelConfig(user.tenantId);
+  }
+
+  @Patch('org-config')
+  @RequirePermission('hr:org:manage')
+  updateOrgLevelConfig(@CurrentUser() user: any, @Body() dto: UpdateOrgLevelConfigDto) {
+    return this.employeeService.updateOrgLevelConfig(user.tenantId, dto.configs);
   }
 
   // Transfers & Promotions

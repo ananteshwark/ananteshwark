@@ -2,6 +2,7 @@ import { IsString, IsOptional, IsEmail, IsEnum, IsUUID, IsDateString, IsBoolean,
 import { PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { Gender, MaritalStatus, EmployeeStatus, EmploymentType } from '../entities/employee.entity';
+import { OrgLevel } from '../entities/org-level-config.entity';
 
 export class CreateEmployeeDto {
   @IsString()
@@ -449,3 +450,21 @@ export class CreateLocationDto {
 }
 
 export class UpdateLocationDto extends PartialType(CreateLocationDto) {}
+
+export class OrgLevelConfigItemDto {
+  @IsEnum(OrgLevel)
+  level: OrgLevel;
+
+  @IsBoolean()
+  enabled: boolean;
+
+  @IsBoolean()
+  required: boolean;
+}
+
+export class UpdateOrgLevelConfigDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrgLevelConfigItemDto)
+  configs: OrgLevelConfigItemDto[];
+}

@@ -13,6 +13,7 @@ import { Designation } from './entities/designation.entity';
 import { Location } from './entities/location.entity';
 import { EmployeeDocument } from './entities/employee-document.entity';
 import { EmployeeTransfer, TransferStatus } from './entities/employee-transfer.entity';
+import { OrgLevelConfig, OrgLevel } from './entities/org-level-config.entity';
 import {
   CreateEmployeeDto, UpdateEmployeeDto,
   CreateLegalEntityDto, UpdateLegalEntityDto,
@@ -24,6 +25,7 @@ import {
   CreateTeamDto, UpdateTeamDto,
   CreateDesignationDto, UpdateDesignationDto,
   CreateLocationDto, UpdateLocationDto,
+  OrgLevelConfigItemDto,
 } from './dto/employee.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 import { UsersService } from '../../users/users.service';
@@ -57,6 +59,8 @@ export class EmployeeService {
     private readonly documentRepo: Repository<EmployeeDocument>,
     @InjectRepository(EmployeeTransfer)
     private readonly transferRepo: Repository<EmployeeTransfer>,
+    @InjectRepository(OrgLevelConfig)
+    private readonly orgLevelConfigRepo: Repository<OrgLevelConfig>,
     private readonly usersService: UsersService,
     private readonly rbacService: RbacService,
     private readonly permissionsService: PermissionsService,
@@ -487,5 +491,39 @@ export class EmployeeService {
     await this.employeeRepo.save(employee);
     transfer.status = TransferStatus.EFFECTIVE;
     return this.transferRepo.save(transfer);
+  }
+
+  // ---- Org Level Config ----
+
+  private readonly DEFAULT_CONFIGS: { level: OrgLevel; enabled: boolean; required: boolean }[] = [
+    { level: OrgLevel.LEGAL_ENTITY, enabled: true, required: false },
+    { level: OrgLevel.BUSINESS_UNIT, enabled: true, required: true },
+    { level: OrgLevel.DIVISION, enabled: true, required: false },
+    { level: OrgLevel.DEPARTMENT, enabled: true, required: true },
+    { level: OrgLevel.FUNCTION, enabled: true, required: true },
+    { level: OrgLevel.SUB_FUNCTION, enabled: true, required: false },
+    { level: OrgLevel.TEAM, enabled: true, required: false },
+  ];
+
+  async getOrgLevelConfig(tenantId: string): Promise<OrgLevelConfig[]> {
+    const existing = await this.orgLevelConfigRepo.find({ where: { tenantId } });
+    const existingLevels = new Set(existing.map(c => c.level));
+    const missing = this.DEFAULT_CONFIGS.filter(d => !existingLevels.has(d.level));
+    if (missing.length) {
+      const records = missing.map(d => this.orgLevelConfigRepo.create({ tenantId, ...d }));
+      await this.orgLevelConfigRepo.save(records);
+      return this.orgLevelConfigRepo.find({ where: { tenantId }, order: { level: 'ASC' } });
+    }
+    return existing;
+  }
+
+  async updateOrgLevelConfig(tenantId: string, configs: OrgLevelConfigItemDto[]): Promise<OrgLevelConfig[]> {
+    for (const item of configs) {
+      await this.orgLevelConfigRepo.upsert(
+        { tenantId, level: item.level, enabled: item.enabled, required: item.required },
+        { conflictPaths: ['tenantId', 'level'] },
+      );
+    }
+    return this.getOrgLevelConfig(tenantId);
   }
 }

@@ -100,6 +100,15 @@ export default function EmployeesPage() {
   const [designations, setDesignations] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [allEmployees, setAllEmployees] = useState<any[]>([]); // for manager dropdown
+  const [orgConfig, setOrgConfig] = useState<Record<string, { enabled: boolean; required: boolean }>>({
+    legalEntity:  { enabled: true, required: false },
+    businessUnit: { enabled: true, required: true  },
+    division:     { enabled: true, required: false },
+    department:   { enabled: true, required: true  },
+    function:     { enabled: true, required: true  },
+    subFunction:  { enabled: true, required: false },
+    team:         { enabled: true, required: false },
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -127,7 +136,7 @@ export default function EmployeesPage() {
         const d = res.data?.data ?? res.data ?? {};
         return d.items ?? d ?? [];
       };
-      const [empRes, leRes, buRes, divRes, deptRes, fnRes, subFnRes, teamRes, desigRes, locRes, allEmpRes] = await Promise.all([
+      const [empRes, leRes, buRes, divRes, deptRes, fnRes, subFnRes, teamRes, desigRes, locRes, allEmpRes, cfgRes] = await Promise.all([
         hrApi.getEmployees(params),
         hrApi.getLegalEntities({ limit: 500 }),
         hrApi.getBusinessUnits({ limit: 500 }),
@@ -139,6 +148,7 @@ export default function EmployeesPage() {
         hrApi.getDesignations({ limit: 500 }),
         hrApi.getLocations({ limit: 500 }),
         hrApi.getEmployees({ limit: 1000 }),
+        hrApi.getOrgLevelConfig(),
       ]);
       setEmployees(unwrap(empRes));
       setLegalEntities(unwrap(leRes));
@@ -151,6 +161,10 @@ export default function EmployeesPage() {
       setDesignations(unwrap(desigRes));
       setLocations(unwrap(locRes));
       setAllEmployees(unwrap(allEmpRes));
+      const cfgArr: any[] = unwrap(cfgRes);
+      if (cfgArr.length > 0) {
+        setOrgConfig(Object.fromEntries(cfgArr.map((c: any) => [c.level, { enabled: c.enabled, required: c.required }])));
+      }
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load employees');
     } finally {
@@ -441,63 +455,99 @@ export default function EmployeesPage() {
                         <input type="date" value={form.confirmationDate} onChange={e => setF({ confirmationDate: e.target.value })} className={INPUT} />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Legal Entity <span className="text-gray-400 font-normal">(optional)</span></label>
-                        <select value={form.legalEntityId} onChange={e => setF({ legalEntityId: e.target.value, businessUnitId: '', divisionId: '', departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
-                          <option value="">Select Legal Entity...</option>
-                          {legalEntities.map(le => <option key={le.id} value={le.id}>{le.name}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={LABEL}>Business Unit *</label>
-                        <select required value={form.businessUnitId} onChange={e => setF({ businessUnitId: e.target.value, divisionId: '', departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
-                          <option value="">Select Business Unit...</option>
-                          {filteredBus.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Division <span className="text-gray-400 font-normal">(optional)</span></label>
-                        <select value={form.divisionId} onChange={e => setF({ divisionId: e.target.value, departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
-                          <option value="">Select Division...</option>
-                          {filteredDivs.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={LABEL}>Department *</label>
-                        <select required value={form.departmentId} onChange={e => setF({ departmentId: e.target.value, functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
-                          <option value="">Select Department...</option>
-                          {filteredDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Function *</label>
-                        <select required value={form.functionId} onChange={e => setF({ functionId: e.target.value, subFunctionId: '', teamId: '' })} className={INPUT}>
-                          <option value="">Select Function...</option>
-                          {filteredFns.map(fn => <option key={fn.id} value={fn.id}>{fn.name}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={LABEL}>Sub Function <span className="text-gray-400 font-normal">(optional)</span></label>
-                        <select value={form.subFunctionId} onChange={e => setF({ subFunctionId: e.target.value, teamId: '' })} className={INPUT}>
-                          <option value="">None</option>
-                          {filteredSubFns.map(sf => <option key={sf.id} value={sf.id}>{sf.name}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={LABEL}>Team <span className="text-gray-400 font-normal">(optional)</span></label>
-                        <select value={form.teamId} onChange={e => setF({ teamId: e.target.value })} className={INPUT}>
-                          <option value="">None</option>
-                          {filteredTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
-                      </div>
-                    </div>
+                    {/* Org hierarchy — visibility and required state driven by tenant config */}
+                    {(() => {
+                      const le  = orgConfig['legalEntity']  ?? { enabled: true,  required: false };
+                      const bu  = orgConfig['businessUnit'] ?? { enabled: true,  required: true  };
+                      const div = orgConfig['division']     ?? { enabled: true,  required: false };
+                      const dep = orgConfig['department']   ?? { enabled: true,  required: true  };
+                      const fn  = orgConfig['function']     ?? { enabled: true,  required: true  };
+                      const sf  = orgConfig['subFunction']  ?? { enabled: true,  required: false };
+                      const tm  = orgConfig['team']         ?? { enabled: true,  required: false };
+                      const orgLabel = (name: string, required: boolean) =>
+                        required ? <>{name} <span className="text-red-500">*</span></> : <>{name} <span className="text-gray-400 font-normal text-xs">(optional)</span></>;
+                      return (
+                        <>
+                          {(le.enabled || bu.enabled) && (
+                            <div className="grid grid-cols-2 gap-4">
+                              {le.enabled && (
+                                <div>
+                                  <label className={LABEL}>{orgLabel('Legal Entity', le.required)}</label>
+                                  <select required={le.required} value={form.legalEntityId} onChange={e => setF({ legalEntityId: e.target.value, businessUnitId: '', divisionId: '', departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
+                                    <option value="">Select Legal Entity...</option>
+                                    {legalEntities.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                              {bu.enabled && (
+                                <div>
+                                  <label className={LABEL}>{orgLabel('Business Unit', bu.required)}</label>
+                                  <select required={bu.required} value={form.businessUnitId} onChange={e => setF({ businessUnitId: e.target.value, divisionId: '', departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
+                                    <option value="">Select Business Unit...</option>
+                                    {filteredBus.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {(div.enabled || dep.enabled) && (
+                            <div className="grid grid-cols-2 gap-4">
+                              {div.enabled && (
+                                <div>
+                                  <label className={LABEL}>{orgLabel('Division', div.required)}</label>
+                                  <select required={div.required} value={form.divisionId} onChange={e => setF({ divisionId: e.target.value, departmentId: '', functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
+                                    <option value="">Select Division...</option>
+                                    {filteredDivs.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                              {dep.enabled && (
+                                <div>
+                                  <label className={LABEL}>{orgLabel('Department', dep.required)}</label>
+                                  <select required={dep.required} value={form.departmentId} onChange={e => setF({ departmentId: e.target.value, functionId: '', subFunctionId: '', teamId: '' })} className={INPUT}>
+                                    <option value="">Select Department...</option>
+                                    {filteredDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {(fn.enabled || sf.enabled) && (
+                            <div className="grid grid-cols-2 gap-4">
+                              {fn.enabled && (
+                                <div>
+                                  <label className={LABEL}>{orgLabel('Function', fn.required)}</label>
+                                  <select required={fn.required} value={form.functionId} onChange={e => setF({ functionId: e.target.value, subFunctionId: '', teamId: '' })} className={INPUT}>
+                                    <option value="">Select Function...</option>
+                                    {filteredFns.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                              {sf.enabled && (
+                                <div>
+                                  <label className={LABEL}>{orgLabel('Sub Function', sf.required)}</label>
+                                  <select required={sf.required} value={form.subFunctionId} onChange={e => setF({ subFunctionId: e.target.value, teamId: '' })} className={INPUT}>
+                                    <option value="">None</option>
+                                    {filteredSubFns.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {tm.enabled && (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className={LABEL}>{orgLabel('Team', tm.required)}</label>
+                                <select required={tm.required} value={form.teamId} onChange={e => setF({ teamId: e.target.value })} className={INPUT}>
+                                  <option value="">None</option>
+                                  {filteredTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className={LABEL}>Designation</label>

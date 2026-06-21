@@ -14,6 +14,11 @@ export const hrApi = {
   // Org hierarchy: Legal Entity > Business Unit > Division > Department > Function > Sub Function > Team
   getOrgTree: () => apiClient.get('/hr/departments/tree'),
 
+  // Org Level Config
+  getOrgLevelConfig: () => apiClient.get('/hr/org-config'),
+  updateOrgLevelConfig: (configs: { level: string; enabled: boolean; required: boolean }[]) =>
+    apiClient.patch('/hr/org-config', { configs }),
+
   // Legal Entities
   getLegalEntities: (params?: any) => apiClient.get('/hr/legal-entities', { params }),
   createLegalEntity: (data: any) => apiClient.post('/hr/legal-entities', data),
