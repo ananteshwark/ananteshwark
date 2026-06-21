@@ -6,12 +6,14 @@ import { ProductionOrder, MaterialIssuance } from './entities/production-order.e
 import { ManufacturingService } from './manufacturing.service';
 import { ManufacturingController } from './manufacturing.controller';
 import { GlModule } from '../finance/gl/gl.module';
+import { InventoryModule } from '../inventory/inventory.module';
 import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Bom, BomLine, WorkCenter, ProductionOrder, MaterialIssuance]),
     GlModule,
+    InventoryModule,
     RbacModule,
   ],
   controllers: [ManufacturingController],

@@ -189,6 +189,15 @@ export class InventoryService {
     return this.ledgerRepo.save(ledger);
   }
 
+  async findItemByCode(tenantId: string, code: string): Promise<Item | null> {
+    return this.itemRepo.findOne({ where: { tenantId, code } });
+  }
+
+  async findBestBalanceForItem(tenantId: string, itemId: string): Promise<StockBalance | null> {
+    const balances = await this.balanceRepo.find({ where: { tenantId, itemId }, order: { qtyOnHand: 'DESC' } });
+    return balances.find((b) => b.qtyOnHand > 0) ?? null;
+  }
+
   async issueStock(
     tenantId: string,
     itemId: string,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Play, CheckCircle, Package } from 'lucide-react';
+import { Plus, Play, CheckCircle, Package, ArrowDown } from 'lucide-react';
 import { manufacturingApi } from '../../api/manufacturing';
 
 type Tab = 'orders' | 'boms' | 'work-centers';
@@ -139,6 +139,109 @@ function CompleteOrderModal({ order, onClose, onDone }: { order: any; onClose: (
   );
 }
 
+function IssueMaterialModal({ order, onClose, onDone }: { order: any; onClose: () => void; onDone: () => void }) {
+  const [bomLines, setBomLines] = useState<any[]>([]);
+  const [form, setForm] = useState({
+    componentCode: '', componentName: '', issuedQuantity: '', uom: 'EA',
+    issuedDate: new Date().toISOString().slice(0, 10),
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (order.bomId) {
+      manufacturingApi.getBom(order.bomId).then((r) => {
+        const lines = r.data?.data?.lines ?? r.data?.lines ?? [];
+        setBomLines(lines);
+        if (lines.length > 0) {
+          setForm(p => ({ ...p, componentCode: lines[0].componentCode, componentName: lines[0].componentName, uom: lines[0].uom || 'EA' }));
+        }
+      }).catch(() => {});
+    }
+  }, [order.bomId]);
+
+  const selectComponent = (code: string) => {
+    const line = bomLines.find(l => l.componentCode === code);
+    if (line) setForm(p => ({ ...p, componentCode: line.componentCode, componentName: line.componentName, uom: line.uom || 'EA' }));
+  };
+
+  const save = async () => {
+    if (!form.componentCode || !form.issuedQuantity) return;
+    setSaving(true);
+    try {
+      await manufacturingApi.issueMaterial(order.id, {
+        componentCode: form.componentCode,
+        componentName: form.componentName,
+        issuedQuantity: parseFloat(form.issuedQuantity),
+        uom: form.uom,
+        issuedDate: form.issuedDate,
+      });
+      onDone();
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+        <h2 className="text-lg font-semibold mb-1">Issue Material</h2>
+        <p className="text-xs text-gray-500 mb-4">Order: {order.orderNumber} — {order.finishedItemName}</p>
+        <div className="space-y-3">
+          {bomLines.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">BOM Component</label>
+              <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.componentCode}
+                onChange={e => selectComponent(e.target.value)}>
+                {bomLines.map((l: any) => (
+                  <option key={l.componentCode} value={l.componentCode}>
+                    {l.componentCode} — {l.componentName} ({l.quantity} {l.uom})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {bomLines.length === 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Component Code</label>
+                <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.componentCode}
+                  onChange={e => setForm(p => ({ ...p, componentCode: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Component Name</label>
+                <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.componentName}
+                  onChange={e => setForm(p => ({ ...p, componentName: e.target.value }))} />
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Quantity *</label>
+              <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.issuedQuantity}
+                onChange={e => setForm(p => ({ ...p, issuedQuantity: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">UOM</label>
+              <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.uom}
+                onChange={e => setForm(p => ({ ...p, uom: e.target.value }))} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Issue Date</label>
+            <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.issuedDate}
+              onChange={e => setForm(p => ({ ...p, issuedDate: e.target.value }))} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border rounded-lg">Cancel</button>
+          <button onClick={save} disabled={saving || !form.componentCode || !form.issuedQuantity}
+            className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg disabled:opacity-50">
+            {saving ? 'Issuing...' : 'Issue Material'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ManufacturingPage() {
   const [tab, setTab] = useState<Tab>('orders');
   const [orders, setOrders] = useState<any[]>([]);
@@ -147,6 +250,7 @@ export default function ManufacturingPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [completeTarget, setCompleteTarget] = useState<any>(null);
+  const [issueTarget, setIssueTarget] = useState<any>(null);
   const [acting, setActing] = useState<string | null>(null);
 
   const load = () => {
@@ -236,10 +340,16 @@ export default function ManufacturingPage() {
                           </button>
                         )}
                         {['RELEASED', 'IN_PROGRESS'].includes(o.status) && (
-                          <button onClick={() => setCompleteTarget(o)}
-                            className="flex items-center gap-1 text-xs text-green-600 border border-green-300 rounded px-2 py-1 hover:bg-green-50">
-                            <CheckCircle className="h-3 w-3" /> Complete
-                          </button>
+                          <>
+                            <button onClick={() => setIssueTarget(o)}
+                              className="flex items-center gap-1 text-xs text-orange-600 border border-orange-300 rounded px-2 py-1 hover:bg-orange-50">
+                              <ArrowDown className="h-3 w-3" /> Issue
+                            </button>
+                            <button onClick={() => setCompleteTarget(o)}
+                              className="flex items-center gap-1 text-xs text-green-600 border border-green-300 rounded px-2 py-1 hover:bg-green-50">
+                              <CheckCircle className="h-3 w-3" /> Complete
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -315,6 +425,9 @@ export default function ManufacturingPage() {
       )}
       {completeTarget && (
         <CompleteOrderModal order={completeTarget} onClose={() => setCompleteTarget(null)} onDone={() => { setCompleteTarget(null); load(); }} />
+      )}
+      {issueTarget && (
+        <IssueMaterialModal order={issueTarget} onClose={() => setIssueTarget(null)} onDone={() => { setIssueTarget(null); load(); }} />
       )}
     </div>
   );

@@ -13,6 +13,7 @@ import {
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { GlService } from '../finance/gl/gl.service';
 import { JournalSource } from '../finance/gl/entities/journal-entry.entity';
+import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class ManufacturingService {
@@ -23,6 +24,7 @@ export class ManufacturingService {
     @InjectRepository(ProductionOrder) private readonly orderRepo: Repository<ProductionOrder>,
     @InjectRepository(MaterialIssuance) private readonly issuanceRepo: Repository<MaterialIssuance>,
     private readonly glService: GlService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   // ---- BOMs ----
@@ -176,7 +178,7 @@ export class ManufacturingService {
       order.status = ProductionOrderStatus.IN_PROGRESS;
       await this.orderRepo.save(order);
     }
-    return this.issuanceRepo.save(
+    const saved = await this.issuanceRepo.save(
       this.issuanceRepo.create({
         ...dto,
         tenantId,
@@ -185,6 +187,30 @@ export class ManufacturingService {
         uom: dto.uom ?? 'EA',
       }),
     );
+
+    // Best-effort: deduct stock from inventory when the item exists there
+    try {
+      const item = await this.inventoryService.findItemByCode(tenantId, dto.componentCode);
+      if (item) {
+        const balance = await this.inventoryService.findBestBalanceForItem(tenantId, item.id);
+        if (balance && balance.qtyOnHand >= dto.issuedQuantity) {
+          await this.inventoryService.issueStock(
+            tenantId,
+            item.id,
+            balance.warehouseId,
+            dto.issuedQuantity,
+            'PRODUCTION_ORDER',
+            orderId,
+            saved.issuedDate,
+            `Material issuance for ${order.orderNumber}`,
+          );
+        }
+      }
+    } catch (_) {
+      // Non-blocking: issuance is recorded even if inventory deduction fails
+    }
+
+    return saved;
   }
 
   async getIssuances(tenantId: string, orderId: string): Promise<MaterialIssuance[]> {
