@@ -370,7 +370,7 @@ container loses nothing — just re-clone and continue.
   - Quality notification auto-created on REJECT
   - Acceptance Quality Level (AQL) sampling plan
 
-- [ ] **Phase 57 — PM Functional Locations & Counter-based Maintenance** `P2`
+- [x] **Phase 57 — PM Functional Locations & Counter-based Maintenance** `P2`
   - `FunctionalLocation` entity: code, description, parentId, structureIndicator (PLANT/PROCESS/UNIT/TAG)
   - `CounterMeasurement` entity: equipmentId, counter (HOURS/KM/CYCLES), reading, readingDate
   - Counter-based maintenance plan: trigger after X hours/km/cycles
