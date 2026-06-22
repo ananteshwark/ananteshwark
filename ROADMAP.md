@@ -361,7 +361,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT J — Quality & Maintenance Depth (P2-P3)
 
-- [ ] **Phase 56 — QM Characteristics & Results Recording** `P2`
+- [x] **Phase 56 — QM Characteristics & Results Recording** `P2`
   - `QualityCharacteristic` entity: code, name, type (MEASURED/QUALITATIVE), unit, lower limit, upper limit, target
   - Link characteristics to inspection plan
   - `InspectionResult` entity: inspectionLotId, characteristicId, actualValue, verdict (PASS/FAIL)
