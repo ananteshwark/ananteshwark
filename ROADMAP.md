@@ -382,7 +382,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT K — Platform Depth (P2-P3)
 
-- [ ] **Phase 58 — Approval Delegation** `P2`
+- [x] **Phase 58 — Approval Delegation** `P2`
   - `ApprovalDelegation` entity: delegatorId, delegateeId, fromDate, toDate, modules (HR/Finance/Procurement/All)
   - When delegator is approver: system checks active delegation, routes to delegatee
   - Delegation request/approval: manager requests, HR admin approves
