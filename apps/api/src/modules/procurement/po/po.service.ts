@@ -12,6 +12,7 @@ import { CreatePoDto, UpdatePoDto } from './dto/po.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 import { DoaService } from '../doa/doa.service';
 import { InfoRecordService } from '../info-record/info-record.service';
+import { BudgetService } from '../../finance/budget/budget.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -23,6 +24,7 @@ export class PoService {
     @InjectRepository(ApprovalMatrix) private readonly matrixRepo: Repository<ApprovalMatrix>,
     private readonly doaService: DoaService,
     private readonly infoRecordService: InfoRecordService,
+    private readonly budgetService: BudgetService,
   ) {}
 
   /**
@@ -43,6 +45,42 @@ export class PoService {
         return l;
       }),
     );
+  }
+
+  /**
+   * Phase 51: Advisory budget check across PO lines (grouped by account). Never
+   * throws — returns warnings to attach to the create response. Best-effort.
+   */
+  private async buildBudgetWarning(tenantId: string, dto: CreatePoDto): Promise<any | null> {
+    try {
+      const fiscalYear = new Date(dto.poDate).getFullYear() || new Date().getFullYear();
+      const period = dto.poDate ? dto.poDate.slice(0, 7) : undefined;
+      const byAccount = new Map<string, number>();
+      for (const l of dto.lines || []) {
+        const accId = (l as any).accountId;
+        if (!accId) continue;
+        const net = round2((l.quantity || 0) * (l.unitPrice || 0));
+        const tax = round2(net * (((l as any).taxRate || 0) / 100));
+        byAccount.set(accId, round2((byAccount.get(accId) || 0) + net + tax));
+      }
+      const warnings: any[] = [];
+      for (const [glAccountId, amount] of byAccount) {
+        const result = await this.budgetService.checkBudget(tenantId, {
+          glAccountId,
+          amount,
+          fiscalYear,
+          period,
+        });
+        if (result.status !== 'OK') {
+          warnings.push({ glAccountId, requested: amount, ...result });
+        }
+      }
+      if (!warnings.length) return null;
+      const exceeded = warnings.some((w) => w.status === 'EXCEEDED');
+      return { status: exceeded ? 'EXCEEDED' : 'WARNING', lines: warnings };
+    } catch {
+      return null;
+    }
   }
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -99,7 +137,10 @@ export class PoService {
     });
     const saved = await this.poRepo.save(po);
     await this.saveLines(tenantId, saved.id, lineData);
-    return this.findOne(tenantId, saved.id);
+    const result = await this.findOne(tenantId, saved.id);
+    const budgetWarning = await this.buildBudgetWarning(tenantId, dto);
+    if (budgetWarning) result.budgetWarning = budgetWarning;
+    return result;
   }
 
   private async saveLines(tenantId: string, poId: string, lines: any[]): Promise<void> {

@@ -8,6 +8,7 @@ import { PoController } from './po.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 import { DoaModule } from '../doa/doa.module';
 import { InfoRecordModule } from '../info-record/info-record.module';
+import { BudgetModule } from '../../finance/budget/budget.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { InfoRecordModule } from '../info-record/info-record.module';
     RbacModule,
     DoaModule,
     InfoRecordModule,
+    BudgetModule,
   ],
   controllers: [PoController],
   providers: [PoService],

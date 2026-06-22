@@ -12,6 +12,7 @@ import { ControllingModule } from './controlling/controlling.module';
 import { GrirModule } from './grir/grir.module';
 import { PaymentRunModule } from './payment-run/payment-run.module';
 import { AdvancesModule } from './advances/advances.module';
+import { BudgetModule } from './budget/budget.module';
 
 @Module({
   imports: [
@@ -28,7 +29,8 @@ import { AdvancesModule } from './advances/advances.module';
     GrirModule,
     PaymentRunModule,
     AdvancesModule,
+    BudgetModule,
   ],
-  exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule],
+  exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule, BudgetModule],
 })
 export class FinanceModule {}

@@ -81,6 +81,7 @@ const navItems: NavItem[] = [
       { label: 'Bank Import', path: '/finance/bank-import' },
       { label: 'Payment Run', path: '/finance/payment-runs' },
       { label: 'Advances', path: '/finance/advances' },
+      { label: 'Budget vs Actual', path: '/finance/budget' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },
