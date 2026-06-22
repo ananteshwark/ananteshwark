@@ -6,6 +6,7 @@ import {
   Users,
   Shield,
   GitBranch,
+  UserCog,
   Bell,
   ClipboardList,
   Settings,
@@ -190,6 +191,7 @@ const navItems: NavItem[] = [
   { label: 'Users', icon: <Users className="h-4 w-4" />, path: '/users' },
   { label: 'Roles & Permissions', icon: <Shield className="h-4 w-4" />, path: '/roles' },
   { label: 'Workflows', icon: <GitBranch className="h-4 w-4" />, path: '/workflows' },
+  { label: 'Delegations', icon: <UserCog className="h-4 w-4" />, path: '/delegations' },
   { label: 'Notifications', icon: <Bell className="h-4 w-4" />, path: '/notifications' },
   { label: 'Audit Log', icon: <ClipboardList className="h-4 w-4" />, path: '/audit' },
   {

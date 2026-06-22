@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { WorkflowModule } from './modules/workflow/workflow.module';
+import { DelegationModule } from './modules/delegation/delegation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
@@ -61,6 +62,7 @@ import { getDatabaseConfig } from './config/database.config';
     UsersModule,
     RbacModule,
     WorkflowModule,
+    DelegationModule,
     NotificationsModule,
     AuditModule,
     HealthModule,
