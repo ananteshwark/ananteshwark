@@ -340,7 +340,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT I — CRM Depth (P2)
 
-- [ ] **Phase 54 — Service Tickets & SLA Management** `P2`
+- [x] **Phase 54 — Service Tickets & SLA Management** `P2`
   - `ServiceTicket` entity: customer, subject, description, priority (LOW/MEDIUM/HIGH/CRITICAL), category, status (OPEN/IN_PROGRESS/PENDING_CUSTOMER/RESOLVED/CLOSED)
   - SLA matrix: response time + resolution time per priority
   - SLA breach tracking: auto-escalate if SLA breached
