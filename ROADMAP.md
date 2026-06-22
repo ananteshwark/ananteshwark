@@ -88,7 +88,7 @@ container loses nothing — just re-clone and continue.
   - Cost center actual vs plan report
   - Profit center P&L report (contribution margin by profit center)
 
-- [ ] **Phase 26 — Payroll → GL Posting** `P1` ⏳ (deferred — GL mapping infra pending)
+- [x] **Phase 26 — Payroll → GL Posting** `P1`
   - On payroll run approval: generate journal entry posting payroll costs to cost centers
   - Earnings → DR Salary Expense (per cost center of employee), CR Payroll Payable
   - Deductions → DR Payroll Payable, CR statutory liabilities (PF Payable, ESI Payable, TDS Payable)
@@ -290,7 +290,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT G — Banking & Payments (P1-P2)
 
-- [ ] **Phase 49 — Bank Statement Import** `P1`
+- [x] **Phase 49 — Bank Statement Import** `P1`
   - Support formats: CSV (configurable column mapping), MT940 (SWIFT), BAI2
   - `BankStatementImport` entity: file name, import date, bank account, from/to date, transaction count
   - Auto-matching algorithm: match imported transaction to open vendor payments / customer receipts by: amount, date proximity, reference number
@@ -298,7 +298,7 @@ container loses nothing — just re-clone and continue.
   - On match: mark both as reconciled, post any differences
   - Bank reconciliation status report: statement balance vs GL balance
 
-- [ ] **Phase 50 — Automated Payment Run (F110 equivalent)** `P1`
+- [x] **Phase 50 — Automated Payment Run (F110 equivalent)** `P1`
   - `PaymentRun` entity: run date, company, posting date, payment method, banks selected
   - Proposal step: select all open vendor invoices due ≤ next payment date
   - Apply: cash discounts (if within discount deadline), withholding tax deduction
