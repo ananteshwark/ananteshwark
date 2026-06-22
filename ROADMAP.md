@@ -257,7 +257,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT F — Manufacturing Depth (P1)
 
-- [ ] **Phase 46 — Routing & Capacity Planning** `P1`
+- [x] **Phase 46 — Routing & Capacity Planning** `P1`
   - `Routing` entity: item, version, operations[]
   - `RoutingOperation` entity: sequence, workCenterId, description, setupTime, machineTime, laborTime, yieldPercent
   - Work center capacity: available hours per day/week, shifts
@@ -266,7 +266,7 @@ container loses nothing — just re-clone and continue.
   - Capacity load report: work center utilization by week
   - Overload detection: flag when capacity > 100%
 
-- [ ] **Phase 47 — MRP (Material Requirements Planning)** `P1`
+- [x] **Phase 47 — MRP (Material Requirements Planning)** `P1`
   - MRP views on item master: MRP type (MRP/reorder/no-planning), lot size (EX/FX/MB), safety stock, reorder point, planned delivery days
   - MRP run: explode demand (sales orders + forecast) through BOM, net against stock + open POs
   - Generate: planned purchase orders (for bought items), planned production orders (for made items)
@@ -276,7 +276,7 @@ container loses nothing — just re-clone and continue.
   - MRP exception report: planners action list
   - MRP stock requirements list per item
 
-- [ ] **Phase 48 — Production Order Costing & Confirmation** `P1`
+- [x] **Phase 48 — Production Order Costing & Confirmation** `P1`
   - Planned cost on production order: BOM cost + routing cost (standard)
   - Material issuance to production: actual material cost booked
   - Operation confirmation: actual hours per work center per operation
