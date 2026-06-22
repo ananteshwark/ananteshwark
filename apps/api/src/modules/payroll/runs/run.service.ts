@@ -24,6 +24,7 @@ import { PayComponentType } from '../components/entities/pay-component.entity';
 import { ComponentService } from '../components/component.service';
 import { StatutoryService } from '../statutory/statutory.service';
 import { GlService } from '../../finance/gl/gl.service';
+import { PayrollGlService } from '../payroll-gl.service';
 import { Account } from '../../finance/gl/entities/account.entity';
 import { JournalSource } from '../../finance/gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../../finance/finance.constants';
@@ -53,6 +54,7 @@ export class RunService {
     private readonly componentService: ComponentService,
     private readonly statutoryService: StatutoryService,
     private readonly glService: GlService,
+    private readonly payrollGlService: PayrollGlService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -285,7 +287,7 @@ export class RunService {
       throw new BadRequestException('No payslips to post for this run');
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const approved = await this.dataSource.transaction(async (manager) => {
       // Aggregate statutory deductions across all payslips
       let salaryExpense = 0; // gross earnings (employer's salary cost before deductions)
       let employerPf = 0;
@@ -406,6 +408,16 @@ export class RunService {
       run.approvedAt = new Date();
       return manager.save(run);
     });
+
+    // Additively post payroll to GL via configurable mappings (Phase 26).
+    // Guarded so a mapping/posting failure never breaks approval.
+    try {
+      await this.payrollGlService.postPayrollToGl(tenantId, runId);
+    } catch {
+      // ignore — GL posting is best-effort and configurable
+    }
+
+    return approved;
   }
 
   // ---------------------------------------------------------------------------

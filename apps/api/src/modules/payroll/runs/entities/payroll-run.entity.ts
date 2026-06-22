@@ -79,6 +79,9 @@ export class PayrollRun {
   @Column({ name: 'payment_journal_entry_id', type: 'uuid', nullable: true })
   paymentJournalEntryId: string | null;
 
+  @Column({ name: 'gl_journal_entry_id', type: 'uuid', nullable: true })
+  glJournalEntryId: string | null;
+
   @Column({ name: 'processed_at', type: 'timestamp', nullable: true })
   processedAt: Date | null;
 

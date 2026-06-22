@@ -5,3 +5,4 @@ export { default as PayrollRunDetailPage } from './PayrollRunDetailPage';
 export { default as PayslipPage } from './PayslipPage';
 export { default as PayslipsListPage } from './PayslipsListPage';
 export { default as StatutoryPage } from './StatutoryPage';
+export { default as PayrollGlMappingsPage } from './PayrollGlMappingsPage';

@@ -4,8 +4,11 @@ import { PayrollRun } from './entities/payroll-run.entity';
 import { Payslip } from './entities/payslip.entity';
 import { Employee } from '../../hr/employees/entities/employee.entity';
 import { Account } from '../../finance/gl/entities/account.entity';
+import { PayrollGlMapping } from '../entities/payroll-gl-mapping.entity';
 import { RunService } from './run.service';
 import { RunController } from './run.controller';
+import { PayrollGlService } from '../payroll-gl.service';
+import { PayrollGlController } from '../payroll-gl.controller';
 import { ComponentModule } from '../components/component.module';
 import { StatutoryModule } from '../statutory/statutory.module';
 import { GlModule } from '../../finance/gl/gl.module';
@@ -13,14 +16,20 @@ import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PayrollRun, Payslip, Employee, Account]),
+    TypeOrmModule.forFeature([
+      PayrollRun,
+      Payslip,
+      Employee,
+      Account,
+      PayrollGlMapping,
+    ]),
     ComponentModule,
     StatutoryModule,
     GlModule,
     RbacModule,
   ],
-  controllers: [RunController],
-  providers: [RunService],
-  exports: [RunService],
+  controllers: [RunController, PayrollGlController],
+  providers: [RunService, PayrollGlService],
+  exports: [RunService, PayrollGlService],
 })
 export class RunModule {}

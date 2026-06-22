@@ -86,6 +86,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Payroll Runs', path: '/payroll/runs' },
       { label: 'Payslips', path: '/payroll/payslips' },
+      { label: 'GL Mappings', path: '/payroll/gl-mappings' },
     ],
   },
   {

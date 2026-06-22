@@ -51,6 +51,7 @@ import {
   PayslipPage,
   PayslipsListPage,
   StatutoryPage,
+  PayrollGlMappingsPage,
 } from './pages/payroll';
 import {
   RequisitionsPage,
@@ -171,6 +172,7 @@ export default function App() {
         <Route path="payroll/payslips" element={<PayslipsListPage />} />
         <Route path="payroll/payslips/:id" element={<PayslipPage />} />
         <Route path="payroll/statutory" element={<StatutoryPage />} />
+        <Route path="payroll/gl-mappings" element={<PayrollGlMappingsPage />} />
         <Route path="procurement/requisitions" element={<RequisitionsPage />} />
         <Route path="procurement/rfq" element={<RFQPage />} />
         <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />

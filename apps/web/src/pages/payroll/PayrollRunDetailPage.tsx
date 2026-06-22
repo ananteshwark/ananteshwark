@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, BookOpen } from 'lucide-react';
 import { payrollApi } from '../../api/payroll';
+import { payrollGlApi } from '../../api/payrollGl';
 
 interface Payslip {
   id: string;
@@ -25,6 +26,7 @@ interface RunDetail {
   totalNet: number;
   totalEmployerCost: number;
   employeeCount: number;
+  glJournalEntryId: string | null;
   payslips: Payslip[];
 }
 
@@ -38,6 +40,32 @@ export default function PayrollRunDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [postingGl, setPostingGl] = useState(false);
+
+  const refetch = async () => {
+    if (!id) return;
+    const res = await payrollApi.getRun(id);
+    setRun(res.data?.data ?? res.data);
+  };
+
+  const postToGl = async () => {
+    if (!id) return;
+    setPostingGl(true);
+    try {
+      const res = await payrollGlApi.postToGl(id);
+      const je = res.data?.data ?? res.data;
+      if (je?.id) {
+        alert(`Posted to GL. Journal entry: ${je.entryNumber ?? je.id}`);
+      } else {
+        alert('No GL mappings configured. Set up GL Mappings first.');
+      }
+      await refetch();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? 'Failed to post to GL');
+    } finally {
+      setPostingGl(false);
+    }
+  };
 
   const downloadBankFile = async () => {
     if (!id) return;
@@ -85,6 +113,18 @@ export default function PayrollRunDetailPage() {
         <h1 className="text-2xl font-semibold text-gray-900">{run.name}</h1>
         <div className="flex items-center gap-3">
           <span className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">{run.status}</span>
+          {run.glJournalEntryId && (
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">GL Posted</span>
+          )}
+          {run.status === 'APPROVED' && !run.glJournalEntryId && (
+            <button
+              onClick={postToGl}
+              disabled={postingGl}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            >
+              <BookOpen className="w-4 h-4" /> {postingGl ? 'Posting...' : 'Post to GL'}
+            </button>
+          )}
           {run.status === 'PAID' && (
             <button
               onClick={downloadBankFile}
