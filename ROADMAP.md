@@ -350,7 +350,7 @@ container loses nothing — just re-clone and continue.
   - Customer satisfaction survey on close (CSAT score)
   - Service ticket dashboard: open/breached/resolved by agent/category
 
-- [ ] **Phase 55 — Customer 360 View** `P2`
+- [x] **Phase 55 — Customer 360 View** `P2`
   - Unified customer profile: all interactions in one timeline
   - Timeline items: quotes, sales orders, invoices, receipts, service tickets, CRM activities, emails
   - Financial summary: outstanding balance, credit utilization, payment history, average days-to-pay
