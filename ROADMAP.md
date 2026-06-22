@@ -389,7 +389,7 @@ container loses nothing — just re-clone and continue.
   - Active delegation indicator on approver's profile
   - Delegation audit trail: all approvals done under delegation flagged
 
-- [ ] **Phase 59 — Global Cross-Module Search** `P2`
+- [x] **Phase 59 — Global Cross-Module Search** `P2`
   - Search index across: employees, vendors, customers, POs, invoices, bills, assets, contracts, tickets
   - Instant results grouped by entity type
   - Deep link: click result → navigate directly to that record
