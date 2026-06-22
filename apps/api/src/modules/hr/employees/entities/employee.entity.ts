@@ -201,6 +201,9 @@ export class Employee {
   @Column({ name: 'location_id', type: 'uuid', nullable: true })
   locationId: string | null;
 
+  @Column({ name: 'position_id', type: 'uuid', nullable: true })
+  positionId: string | null;
+
   // ── Platform ──────────────────────────────────────────────────────────────
   @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId: string | null;

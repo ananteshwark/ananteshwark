@@ -9,11 +9,13 @@ import { GrnLine } from '../grn/entities/grn-line.entity';
 import { VendorInvoiceService } from './vendor-invoice.service';
 import { VendorInvoiceController } from './vendor-invoice.controller';
 import { RbacModule } from '../../rbac/rbac.module';
+import { GrirModule } from '../../finance/grir/grir.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([VendorInvoice, VendorInvoiceLine, PurchaseOrder, PoLine, Grn, GrnLine]),
     RbacModule,
+    GrirModule,
   ],
   controllers: [VendorInvoiceController],
   providers: [VendorInvoiceService],

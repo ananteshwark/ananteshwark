@@ -26,6 +26,8 @@ export class Item {
   @Column({ name: 'gl_inventory_account_code', type: 'varchar', nullable: true }) glInventoryAccountCode: string | null;
   @Column({ name: 'gl_cogs_account_code', type: 'varchar', nullable: true }) glCogsAccountCode: string | null;
   @Column({ name: 'is_active', default: true }) isActive: boolean;
+  @Column({ name: 'valuation_method', length: 50, nullable: true, default: 'MOVING_AVERAGE' }) valuationMethod: string | null;
+  @Column({ name: 'gl_inventory_account_id', type: 'uuid', nullable: true }) glInventoryAccountId: string | null;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

@@ -12,5 +12,7 @@ export class StockBalance {
   @Column({ name: 'qty_reserved', type: 'numeric', precision: 18, scale: 4, default: 0, transformer: decimalTransformer }) qtyReserved: number;
   @Column({ name: 'total_cost', type: 'numeric', precision: 18, scale: 4, default: 0, transformer: decimalTransformer }) totalCost: number;
   @Column({ name: 'avg_cost', type: 'numeric', precision: 18, scale: 4, default: 0, transformer: decimalTransformer }) avgCost: number;
+  @Column({ name: 'unit_cost', type: 'numeric', precision: 18, scale: 6, nullable: true, transformer: decimalTransformer }) unitCost: number | null;
+  @Column({ name: 'total_value', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) totalValue: number | null;
   @UpdateDateColumn() updatedAt: Date;
 }

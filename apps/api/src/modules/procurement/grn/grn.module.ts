@@ -11,6 +11,8 @@ import { GrnController } from './grn.controller';
 import { PoModule } from '../po/po.module';
 import { GlModule } from '../../finance/gl/gl.module';
 import { RbacModule } from '../../rbac/rbac.module';
+import { GrirModule } from '../../finance/grir/grir.module';
+import { InventoryModule } from '../../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { RbacModule } from '../../rbac/rbac.module';
     PoModule,
     GlModule,
     RbacModule,
+    GrirModule,
+    InventoryModule,
   ],
   controllers: [GrnController],
   providers: [GrnService],

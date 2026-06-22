@@ -18,6 +18,8 @@ import { Account } from '../../finance/gl/entities/account.entity';
 import { GlService } from '../../finance/gl/gl.service';
 import { JournalSource } from '../../finance/gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../../finance/finance.constants';
+import { GrirService } from '../../finance/grir/grir.service';
+import { InventoryService } from '../../inventory/inventory.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -33,6 +35,8 @@ export class GrnService {
     private readonly poService: PoService,
     private readonly glService: GlService,
     private readonly dataSource: DataSource,
+    private readonly grirService: GrirService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -102,7 +106,7 @@ export class GrnService {
   }
 
   async confirmGrn(tenantId: string, id: string, userId: string): Promise<any> {
-    return this.dataSource.transaction(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       const grn = await manager.findOne(Grn, { where: { id, tenantId } });
       if (!grn) throw new NotFoundException(`GRN ${id} not found`);
       if (grn.status !== GrnStatus.DRAFT) throw new BadRequestException('Only DRAFT GRNs can be confirmed');
@@ -132,9 +136,69 @@ export class GrnService {
       } catch (e) {
         console.warn('3-way match or bill creation failed:', e.message);
       }
-
-      return this.findOne(tenantId, id);
     });
+
+    // After transaction: receive stock into inventory and create GR/IR entries
+    try {
+      const grn = await this.grnRepo.findOne({ where: { id, tenantId } });
+      const grnLines = await this.lineRepo.find({ where: { grnId: id, tenantId } });
+      const po = await this.poService.findOne(tenantId, grn!.poId);
+      const poLines = po.lines as any[];
+
+      for (const grnLine of grnLines) {
+        const poLine = poLines.find((l: any) => l.id === grnLine.poLineId);
+        const unitCost = poLine?.unitPrice ?? 0;
+        const acceptedQty = Number(grnLine.quantityAccepted);
+        if (acceptedQty <= 0) continue;
+
+        // Receive stock into inventory (use item code to look up item)
+        if (poLine?.itemCode) {
+          try {
+            const item = await this.inventoryService.findItemByCode(tenantId, poLine.itemCode);
+            if (item) {
+              const stockBalance = await this.inventoryService.findBestBalanceForItem(tenantId, item.id);
+              // Use first available warehouse or a default — get from stock balance or skip if no warehouse
+              const warehouseId = stockBalance?.warehouseId;
+              if (warehouseId) {
+                await this.inventoryService.receiveStock(
+                  tenantId,
+                  item.id,
+                  warehouseId,
+                  acceptedQty,
+                  unitCost,
+                  'GRN',
+                  id,
+                  grn!.receiptDate,
+                  `GRN ${grn!.grnNumber}`,
+                );
+              }
+            }
+          } catch (e) {
+            console.warn(`Inventory receipt failed for GRN line ${grnLine.id}:`, e.message);
+          }
+        }
+
+        // Create GR/IR entry for each GRN line
+        try {
+          await this.grirService.createGrEntry(tenantId, {
+            poId: grn!.poId ?? null,
+            grnId: id,
+            itemId: null,
+            itemDescription: poLine?.description ?? null,
+            quantity: acceptedQty,
+            unitCost,
+            totalAmount: round2(acceptedQty * unitCost),
+            postingDate: grn!.receiptDate ?? new Date().toISOString().split('T')[0],
+          });
+        } catch (e) {
+          console.warn(`GR/IR entry creation failed for GRN line ${grnLine.id}:`, e.message);
+        }
+      }
+    } catch (e) {
+      console.warn('Post-confirm inventory/GR-IR processing failed:', e.message);
+    }
+
+    return this.findOne(tenantId, id);
   }
 
   private async threeWayMatchInternal(

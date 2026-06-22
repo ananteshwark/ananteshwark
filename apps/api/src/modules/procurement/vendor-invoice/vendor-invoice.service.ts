@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +18,7 @@ import { PurchaseOrder } from '../po/entities/purchase-order.entity';
 import { PoLine } from '../po/entities/po-line.entity';
 import { Grn } from '../grn/entities/grn.entity';
 import { GrnLine } from '../grn/entities/grn-line.entity';
+import { GrirService } from '../../finance/grir/grir.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -35,6 +37,7 @@ export class VendorInvoiceService {
     private readonly grnRepo: Repository<Grn>,
     @InjectRepository(GrnLine)
     private readonly grnLineRepo: Repository<GrnLine>,
+    @Optional() private readonly grirService?: GrirService,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -252,6 +255,25 @@ export class VendorInvoiceService {
     }
     invoice.status = VendorInvoiceStatus.APPROVED;
     await this.invoiceRepo.save(invoice);
+
+    // Create IV entry in GR/IR clearing and attempt auto-match
+    if (this.grirService) {
+      try {
+        await this.grirService.createIvEntry(tenantId, {
+          poId: invoice.poId ?? null,
+          billId: invoice.id,
+          itemDescription: `Invoice ${invoice.invoiceNumber}`,
+          quantity: 1,
+          unitCost: invoice.total ?? 0,
+          totalAmount: invoice.total ?? 0,
+          postingDate: invoice.invoiceDate,
+        });
+        await this.grirService.autoMatch(tenantId);
+      } catch (e) {
+        console.warn('GR/IR IV entry or auto-match failed:', e.message);
+      }
+    }
+
     return this.getInvoice(tenantId, id);
   }
 

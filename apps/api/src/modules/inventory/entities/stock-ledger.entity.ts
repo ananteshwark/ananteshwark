@@ -28,5 +28,7 @@ export class StockLedger {
   @Column({ name: 'balance_cost', type: 'numeric', precision: 18, scale: 4, transformer: decimalTransformer }) balanceCost: number;
   @Column({ name: 'transaction_date', type: 'date' }) transactionDate: string;
   @Column({ type: 'text', nullable: true }) notes: string | null;
+  @Column({ name: 'unit_cost_mv', type: 'numeric', precision: 18, scale: 6, nullable: true, transformer: decimalTransformer }) unitCostMv: number | null;
+  @Column({ name: 'transaction_value', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) transactionValue: number | null;
   @CreateDateColumn() createdAt: Date;
 }

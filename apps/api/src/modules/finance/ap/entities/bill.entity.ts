@@ -6,16 +6,18 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
+import { decimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 export enum BillStatus {
   DRAFT = 'DRAFT',
-  POSTED = 'POSTED',
+  OPEN = 'OPEN',
+  PARTIAL = 'PARTIAL',
   PAID = 'PAID',
-  CANCELLED = 'CANCELLED',
+  VOID = 'VOID',
 }
 
-@Entity('bills')
-@Index(['tenantId', 'billNumber'])
+@Entity('fin_bills')
+@Index(['tenantId', 'vendorId'])
 export class Bill {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -26,36 +28,57 @@ export class Bill {
   @Column({ name: 'bill_number', length: 100 })
   billNumber: string;
 
-  @Column({ name: 'vendor_name', length: 255 })
-  vendorName: string;
+  @Column({ name: 'vendor_id', type: 'uuid' })
+  vendorId: string;
 
   @Column({ name: 'bill_date', type: 'date' })
-  billDate: Date;
+  billDate: string;
 
-  @Column({ name: 'due_date', type: 'date', nullable: true })
-  dueDate: Date;
+  @Column({ name: 'due_date', type: 'date' })
+  dueDate: string;
 
   @Column({ type: 'enum', enum: BillStatus, default: BillStatus.DRAFT })
   status: BillStatus;
 
-  @Column({ name: 'sub_total', type: 'numeric', precision: 18, scale: 2, default: 0 })
-  subTotal: number;
+  @Column({ type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  subtotal: number;
 
-  @Column({ name: 'tax_amount', type: 'numeric', precision: 18, scale: 2, default: 0 })
+  @Column({ name: 'tax_amount', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
   taxAmount: number;
 
-  @Column({ name: 'total_amount', type: 'numeric', precision: 18, scale: 2, default: 0 })
-  totalAmount: number;
+  @Column({ type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  total: number;
 
-  @Column({ name: 'tax_code_id', nullable: true })
-  taxCodeId: string;
+  @Column({ name: 'amount_paid', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  amountPaid: number;
+
+  @Column({ name: 'balance_due', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  balanceDue: number;
+
+  @Column({ length: 10, default: 'USD' })
+  currency: string;
+
+  @Column({ name: 'base_currency', length: 10, nullable: true })
+  baseCurrency: string | null;
+
+  @Column({ name: 'exchange_rate', type: 'numeric', precision: 18, scale: 8, nullable: true, transformer: decimalTransformer })
+  exchangeRate: number | null;
+
+  @Column({ name: 'total_base', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer })
+  totalBase: number | null;
+
+  @Column({ length: 200, nullable: true })
+  reference: string;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true })
+  journalEntryId: string | null;
+
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn()
   updatedAt: Date;
 }

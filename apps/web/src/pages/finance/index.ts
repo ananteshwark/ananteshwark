@@ -7,3 +7,6 @@ export { default as InvoicesPage } from './InvoicesPage';
 export { default as FinanceReportsPage } from './FinanceReportsPage';
 export { default as FixedAssetsPage } from './FixedAssetsPage';
 export { default as CurrenciesPage } from './CurrenciesPage';
+export { default as GrirPage } from './GrirPage';
+export { default as CostCenterReportPage } from './CostCenterReportPage';
+export { default as ProfitCentersPage } from './ProfitCentersPage';

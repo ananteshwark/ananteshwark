@@ -4,3 +4,5 @@ export { default as AttendancePage } from './AttendancePage';
 export { default as TimesheetPage } from './TimesheetPage';
 export { default as LeavePage } from './LeavePage';
 export { default as LeaveApprovalsPage } from './LeaveApprovalsPage';
+export { default as PositionsPage } from './PositionsPage';
+export { default as TimeEvaluationPage } from './TimeEvaluationPage';

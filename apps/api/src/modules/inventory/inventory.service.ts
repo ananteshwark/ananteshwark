@@ -164,11 +164,21 @@ export class InventoryService {
     notes?: string,
   ): Promise<StockLedger> {
     const balance = await this.getOrCreateBalance(tenantId, itemId, warehouseId);
+    const currentQty = Number(balance.qtyOnHand ?? 0);
+    const currentUnitCost = Number(balance.unitCost ?? balance.avgCost ?? 0);
     const newTotalCost = balance.totalCost + qty * unitCost;
-    const newQty = balance.qtyOnHand + qty;
+    const newQty = currentQty + qty;
+
+    // Moving average unit cost
+    const newUnitCost = newQty > 0
+      ? ((currentQty * currentUnitCost) + (qty * unitCost)) / newQty
+      : unitCost;
+
     balance.avgCost = newQty > 0 ? newTotalCost / newQty : unitCost;
     balance.totalCost = newTotalCost;
     balance.qtyOnHand = newQty;
+    balance.unitCost = newUnitCost;
+    balance.totalValue = newQty * newUnitCost;
     await this.balanceRepo.save(balance);
 
     const ledger = this.ledgerRepo.create({
@@ -185,6 +195,8 @@ export class InventoryService {
       balanceCost: newTotalCost,
       transactionDate: date ?? new Date().toISOString().split('T')[0],
       notes: notes ?? null,
+      unitCostMv: unitCost,
+      transactionValue: qty * unitCost,
     });
     return this.ledgerRepo.save(ledger);
   }

@@ -824,4 +824,64 @@ export class GlService {
       balanced: round2(totalDebit) === round2(totalCredit),
     };
   }
+
+  // ---------------------------------------------------------------------------
+  // Phase 25 — CO-CCA helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Returns net activity (debit − credit) on all POSTED journal lines for a
+   * cost center within a date range.
+   */
+  async sumLinesByCostCenter(
+    tenantId: string,
+    costCenterId: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<number> {
+    const result = await this.lineRepo
+      .createQueryBuilder('l')
+      .innerJoin('fin_journal_entries', 'je', 'je.id = l.journal_entry_id')
+      .where('l.tenant_id = :tenantId', { tenantId })
+      .andWhere('l.cost_center_id = :costCenterId', { costCenterId })
+      .andWhere('je.date >= :fromDate', { fromDate })
+      .andWhere('je.date <= :toDate', { toDate })
+      .andWhere('je.status = :status', { status: 'POSTED' })
+      .select('COALESCE(SUM(l.debit - l.credit), 0)', 'net')
+      .getRawOne();
+    return parseFloat(result?.net ?? '0');
+  }
+
+  /**
+   * Returns revenue and expense totals for a profit center within a date range.
+   * Revenue = net credit on REVENUE accounts; Expenses = net debit on EXPENSE accounts.
+   */
+  async sumLinesByProfitCenter(
+    tenantId: string,
+    profitCenterId: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<{ revenues: number; expenses: number }> {
+    const rows = await this.lineRepo
+      .createQueryBuilder('l')
+      .innerJoin('fin_journal_entries', 'je', 'je.id = l.journal_entry_id')
+      .innerJoin('fin_accounts', 'a', 'a.id = l.account_id')
+      .where('l.tenant_id = :tenantId', { tenantId })
+      .andWhere('l.profit_center_id = :profitCenterId', { profitCenterId })
+      .andWhere('je.date >= :fromDate', { fromDate })
+      .andWhere('je.date <= :toDate', { toDate })
+      .andWhere('je.status = :status', { status: 'POSTED' })
+      .select('a.type', 'type')
+      .addSelect('COALESCE(SUM(l.credit - l.debit), 0)', 'net')
+      .groupBy('a.type')
+      .getRawMany();
+
+    let revenues = 0;
+    let expenses = 0;
+    for (const r of rows) {
+      if (r.type === 'REVENUE') revenues = parseFloat(r.net ?? '0');
+      if (r.type === 'EXPENSE') expenses = Math.abs(parseFloat(r.net ?? '0'));
+    }
+    return { revenues, expenses };
+  }
 }
