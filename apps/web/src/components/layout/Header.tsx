@@ -37,15 +37,18 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
         >
           <Menu className="h-5 w-5" />
         </button>
-        {/* Search placeholder */}
-        <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 w-64">
+        {/* Global search trigger (opens command palette) */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+          className="hidden md:flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-1.5 w-64 text-left transition-colors"
+        >
           <Search className="h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder={t('common.search', 'Search...')}
-            className="bg-transparent text-sm outline-none flex-1 placeholder-gray-400"
-          />
-        </div>
+          <span className="text-sm text-gray-400 flex-1">{t('common.search', 'Search…')}</span>
+          <kbd className="text-[11px] font-medium text-gray-400 border border-gray-300 rounded px-1.5 py-0.5">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       <div className="flex items-center gap-2">
