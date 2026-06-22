@@ -6,3 +6,4 @@ export { default as VendorInvoicesPage } from './VendorInvoicesPage';
 export { ProcurementSettingsPage } from './ProcurementSettingsPage';
 export { default as InfoRecordsPage } from './InfoRecordsPage';
 export { default as ServiceEntrySheetPage } from './ServiceEntrySheetPage';
+export { default as PurchaseReturnsPage } from './PurchaseReturnsPage';

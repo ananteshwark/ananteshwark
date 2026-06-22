@@ -9,6 +9,7 @@ import { VendorInvoiceModule } from './vendor-invoice/vendor-invoice.module';
 import { VendorPortalModule } from './vendor-portal/vendor-portal.module';
 import { InfoRecordModule } from './info-record/info-record.module';
 import { ServiceEntryModule } from './service-entry/service-entry.module';
+import { ReturnsModule } from './returns/returns.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ServiceEntryModule } from './service-entry/service-entry.module';
     VendorPortalModule,
     InfoRecordModule,
     ServiceEntryModule,
+    ReturnsModule,
   ],
 })
 export class ProcurementModule {}
