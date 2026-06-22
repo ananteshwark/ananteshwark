@@ -183,7 +183,16 @@ const navItems: NavItem[] = [
       { label: 'Results Recording', path: '/quality/results' },
     ],
   },
-  { label: 'Maintenance', icon: <Wrench className="h-4 w-4" />, path: '/maintenance', module: 'maintenance' },
+  {
+    label: 'Maintenance',
+    icon: <Wrench className="h-4 w-4" />,
+    module: 'maintenance',
+    children: [
+      { label: 'Overview', path: '/maintenance', end: true },
+      { label: 'Functional Locations', path: '/maintenance/functional-locations' },
+      { label: 'Counter Readings', path: '/maintenance/counter-readings' },
+    ],
+  },
   { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits', module: 'benefits' },
   { label: 'Analytics', icon: <BarChart2 className="h-4 w-4" />, path: '/analytics', module: 'analytics' },
   { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform', module: 'platform' },

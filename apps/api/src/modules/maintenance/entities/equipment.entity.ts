@@ -22,6 +22,7 @@ export class Equipment {
   @Column({ name: 'installation_date', type: 'date', nullable: true }) installationDate: string | null;
   @Column({ type: 'enum', enum: EquipmentStatus, default: EquipmentStatus.ACTIVE }) status: EquipmentStatus;
   @Column({ name: 'parent_id', type: 'uuid', nullable: true }) parentId: string | null;
+  @Column({ name: 'functional_location_id', type: 'uuid', nullable: true }) functionalLocationId: string | null;
   @Column({ nullable: true }) notes: string | null;
   @CreateDateColumn() createdAt: Date;
 }

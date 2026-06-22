@@ -93,7 +93,7 @@ import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
 import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage } from './pages/manufacturing';
 import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/quality';
-import { MaintenancePage } from './pages/maintenance';
+import { MaintenancePage, FunctionalLocationsPage, CounterReadingsPage } from './pages/maintenance';
 import { BenefitsPage } from './pages/benefits';
 import { AnalyticsPage } from './pages/analytics';
 import { PlatformPage } from './pages/platform';
@@ -230,6 +230,8 @@ export default function App() {
         <Route path="quality/characteristics" element={<CharacteristicsPage />} />
         <Route path="quality/results" element={<ResultsRecordingPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
+        <Route path="maintenance/functional-locations" element={<FunctionalLocationsPage />} />
+        <Route path="maintenance/counter-readings" element={<CounterReadingsPage />} />
         <Route path="benefits" element={<BenefitsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="platform" element={<PlatformPage />} />

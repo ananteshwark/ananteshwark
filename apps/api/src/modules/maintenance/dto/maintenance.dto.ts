@@ -65,3 +65,27 @@ export class CreateBreakdownNotificationDto {
   @ApiProperty() @IsString() description: string;
   @ApiProperty({ enum: BreakdownSeverity }) @IsEnum(BreakdownSeverity) severity: BreakdownSeverity;
 }
+
+// ---- Functional Locations ----
+export class CreateFunctionalLocationDto {
+  @ApiProperty() @IsString() code: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() parentId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() structureIndicator?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+export class UpdateFunctionalLocationDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() code?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() parentId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() structureIndicator?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+// ---- Counter Readings ----
+export class CreateCounterReadingDto {
+  @ApiProperty() @IsString() counterType: string;
+  @ApiProperty() @IsNumber() reading: number;
+  @ApiProperty() @IsDateString() readingDate: string;
+}
