@@ -80,6 +80,7 @@ const navItems: NavItem[] = [
       { label: 'Profit Centers', path: '/finance/profit-centers' },
       { label: 'Bank Import', path: '/finance/bank-import' },
       { label: 'Payment Run', path: '/finance/payment-runs' },
+      { label: 'Advances', path: '/finance/advances' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

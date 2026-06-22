@@ -12,3 +12,4 @@ export { default as CostCenterReportPage } from './CostCenterReportPage';
 export { default as ProfitCentersPage } from './ProfitCentersPage';
 export { default as BankImportPage } from './BankImportPage';
 export { default as PaymentRunPage } from './PaymentRunPage';
+export { default as AdvancesPage } from './AdvancesPage';

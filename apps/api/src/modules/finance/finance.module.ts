@@ -11,6 +11,7 @@ import { TaxModule } from './tax/tax.module';
 import { ControllingModule } from './controlling/controlling.module';
 import { GrirModule } from './grir/grir.module';
 import { PaymentRunModule } from './payment-run/payment-run.module';
+import { AdvancesModule } from './advances/advances.module';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { PaymentRunModule } from './payment-run/payment-run.module';
     ControllingModule,
     GrirModule,
     PaymentRunModule,
+    AdvancesModule,
   ],
-  exports: [TaxModule, ControllingModule, GrirModule],
+  exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule],
 })
 export class FinanceModule {}
