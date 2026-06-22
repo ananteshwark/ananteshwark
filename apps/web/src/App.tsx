@@ -75,7 +75,7 @@ import { InventoryPage, StockValuationPage } from './pages/inventory';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage } from './pages/crm';
-import { SalesOrdersPage } from './pages/sales';
+import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
 import { ManufacturingPage } from './pages/manufacturing';
@@ -189,6 +189,9 @@ export default function App() {
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="crm" element={<CrmPage />} />
         <Route path="sales/orders" element={<SalesOrdersPage />} />
+        <Route path="sales/pricing" element={<PricingConditionsPage />} />
+        <Route path="sales/credit" element={<CreditManagementPage />} />
+        <Route path="sales/atp" element={<ATPDashboardPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="manufacturing" element={<ManufacturingPage />} />
         <Route path="quality" element={<QualityPage />} />

@@ -13,6 +13,8 @@ import {
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { ArService } from '../finance/ar/ar.service';
 import { GlService } from '../finance/gl/gl.service';
+import { CreditService } from './credit.service';
+import { AtpService } from './atp.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -29,6 +31,8 @@ export class SalesService {
     private readonly priceListItemRepo: Repository<PriceListItem>,
     private readonly arService: ArService,
     private readonly glService: GlService,
+    private readonly creditService: CreditService,
+    private readonly atpService: AtpService,
   ) {}
 
   // ---- Order number sequence ----
@@ -63,6 +67,24 @@ export class SalesService {
   async createOrder(tenantId: string, dto: CreateSalesOrderDto): Promise<SalesOrder> {
     const orderNumber = await this.nextOrderNumber(tenantId);
     const { computed, subtotal, taxAmount, total } = this.computeLines(dto.lines);
+
+    // ---- Credit check (additive) ----
+    let creditWarning: string | undefined;
+    if (dto.customerId) {
+      try {
+        const credit = await this.creditService.checkCredit(tenantId, dto.customerId, total);
+        if (credit.status === 'BLOCKED') {
+          throw new BadRequestException(credit.message || 'Order blocked: customer credit limit exceeded');
+        }
+        if (credit.status === 'WARNING') {
+          creditWarning = credit.message;
+        }
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        // Missing customer / lookup issues should not block order creation.
+      }
+    }
+
     const order = await this.orderRepo.save(
       this.orderRepo.create({
         ...dto,
@@ -80,6 +102,7 @@ export class SalesService {
       this.lineRepo.create({ ...l, tenantId, orderId: order.id }),
     );
     await this.lineRepo.save(lineEntities);
+    if (creditWarning) (order as any).creditWarning = creditWarning;
     return order;
   }
 
@@ -136,8 +159,29 @@ export class SalesService {
     if (order.status !== SalesOrderStatus.DRAFT) {
       throw new BadRequestException('Only DRAFT orders can be confirmed');
     }
+
+    // ---- ATP check + stock commitment (additive, non-blocking) ----
+    const atpWarnings: string[] = [];
+    try {
+      const lines = await this.getOrderLines(tenantId, id);
+      for (const line of lines) {
+        if (!line.inventoryItemId || line.quantity <= 0) continue;
+        const atp = await this.atpService.checkATP(tenantId, line.inventoryItemId, null, line.quantity);
+        if (atp.status === 'INSUFFICIENT') {
+          atpWarnings.push(
+            `${line.itemName}: requested ${line.quantity}, available ${atp.availableQty}, shortfall ${atp.shortfall ?? 0}`,
+          );
+        }
+        await this.atpService.commitForItem(tenantId, line.inventoryItemId, line.quantity);
+      }
+    } catch (_) {
+      // ATP is advisory; never block confirmation on it.
+    }
+
     order.status = SalesOrderStatus.CONFIRMED;
-    return this.orderRepo.save(order);
+    const saved = await this.orderRepo.save(order);
+    if (atpWarnings.length) (saved as any).atpWarnings = atpWarnings;
+    return saved;
   }
 
   async shipOrder(tenantId: string, id: string, dto: ShipOrderDto): Promise<SalesOrder> {
@@ -220,6 +264,20 @@ export class SalesService {
     if ([SalesOrderStatus.COMPLETED, SalesOrderStatus.CANCELLED].includes(order.status)) {
       throw new BadRequestException('Cannot cancel a completed or already cancelled order');
     }
+
+    // ---- Release committed stock for previously confirmed orders (additive) ----
+    if ([SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS].includes(order.status)) {
+      try {
+        const lines = await this.getOrderLines(tenantId, id);
+        for (const line of lines) {
+          if (!line.inventoryItemId || line.quantity <= 0) continue;
+          await this.atpService.releaseForItem(tenantId, line.inventoryItemId, line.quantity);
+        }
+      } catch (_) {
+        // Best-effort release.
+      }
+    }
+
     order.status = SalesOrderStatus.CANCELLED;
     return this.orderRepo.save(order);
   }

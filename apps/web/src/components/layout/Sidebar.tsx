@@ -134,6 +134,9 @@ const navItems: NavItem[] = [
     module: 'sales',
     children: [
       { label: 'Sales Orders', path: '/sales/orders' },
+      { label: 'Pricing', path: '/sales/pricing' },
+      { label: 'Credit Management', path: '/sales/credit' },
+      { label: 'ATP Dashboard', path: '/sales/atp' },
     ],
   },
   { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts', module: 'contracts' },

@@ -46,6 +46,15 @@ export class Customer {
   @Column({ name: 'credit_limit', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
   creditLimit: number;
 
+  @Column({ name: 'credit_exposure', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  creditExposure: number;
+
+  @Column({ name: 'credit_rating', length: 20, nullable: true })
+  creditRating: string | null;
+
+  @Column({ name: 'credit_check_mode', length: 20, default: 'WARNING' })
+  creditCheckMode: string;
+
   @Column({ name: 'payment_terms', type: 'int', default: 30 })
   paymentTerms: number;
 
