@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Printer, FileText } from 'lucide-react';
 import { payrollApi } from '../../api/payroll';
+import { printApi } from '../../api/print';
+import AttachmentsList from '../../components/AttachmentsList';
 
 interface LineItem {
   code: string;
@@ -64,9 +66,14 @@ export default function PayslipPage() {
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <button onClick={() => window.print()} className="flex items-center gap-2 text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50">
-          <Printer className="w-4 h-4" /> Print
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => printApi.payslip(id!)} className="flex items-center gap-2 text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50">
+            <FileText className="w-4 h-4" /> Print / PDF
+          </button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+        </div>
       </div>
 
       <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg p-8">
@@ -151,6 +158,10 @@ export default function PayslipPage() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="max-w-3xl mx-auto mt-6 print:hidden">
+        <AttachmentsList entityType="payslip" entityId={ps.id} />
       </div>
     </div>
   );

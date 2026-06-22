@@ -7,9 +7,12 @@ import {
   Body,
   Query,
   UseGuards,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ArService } from './ar.service';
+import { renderInvoicePrint } from './invoice-print.template';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -108,6 +111,28 @@ export class ArController {
     @Body() dto: UpdateInvoiceDto,
   ) {
     return this.arService.updateInvoice(user.tenantId, id, dto);
+  }
+
+  @Get('invoices/:id/print')
+  @RequirePermission('finance:ar:read')
+  @ApiOperation({ summary: 'Render a printable HTML view of an invoice' })
+  async printInvoice(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { invoice, customer, lines } = await this.arService.getInvoiceForPrint(
+      user.tenantId,
+      id,
+    );
+    const html = renderInvoicePrint({
+      invoice,
+      customer,
+      lines,
+      companyName: user.tenantName || 'Company',
+    });
+    res.set({ 'Content-Type': 'text/html; charset=utf-8' });
+    res.send(html);
   }
 
   @Post('invoices/:id/post')

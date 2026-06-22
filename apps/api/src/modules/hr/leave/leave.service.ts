@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LeaveType, AccrualType } from './entities/leave-type.entity';
 import { LeaveBalance } from './entities/leave-balance.entity';
 import { LeaveApplication, LeaveApplicationStatus } from './entities/leave-application.entity';
 import { LeaveAccrualLog, AccrualSource } from './entities/leave-accrual-log.entity';
+import { Employee } from '../employees/entities/employee.entity';
+import { EmailService } from '../../email/email.service';
 import { CreateLeaveTypeDto, UpdateLeaveTypeDto, ApplyLeaveDto } from './dto/leave.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 
@@ -19,7 +21,37 @@ export class LeaveService {
     private readonly applicationRepo: Repository<LeaveApplication>,
     @InjectRepository(LeaveAccrualLog)
     private readonly accrualLogRepo: Repository<LeaveAccrualLog>,
+    @Optional()
+    @InjectRepository(Employee)
+    private readonly employeeRepo?: Repository<Employee>,
+    @Optional()
+    private readonly emailService?: EmailService,
   ) {}
+
+  /** Fire-and-forget leave notification email; never throws. */
+  private async notifyLeave(
+    tenantId: string,
+    application: LeaveApplication,
+    code: 'LEAVE_APPROVED' | 'LEAVE_REJECTED',
+    remarks?: string,
+  ): Promise<void> {
+    try {
+      if (!this.emailService || !this.employeeRepo) return;
+      const employee = await this.employeeRepo.findOne({
+        where: { tenantId, id: application.employeeId },
+      });
+      if (!employee?.email) return;
+      await this.emailService.sendEmail(tenantId, employee.email, code, {
+        employeeName: `${employee.firstName} ${employee.lastName}`.trim(),
+        fromDate: application.fromDate,
+        toDate: application.toDate,
+        days: application.days,
+        remarks: remarks ?? '',
+      });
+    } catch {
+      // notifications must never break the leave workflow
+    }
+  }
 
   // ---- Leave Types ----
   async createLeaveType(tenantId: string, dto: CreateLeaveTypeDto): Promise<LeaveType> {
@@ -133,7 +165,9 @@ export class LeaveService {
     application.reviewedById = reviewerId;
     application.reviewedAt = new Date();
     application.reviewRemarks = remarks ?? null;
-    return this.applicationRepo.save(application);
+    const saved = await this.applicationRepo.save(application);
+    await this.notifyLeave(tenantId, saved, 'LEAVE_APPROVED', remarks);
+    return saved;
   }
 
   async rejectLeave(tenantId: string, id: string, reviewerId: string, remarks?: string): Promise<LeaveApplication> {
@@ -143,7 +177,9 @@ export class LeaveService {
     application.reviewedById = reviewerId;
     application.reviewedAt = new Date();
     application.reviewRemarks = remarks ?? null;
-    return this.applicationRepo.save(application);
+    const saved = await this.applicationRepo.save(application);
+    await this.notifyLeave(tenantId, saved, 'LEAVE_REJECTED', remarks);
+    return saved;
   }
 
   async cancelLeave(tenantId: string, id: string, employeeId: string): Promise<LeaveApplication> {

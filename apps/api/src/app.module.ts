@@ -34,6 +34,8 @@ import { LocalizationPacksModule } from './modules/localization/localization-pac
 import { LicensingModule } from './modules/licensing/licensing.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SettingsModule } from './modules/settings/field-config.module';
+import { DmsModule } from './modules/dms/dms.module';
+import { EmailModule } from './modules/email/email.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -83,6 +85,8 @@ import { getDatabaseConfig } from './config/database.config';
     LicensingModule,
     AdminModule,
     SettingsModule,
+    DmsModule,
+    EmailModule,
   ],
   providers: [
     {

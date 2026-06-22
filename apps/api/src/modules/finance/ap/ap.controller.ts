@@ -7,9 +7,12 @@ import {
   Body,
   Query,
   UseGuards,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ApService } from './ap.service';
+import { renderBillPrint } from './bill-print.template';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -108,6 +111,25 @@ export class ApController {
     @Body() dto: UpdateBillDto,
   ) {
     return this.apService.updateBill(user.tenantId, id, dto);
+  }
+
+  @Get('bills/:id/print')
+  @RequirePermission('finance:ap:read')
+  @ApiOperation({ summary: 'Render a printable HTML view of a bill' })
+  async printBill(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { bill, vendor, lines } = await this.apService.getBillForPrint(user.tenantId, id);
+    const html = renderBillPrint({
+      bill,
+      vendor,
+      lines,
+      companyName: user.tenantName || 'Company',
+    });
+    res.set({ 'Content-Type': 'text/html; charset=utf-8' });
+    res.send(html);
   }
 
   @Post('bills/:id/post')

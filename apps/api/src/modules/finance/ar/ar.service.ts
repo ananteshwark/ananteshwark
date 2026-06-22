@@ -240,6 +240,22 @@ export class ArService {
     return { ...invoice, lines } as Invoice & { lines: InvoiceLine[] };
   }
 
+  async getInvoiceForPrint(
+    tenantId: string,
+    id: string,
+  ): Promise<{ invoice: Invoice; customer: Customer | null; lines: InvoiceLine[] }> {
+    const invoice = await this.invoiceRepo.findOne({ where: { id, tenantId } });
+    if (!invoice) throw new NotFoundException(`Invoice ${id} not found`);
+    const lines = await this.invoiceLineRepo.find({
+      where: { invoiceId: id, tenantId },
+      order: { lineNumber: 'ASC' },
+    });
+    const customer = await this.customerRepo.findOne({
+      where: { id: invoice.customerId, tenantId },
+    });
+    return { invoice, customer, lines };
+  }
+
   async updateInvoice(tenantId: string, id: string, dto: UpdateInvoiceDto): Promise<Invoice> {
     const invoice = await this.invoiceRepo.findOne({ where: { id, tenantId } });
     if (!invoice) throw new NotFoundException(`Invoice ${id} not found`);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle, Ban } from 'lucide-react';
+import { Plus, X, CheckCircle, Ban, Printer } from 'lucide-react';
 import { financeApi } from '../../api/finance';
+import { printApi } from '../../api/print';
 
 interface Customer {
   id: string;
@@ -233,6 +234,13 @@ export default function InvoicesPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => printApi.invoice(invoice.id)}
+                        title="Print / PDF"
+                        className="p-1 text-gray-500 hover:text-indigo-600"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
                       {invoice.status === 'DRAFT' && (
                         <button
                           onClick={() => handlePost(invoice.id)}

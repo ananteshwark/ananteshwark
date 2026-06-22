@@ -237,6 +237,20 @@ export class ApService {
     return { ...bill, lines } as Bill & { lines: BillLine[] };
   }
 
+  async getBillForPrint(
+    tenantId: string,
+    id: string,
+  ): Promise<{ bill: Bill; vendor: Vendor | null; lines: BillLine[] }> {
+    const bill = await this.billRepo.findOne({ where: { id, tenantId } });
+    if (!bill) throw new NotFoundException(`Bill ${id} not found`);
+    const lines = await this.billLineRepo.find({
+      where: { billId: id, tenantId },
+      order: { lineNumber: 'ASC' },
+    });
+    const vendor = await this.vendorRepo.findOne({ where: { id: bill.vendorId, tenantId } });
+    return { bill, vendor, lines };
+  }
+
   async updateBill(tenantId: string, id: string, dto: UpdateBillDto): Promise<Bill> {
     const bill = await this.billRepo.findOne({ where: { id, tenantId } });
     if (!bill) throw new NotFoundException(`Bill ${id} not found`);

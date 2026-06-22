@@ -18,6 +18,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CreatePayrollRunDto } from './dto/run.dto';
+import { renderPayslipPrint } from './payslip-print.template';
 
 @ApiTags('payroll-runs')
 @ApiBearerAuth()
@@ -105,6 +106,22 @@ export class RunController {
   @RequirePermission('payroll:payslips:read')
   getPayslip(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.getPayslip(user.tenantId, id);
+  }
+
+  @Get('payslips/:id/print')
+  @RequirePermission('payroll:payslips:read')
+  async printPayslip(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const payslip = await this.service.getPayslip(user.tenantId, id);
+    const html = renderPayslipPrint({
+      payslip: payslip as any,
+      companyName: user.tenantName || 'Company',
+    });
+    res.set({ 'Content-Type': 'text/html; charset=utf-8' });
+    res.send(html);
   }
 
   @Get('employees/:employeeId/payslips')

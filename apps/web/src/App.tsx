@@ -18,6 +18,7 @@ import ModulesSettingsPage from './pages/settings/ModulesSettingsPage';
 import LocalizationPage from './pages/settings/LocalizationPage';
 import FieldConfigPage from './pages/settings/FieldConfigPage';
 import TaxCodesPage from './pages/settings/TaxCodesPage';
+import EmailSettingsPage from './pages/settings/EmailSettingsPage';
 import {
   ChartOfAccountsPage,
   JournalEntriesPage,
@@ -142,6 +143,7 @@ export default function App() {
         <Route path="settings/localization" element={<LocalizationPage />} />
         <Route path="settings/field-config" element={<FieldConfigPage />} />
         <Route path="settings/tax-codes" element={<TaxCodesPage />} />
+        <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />
         <Route path="hr/departments" element={<DepartmentsPage />} />
         <Route path="hr/positions" element={<PositionsPage />} />
