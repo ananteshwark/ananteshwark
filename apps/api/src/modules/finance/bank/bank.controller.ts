@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BankService } from './bank.service';
+import { BankImportService } from './bank-import.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -27,7 +28,10 @@ import {
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('finance/bank')
 export class BankController {
-  constructor(private readonly bankService: BankService) {}
+  constructor(
+    private readonly bankService: BankService,
+    private readonly bankImportService: BankImportService,
+  ) {}
 
   // -------------------- Bank Accounts --------------------
 
@@ -102,5 +106,59 @@ export class BankController {
   @ApiOperation({ summary: 'Reconcile a bank account against a bank statement' })
   reconcile(@CurrentUser() user: any, @Body() dto: ReconcileDto) {
     return this.bankService.reconcile(user.tenantId, dto, user.id);
+  }
+
+  // -------------------- Statement Import --------------------
+
+  @Post('imports')
+  @RequirePermission('finance:bank:create')
+  @ApiOperation({ summary: 'Import a parsed bank statement (JSON rows)' })
+  importStatement(
+    @CurrentUser() user: any,
+    @Body() body: { bankAccountId: string; fileName: string; rows: any[] },
+  ) {
+    return this.bankImportService.importCsv(
+      user.tenantId,
+      body.bankAccountId,
+      body.fileName,
+      body.rows,
+    );
+  }
+
+  @Get('imports')
+  @RequirePermission('finance:bank:read')
+  @ApiOperation({ summary: 'List bank statement imports' })
+  listImports(@CurrentUser() user: any) {
+    return this.bankImportService.listImports(user.tenantId);
+  }
+
+  @Get('imports/:id/lines')
+  @RequirePermission('finance:bank:read')
+  @ApiOperation({ summary: 'List lines for a bank statement import' })
+  getImportLines(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.bankImportService.getImportLines(user.tenantId, id);
+  }
+
+  @Post('imports/:id/auto-match')
+  @RequirePermission('finance:bank:reconcile')
+  @ApiOperation({ summary: 'Auto-match imported lines to payments/receipts' })
+  autoMatchImport(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.bankImportService.autoMatch(user.tenantId, id);
+  }
+
+  @Post('lines/:lineId/match')
+  @RequirePermission('finance:bank:reconcile')
+  @ApiOperation({ summary: 'Manually match an imported line' })
+  manualMatch(
+    @CurrentUser() user: any,
+    @Param('lineId') lineId: string,
+    @Body() body: { type: string; id: string },
+  ) {
+    return this.bankImportService.manualMatch(
+      user.tenantId,
+      lineId,
+      body.type,
+      body.id,
+    );
   }
 }

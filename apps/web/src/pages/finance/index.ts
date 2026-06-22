@@ -10,3 +10,5 @@ export { default as CurrenciesPage } from './CurrenciesPage';
 export { default as GrirPage } from './GrirPage';
 export { default as CostCenterReportPage } from './CostCenterReportPage';
 export { default as ProfitCentersPage } from './ProfitCentersPage';
+export { default as BankImportPage } from './BankImportPage';
+export { default as PaymentRunPage } from './PaymentRunPage';

@@ -76,6 +76,8 @@ const navItems: NavItem[] = [
       { label: 'GR/IR Reconciliation', path: '/finance/grir' },
       { label: 'Cost Centers', path: '/finance/cost-center-report' },
       { label: 'Profit Centers', path: '/finance/profit-centers' },
+      { label: 'Bank Import', path: '/finance/bank-import' },
+      { label: 'Payment Run', path: '/finance/payment-runs' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

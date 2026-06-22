@@ -10,6 +10,7 @@ import { CurrencyModule } from './currency/currency.module';
 import { TaxModule } from './tax/tax.module';
 import { ControllingModule } from './controlling/controlling.module';
 import { GrirModule } from './grir/grir.module';
+import { PaymentRunModule } from './payment-run/payment-run.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { GrirModule } from './grir/grir.module';
     TaxModule,
     ControllingModule,
     GrirModule,
+    PaymentRunModule,
   ],
   exports: [TaxModule, ControllingModule, GrirModule],
 })

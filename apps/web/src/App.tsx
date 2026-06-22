@@ -32,6 +32,8 @@ import {
   GrirPage,
   CostCenterReportPage,
   ProfitCentersPage,
+  BankImportPage,
+  PaymentRunPage,
 } from './pages/finance';
 import {
   EmployeesPage,
@@ -165,6 +167,8 @@ export default function App() {
         <Route path="finance/grir" element={<GrirPage />} />
         <Route path="finance/cost-center-report" element={<CostCenterReportPage />} />
         <Route path="finance/profit-centers" element={<ProfitCentersPage />} />
+        <Route path="finance/bank-import" element={<BankImportPage />} />
+        <Route path="finance/payment-runs" element={<PaymentRunPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />
