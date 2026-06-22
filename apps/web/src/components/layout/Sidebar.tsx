@@ -144,6 +144,7 @@ const navItems: NavItem[] = [
     module: 'crm',
     children: [
       { label: 'Overview', path: '/crm', end: true },
+      { label: 'Customer 360', path: '/crm/customer-360' },
       { label: 'Service Tickets', path: '/crm/tickets' },
       { label: 'SLA Policies', path: '/crm/sla' },
     ],

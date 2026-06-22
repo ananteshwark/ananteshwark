@@ -86,7 +86,7 @@ import HiringPage from './pages/hiring/HiringPage';
 import { InventoryPage, StockValuationPage } from './pages/inventory';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
-import { CrmPage, ServiceTicketsPage, SlaPoliciesPage } from './pages/crm';
+import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
 import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
@@ -214,6 +214,7 @@ export default function App() {
         <Route path="crm" element={<CrmPage />} />
         <Route path="crm/tickets" element={<ServiceTicketsPage />} />
         <Route path="crm/sla" element={<SlaPoliciesPage />} />
+        <Route path="crm/customer-360" element={<Customer360Page />} />
         <Route path="sales/orders" element={<SalesOrdersPage />} />
         <Route path="sales/pricing" element={<PricingConditionsPage />} />
         <Route path="sales/credit" element={<CreditManagementPage />} />

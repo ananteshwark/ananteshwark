@@ -11,6 +11,12 @@ import { CrmService } from './crm.service';
 import { CrmController } from './crm.controller';
 import { ServiceTicketService } from './service-ticket.service';
 import { ServiceTicketController } from './service-ticket.controller';
+import { Customer360Service } from './customer-360.service';
+import { Customer360Controller } from './customer-360.controller';
+import { Customer } from '../finance/ar/entities/customer.entity';
+import { Invoice } from '../finance/ar/entities/invoice.entity';
+import { CustomerReceipt } from '../finance/ar/entities/customer-receipt.entity';
+import { SalesOrder } from '../sales/entities/sales-order.entity';
 import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
@@ -23,11 +29,15 @@ import { RbacModule } from '../rbac/rbac.module';
       ServiceTicket,
       SlaPolicy,
       TicketComment,
+      Customer,
+      Invoice,
+      CustomerReceipt,
+      SalesOrder,
     ]),
     RbacModule,
   ],
-  controllers: [CrmController, ServiceTicketController],
-  providers: [CrmService, ServiceTicketService],
-  exports: [CrmService, ServiceTicketService],
+  controllers: [CrmController, ServiceTicketController, Customer360Controller],
+  providers: [CrmService, ServiceTicketService, Customer360Service],
+  exports: [CrmService, ServiceTicketService, Customer360Service],
 })
 export class CrmModule {}
