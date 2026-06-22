@@ -131,13 +131,13 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT C — Procurement Depth (P1-P2)
 
-- [ ] **Phase 30 — Vendor Master Enrichment** `P2`
+- [x] **Phase 30 — Vendor Master Enrichment** `P2`
   - Add to Vendor: payment terms (Net 30/60/90, 2/10 Net 30), bank account details (IBAN/SWIFT/IFSC), default tax code, PAN/GST number, vendor type (domestic/foreign/government), credit limit, reconciliation GL account
   - Partner functions: alternate payee, ordering address, goods-supplier (separate addresses)
   - Vendor block: payment block flag, order block flag with reason
   - Vendor balance report: open items, payment history
 
-- [ ] **Phase 31 — Purchasing Info Records** `P2`
+- [x] **Phase 31 — Purchasing Info Records** `P2`
   - `PurchasingInfoRecord` entity: vendorId, itemId, price, currency, leadTimeDays, minimumQty, validFrom, validTo
   - Auto-populate PO line price from info record when vendor + item selected
   - Last purchase price visible on PO line
@@ -150,7 +150,7 @@ container loses nothing — just re-clone and continue.
   - Agreement utilization report: released vs total
   - Scheduling agreement: delivery schedule lines with firm/forecast zones
 
-- [ ] **Phase 33 — Service Procurement (Entry Sheets)** `P1`
+- [x] **Phase 33 — Service Procurement (Entry Sheets)** `P1`
   - `ServicePO` line type: description, UOM = days/hours, unit rate
   - `ServiceEntrySheet` entity: references service PO, period, actual hours/days, description, status (DRAFT/SUBMITTED/APPROVED)
   - Approval workflow for service entry sheets
@@ -163,7 +163,7 @@ container loses nothing — just re-clone and continue.
   - Two-way match (PO → invoice, no GRN) and three-way match (PO → GRN → invoice) per item/PO type
   - Blocked invoice report: invoices pending because of tolerance breach
 
-- [ ] **Phase 35 — Returns to Vendor (Debit Note)** `P2`
+- [x] **Phase 35 — Returns to Vendor (Debit Note)** `P2`
   - `PurchaseReturn` entity: references original GRN, return lines, reason
   - On post: reverse stock receipt (reduce stock + value), DR Accounts Payable, CR Stock/GR/IR
   - Generate debit note document for vendor
@@ -190,7 +190,7 @@ container loses nothing — just re-clone and continue.
   - Comp-off: overtime → generates comp-off leave credit
   - Output feeds into payroll run (LOP days, OT hours per employee)
 
-- [ ] **Phase 38 — Exit Management** `P2`
+- [x] **Phase 38 — Exit Management** `P2`
   - `ExitRequest` entity: employeeId, lastWorkingDate, reason (RESIGNATION/RETIREMENT/TERMINATION), exitInterviewDate
   - Exit checklist: configurable items (laptop return, ID card, NOC from departments, final settlement)
   - `ExitChecklistItem` entity: item, assignedTo, status (PENDING/CLEARED)
@@ -198,14 +198,14 @@ container loses nothing — just re-clone and continue.
   - Experience letter generation (PDF)
   - Rehire eligibility flag + cooling period
 
-- [ ] **Phase 39 — Dependent & Nominee Management** `P2`
+- [x] **Phase 39 — Dependent & Nominee Management** `P2`
   - `Dependent` entity: employeeId, name, relationship, dateOfBirth, gender
   - `Nominee` entity: employeeId, name, relationship, percentage (must sum to 100%), for: GRATUITY/PF/ESI/INSURANCE
   - Visible on employee profile, editable by employee in ESS
   - Used in benefits enrollment (family health plan)
   - Nominees exported to PF form
 
-- [ ] **Phase 40 — Retro Payroll** `P1`
+- [x] **Phase 40 — Retro Payroll** `P1`
   - Track salary history with effective dates on `EmployeeSalary` (fromDate, toDate)
   - On payroll run: detect salary changes effective in past periods
   - Calculate arrears: new salary − old salary × retroactive months
@@ -312,7 +312,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT H — Advanced Analytics (P2)
 
-- [ ] **Phase 51 — Budget vs Actual + Commitment Accounting** `P2`
+- [x] **Phase 51 — Budget vs Actual + Commitment Accounting** `P2`
   - `Budget` enrichment: monthly/quarterly/annual amounts per GL account + cost center
   - Commitment tracking: approved POs that are not yet invoiced reduce budget
   - Budget check on PR/PO creation: warn or block if budget exceeded
@@ -410,7 +410,7 @@ container loses nothing — just re-clone and continue.
   - IC elimination: consolidated run removes IC balances
   - IC reconciliation report: A/R in entity A vs A/P in entity B (should net zero)
 
-- [ ] **Phase 62 — Down Payment / Advance Management** `P2`
+- [x] **Phase 62 — Down Payment / Advance Management** `P2`
   - Vendor down payment request: create special GL posting (not normal AP)
   - Record advance payment against request
   - Clear advance against vendor invoice on final payment
