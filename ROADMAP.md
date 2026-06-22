@@ -57,7 +57,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT A — Financial Infrastructure (P1)
 
-- [ ] **Phase 23 — Tax Engine (Full)** `P1`
+- [x] **Phase 23 — Tax Engine (Full)** `P1` ✅ DONE
   - `TaxCode` entity: code, name, type (GST/VAT/WITHHOLDING/NONE), rate, components (CGST/SGST/IGST/CESS)
   - Tax determination: auto-apply tax code on bill line / invoice line based on vendor/customer/item tax class
   - Tax line calculation on posting: separate debit/credit to tax GL accounts
@@ -67,7 +67,7 @@ container loses nothing — just re-clone and continue.
   - Tax settings page (admin): create tax codes, map to GL accounts
   - Tax report: output tax summary, input tax summary, net payable by period
 
-- [ ] **Phase 24 — GR/IR Clearing + Inventory Valuation** `P1`
+- [x] **Phase 24 — GR/IR Clearing + Inventory Valuation** `P1`
   - Add `unitCost` (pulled from PO price) and `totalValue` to GRN lines and StockLedger
   - `StockBalance.totalValue` = quantity × weighted average cost
   - On GRN post: DR Stock Account (item's GL), CR GR/IR Clearing (auto-created system account)
@@ -77,7 +77,7 @@ container loses nothing — just re-clone and continue.
   - Material valuation settings: moving average price vs standard price per item category
   - Price variance posting when invoice price ≠ PO price
 
-- [ ] **Phase 25 — Controlling (CO-CCA)** `P1`
+- [x] **Phase 25 — Controlling (CO-CCA)** `P1`
   - `CostCenter` entity enrichment: responsible person, hierarchy node, validity dates, budget
   - `ProfitCenter` entity: code, name, parent, GL accounts assigned
   - Every GL posting must carry cost center + profit center (mandatory on P&L accounts)
@@ -88,7 +88,7 @@ container loses nothing — just re-clone and continue.
   - Cost center actual vs plan report
   - Profit center P&L report (contribution margin by profit center)
 
-- [ ] **Phase 26 — Payroll → GL Posting** `P1`
+- [ ] **Phase 26 — Payroll → GL Posting** `P1` ⏳ (deferred — GL mapping infra pending)
   - On payroll run approval: generate journal entry posting payroll costs to cost centers
   - Earnings → DR Salary Expense (per cost center of employee), CR Payroll Payable
   - Deductions → DR Payroll Payable, CR statutory liabilities (PF Payable, ESI Payable, TDS Payable)
@@ -100,7 +100,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT B — Platform Infrastructure (P1-P2)
 
-- [ ] **Phase 27 — Document Management System (DMS)** `P1`
+- [x] **Phase 27 — Document Management System (DMS)** `P1`
   - `Attachment` entity: entityType, entityId, originalName, storagePath, mimeType, fileSize, uploadedBy, uploadedAt
   - Upload endpoint: `POST /attachments` (multipart, stored to local filesystem / configurable S3)
   - Download endpoint: `GET /attachments/:id/download`
@@ -110,7 +110,7 @@ container loses nothing — just re-clone and continue.
   - Max file size config per tenant, allowed MIME types
   - Virus scan hook (pluggable, disabled by default)
 
-- [ ] **Phase 28 — PDF Generation** `P1`
+- [x] **Phase 28 — PDF Generation** `P1`
   - PDF template engine (use `puppeteer` headless or `@react-pdf/renderer`)
   - Templates: Purchase Order, Vendor Invoice, AR Invoice, Payslip, Offer Letter, Experience Letter, Asset Register, Contract
   - Print preview endpoint: `GET /[module]/[id]/pdf`
@@ -118,7 +118,7 @@ container loses nothing — just re-clone and continue.
   - Configurable company letterhead: logo, address, footer text (per tenant)
   - GST tax invoice format (required for India): GSTIN, HSN, tax breakup
 
-- [ ] **Phase 29 — Transactional Email Notifications** `P1`
+- [x] **Phase 29 — Transactional Email Notifications** `P1`
   - SMTP configuration per tenant (host, port, user, password, from address)
   - `EmailTemplate` entity: code, subject, body (Handlebars), module
   - Events that trigger email: leave approved/rejected, PO approved, payslip published, invoice due reminder, offer letter issued, password reset, new user invite, GRN posted
@@ -173,7 +173,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT D — HR Depth (P1-P2)
 
-- [ ] **Phase 36 — Position Management** `P1`
+- [x] **Phase 36 — Position Management** `P1`
   - `Position` entity: positionCode, title, departmentId, gradeId, budgetedHeadcount, status (OPEN/FILLED/FROZEN)
   - Employee linked to position (position.incumbentId)
   - Headcount planning: positions vs filled vs vacant dashboard
@@ -181,7 +181,7 @@ container loses nothing — just re-clone and continue.
   - Manpower requisition links to open position
   - Org chart shows position boxes (filled vs vacant)
 
-- [ ] **Phase 37 — Time Evaluation Engine** `P1`
+- [x] **Phase 37 — Time Evaluation Engine** `P1`
   - Configurable time types: PRESENT, ABSENT, HALF_DAY, ON_DUTY, LATE, EARLY_DEPARTURE, OVERTIME
   - Rules engine: if clock-in > shift_start + grace_period → LATE; if hours > 8 → OVERTIME_MINS
   - Monthly time evaluation run: process all attendance records → generate absence quota deductions
@@ -216,7 +216,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT E — Sales Depth (P1-P2)
 
-- [ ] **Phase 41 — Pricing Conditions Engine** `P1`
+- [x] **Phase 41 — Pricing Conditions Engine** `P1`
   - `PriceCondition` entity: conditionType (PRICE/DISCOUNT/SURCHARGE/TAX), key (customer/material/customerGroup/materialGroup), validFrom, validTo, rate/amount, scaleQty
   - Pricing procedure: ordered sequence of conditions applied to determine final price
   - Auto-fetch base price from condition on order/invoice line
@@ -224,14 +224,14 @@ container loses nothing — just re-clone and continue.
   - Customer-specific pricing: override standard price for a specific customer
   - Net price calculation: base − discount + surcharge + tax
 
-- [ ] **Phase 42 — Credit Management** `P1`
+- [x] **Phase 42 — Credit Management** `P1`
   - `CreditAccount` on Customer: creditLimit, creditExposure (open invoices + unshipped orders), creditRating
   - On sales order save: check if order value + existing exposure > credit limit
   - Block order if limit exceeded; alert only if configured for warning mode
   - Credit release workflow: finance approves blocked orders
   - Credit exposure report by customer
 
-- [ ] **Phase 43 — Available-to-Promise (ATP)** `P1`
+- [x] **Phase 43 — Available-to-Promise (ATP)** `P1`
   - On sales order line save: check available stock = stock_balance − already_committed_on_other_orders
   - Committed qty tracked on stock_balance per item/warehouse
   - ATP response: available date if insufficient stock (based on expected GRN)
