@@ -11,6 +11,7 @@ import { PayrollGlService } from '../payroll-gl.service';
 import { PayrollGlController } from '../payroll-gl.controller';
 import { ComponentModule } from '../components/component.module';
 import { StatutoryModule } from '../statutory/statutory.module';
+import { RetroPayrollModule } from '../retro/retro-payroll.module';
 import { GlModule } from '../../finance/gl/gl.module';
 import { RbacModule } from '../../rbac/rbac.module';
 
@@ -25,6 +26,7 @@ import { RbacModule } from '../../rbac/rbac.module';
     ]),
     ComponentModule,
     StatutoryModule,
+    RetroPayrollModule,
     GlModule,
     RbacModule,
   ],

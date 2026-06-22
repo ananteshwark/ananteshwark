@@ -58,6 +58,8 @@ const navItems: NavItem[] = [
       { label: 'Timesheets', path: '/hr/timesheets' },
       { label: 'Leave', path: '/hr/leave' },
       { label: 'Leave Approvals', path: '/hr/leave/approvals' },
+      { label: 'Exit Management', path: '/hr/exits' },
+      { label: 'Dependents & Nominees', path: '/hr/dependents' },
     ],
   },
   {
@@ -88,6 +90,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Payroll Runs', path: '/payroll/runs' },
       { label: 'Payslips', path: '/payroll/payslips' },
+      { label: 'Retro Payroll', path: '/payroll/retro' },
       { label: 'GL Mappings', path: '/payroll/gl-mappings' },
     ],
   },

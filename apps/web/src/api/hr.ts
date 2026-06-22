@@ -106,4 +106,24 @@ export const hrApi = {
 
   // Leave Calendar
   getLeaveCalendar: (params?: any) => apiClient.get('/hr/leave/calendar', { params }),
+
+  // Exit Management
+  getExits: (params?: any) => apiClient.get('/hr/exits', { params }),
+  getExit: (id: string) => apiClient.get(`/hr/exits/${id}`),
+  createExit: (data: any) => apiClient.post('/hr/exits', data),
+  updateExit: (id: string, data: any) => apiClient.patch(`/hr/exits/${id}`, data),
+  getExitChecklist: (id: string) => apiClient.get(`/hr/exits/${id}/checklist`),
+  addExitChecklistItem: (id: string, data: any) => apiClient.post(`/hr/exits/${id}/checklist`, data),
+  updateExitChecklistItem: (itemId: string, data: any) => apiClient.patch(`/hr/exits/checklist/${itemId}`, data),
+  computeFnf: (id: string, data: any) => apiClient.post(`/hr/exits/${id}/fnf`, data),
+  approveFnf: (id: string) => apiClient.post(`/hr/exits/${id}/fnf/approve`),
+  payFnf: (id: string) => apiClient.post(`/hr/exits/${id}/fnf/pay`),
+
+  // Dependents & Nominees
+  getDependents: (employeeId: string) => apiClient.get(`/hr/employees/${employeeId}/dependents`),
+  addDependent: (employeeId: string, data: any) => apiClient.post(`/hr/employees/${employeeId}/dependents`, data),
+  deleteDependent: (employeeId: string, id: string) => apiClient.delete(`/hr/employees/${employeeId}/dependents/${id}`),
+  getNominees: (employeeId: string) => apiClient.get(`/hr/employees/${employeeId}/nominees`),
+  addNominee: (employeeId: string, data: any) => apiClient.post(`/hr/employees/${employeeId}/nominees`, data),
+  deleteNominee: (employeeId: string, id: string) => apiClient.delete(`/hr/employees/${employeeId}/nominees/${id}`),
 };

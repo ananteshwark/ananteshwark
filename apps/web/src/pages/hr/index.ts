@@ -6,3 +6,5 @@ export { default as LeavePage } from './LeavePage';
 export { default as LeaveApprovalsPage } from './LeaveApprovalsPage';
 export { default as PositionsPage } from './PositionsPage';
 export { default as TimeEvaluationPage } from './TimeEvaluationPage';
+export { default as ExitManagementPage } from './ExitManagementPage';
+export { default as DependentsNomineesPage } from './DependentsNomineesPage';

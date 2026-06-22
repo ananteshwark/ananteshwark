@@ -49,4 +49,12 @@ export const payrollApi = {
 
   // Employees (for salary assignment dropdowns)
   getEmployees: (params?: any) => apiClient.get('/hr/employees', { params }),
+
+  // Retro payroll / arrears
+  detectArrears: (month: number, year: number) =>
+    apiClient.get('/payroll/retro/arrears', { params: { month, year } }),
+  getArrearsRecords: (runId?: string) =>
+    apiClient.get('/payroll/retro/records', { params: { runId } }),
+  applyArrearsToRun: (runId: string) =>
+    apiClient.post(`/payroll/runs/${runId}/apply-arrears`),
 };

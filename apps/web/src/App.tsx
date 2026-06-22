@@ -44,6 +44,8 @@ import {
   LeaveApprovalsPage,
   PositionsPage,
   TimeEvaluationPage,
+  ExitManagementPage,
+  DependentsNomineesPage,
 } from './pages/hr';
 import {
   PayComponentsPage,
@@ -54,6 +56,7 @@ import {
   PayslipsListPage,
   StatutoryPage,
   PayrollGlMappingsPage,
+  RetroPayrollPage,
 } from './pages/payroll';
 import {
   RequisitionsPage,
@@ -155,6 +158,8 @@ export default function App() {
         <Route path="hr/timesheets" element={<TimesheetPage />} />
         <Route path="hr/leave" element={<LeavePage />} />
         <Route path="hr/leave/approvals" element={<LeaveApprovalsPage />} />
+        <Route path="hr/exits" element={<ExitManagementPage />} />
+        <Route path="hr/dependents" element={<DependentsNomineesPage />} />
         <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
         <Route path="finance/journals" element={<JournalEntriesPage />} />
         <Route path="finance/vendors" element={<VendorsPage />} />
@@ -177,6 +182,7 @@ export default function App() {
         <Route path="payroll/payslips/:id" element={<PayslipPage />} />
         <Route path="payroll/statutory" element={<StatutoryPage />} />
         <Route path="payroll/gl-mappings" element={<PayrollGlMappingsPage />} />
+        <Route path="payroll/retro" element={<RetroPayrollPage />} />
         <Route path="procurement/requisitions" element={<RequisitionsPage />} />
         <Route path="procurement/rfq" element={<RFQPage />} />
         <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />

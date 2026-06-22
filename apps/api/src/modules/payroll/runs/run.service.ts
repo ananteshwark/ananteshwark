@@ -23,6 +23,7 @@ import { EmployeeSalary } from '../components/entities/employee-salary.entity';
 import { PayComponentType } from '../components/entities/pay-component.entity';
 import { ComponentService } from '../components/component.service';
 import { StatutoryService } from '../statutory/statutory.service';
+import { RetroPayrollService } from '../retro/retro-payroll.service';
 import { GlService } from '../../finance/gl/gl.service';
 import { PayrollGlService } from '../payroll-gl.service';
 import { Account } from '../../finance/gl/entities/account.entity';
@@ -53,6 +54,7 @@ export class RunService {
     private readonly accountRepo: Repository<Account>,
     private readonly componentService: ComponentService,
     private readonly statutoryService: StatutoryService,
+    private readonly retroPayrollService: RetroPayrollService,
     private readonly glService: GlService,
     private readonly payrollGlService: PayrollGlService,
     private readonly dataSource: DataSource,
@@ -144,7 +146,7 @@ export class RunService {
     const daysInMonth = new Date(run.payPeriodYear, run.payPeriodMonth, 0).getDate();
     const isFebruary = run.payPeriodMonth === 2;
 
-    return this.dataSource.transaction(async (manager) => {
+    const processed = await this.dataSource.transaction(async (manager) => {
       // wipe any existing payslips for re-processing
       await manager.delete(Payslip, { payrollRunId: runId, tenantId });
 
@@ -247,6 +249,15 @@ export class RunService {
       run.processedAt = new Date();
       return manager.save(run);
     });
+
+    // Additively detect & attach retro-payroll arrears as ARREARS earning lines.
+    // Best-effort: guarded so an arrears failure never breaks an existing run.
+    try {
+      await this.retroPayrollService.applyArrearsToRun(tenantId, runId);
+      return await this.getRun(tenantId, runId);
+    } catch {
+      return processed;
+    }
   }
 
   // ---------------------------------------------------------------------------
