@@ -22,6 +22,7 @@ export const financeApi = {
   getVendor: (id: string) => apiClient.get(`/finance/ap/vendors/${id}`),
   createVendor: (data: any) => apiClient.post('/finance/ap/vendors', data),
   updateVendor: (id: string, data: any) => apiClient.patch(`/finance/ap/vendors/${id}`, data),
+  getVendorSummary: (id: string) => apiClient.get(`/finance/ap/vendors/${id}/summary`),
 
   // Bills
   getBills: (params?: any) => apiClient.get('/finance/ap/bills', { params }),

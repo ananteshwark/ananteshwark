@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, KeyRound } from 'lucide-react';
+import { Plus, X, KeyRound, ChevronDown, ChevronRight } from 'lucide-react';
 import { financeApi } from '../../api/finance';
 import { procurementApi } from '../../api/procurement';
 import CurrencySelect from '../../components/ui/CurrencySelect';
@@ -22,6 +22,21 @@ const defaultForm = {
   phone: '',
   currency: 'USD',
   paymentTerms: 30,
+  // Payment & Banking (Phase 30)
+  paymentTermsCode: '',
+  bankName: '',
+  bankAccountNumber: '',
+  bankIfsc: '',
+  iban: '',
+  swift: '',
+  creditLimit: '',
+  paymentBlock: false,
+  orderBlock: false,
+  blockReason: '',
+  // Tax & Compliance (Phase 30)
+  vendorType: '',
+  panNumber: '',
+  gstNumber: '',
 };
 
 export default function VendorsPage() {
@@ -30,6 +45,8 @@ export default function VendorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(defaultForm);
+  const [showBanking, setShowBanking] = useState(false);
+  const [showTax, setShowTax] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [portalVendor, setPortalVendor] = useState<Vendor | null>(null);
@@ -63,6 +80,19 @@ export default function VendorsPage() {
         email: form.email || undefined,
         phone: form.phone || undefined,
         paymentTerms: Number(form.paymentTerms),
+        paymentTermsCode: form.paymentTermsCode || undefined,
+        bankName: form.bankName || undefined,
+        bankAccountNumber: form.bankAccountNumber || undefined,
+        bankIfsc: form.bankIfsc || undefined,
+        iban: form.iban || undefined,
+        swift: form.swift || undefined,
+        creditLimit: form.creditLimit === '' ? undefined : Number(form.creditLimit),
+        paymentBlock: form.paymentBlock,
+        orderBlock: form.orderBlock,
+        blockReason: form.blockReason || undefined,
+        vendorType: form.vendorType || undefined,
+        panNumber: form.panNumber || undefined,
+        gstNumber: form.gstNumber || undefined,
       });
       setShowModal(false);
       setForm(defaultForm);
@@ -78,6 +108,8 @@ export default function VendorsPage() {
     setShowModal(false);
     setForm(defaultForm);
     setFormError(null);
+    setShowBanking(false);
+    setShowTax(false);
   };
 
   const openPortal = (vendor: Vendor) => {
@@ -167,7 +199,7 @@ export default function VendorsPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-semibold text-gray-900">New Vendor</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
@@ -237,6 +269,176 @@ export default function VendorsPage() {
                   />
                 </div>
               </div>
+
+              {/* Payment & Banking (Phase 30) */}
+              <div className="border border-gray-200 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setShowBanking((s) => !s)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <span>Payment &amp; Banking</span>
+                  {showBanking ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                {showBanking && (
+                  <div className="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Payment Terms Code</label>
+                        <select
+                          value={form.paymentTermsCode}
+                          onChange={(e) => setForm({ ...form, paymentTermsCode: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="">—</option>
+                          <option value="NET_30">NET_30</option>
+                          <option value="NET_60">NET_60</option>
+                          <option value="2_10_NET_30">2_10_NET_30</option>
+                          <option value="DUE_ON_RECEIPT">DUE_ON_RECEIPT</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Credit Limit</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={form.creditLimit}
+                          onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
+                      <input
+                        type="text"
+                        value={form.bankName}
+                        onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Account Number</label>
+                        <input
+                          type="text"
+                          value={form.bankAccountNumber}
+                          onChange={(e) => setForm({ ...form, bankAccountNumber: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">IFSC</label>
+                        <input
+                          type="text"
+                          value={form.bankIfsc}
+                          onChange={(e) => setForm({ ...form, bankIfsc: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">IBAN</label>
+                        <input
+                          type="text"
+                          value={form.iban}
+                          onChange={(e) => setForm({ ...form, iban: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">SWIFT</label>
+                        <input
+                          type="text"
+                          value={form.swift}
+                          onChange={(e) => setForm({ ...form, swift: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 pt-1">
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={form.paymentBlock}
+                          onChange={(e) => setForm({ ...form, paymentBlock: e.target.checked })}
+                        />
+                        Payment Block
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={form.orderBlock}
+                          onChange={(e) => setForm({ ...form, orderBlock: e.target.checked })}
+                        />
+                        Order Block
+                      </label>
+                    </div>
+                    {(form.paymentBlock || form.orderBlock) && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Block Reason</label>
+                        <input
+                          type="text"
+                          value={form.blockReason}
+                          onChange={(e) => setForm({ ...form, blockReason: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tax & Compliance (Phase 30) */}
+              <div className="border border-gray-200 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setShowTax((s) => !s)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <span>Tax &amp; Compliance</span>
+                  {showTax ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                {showTax && (
+                  <div className="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Vendor Type</label>
+                      <select
+                        value={form.vendorType}
+                        onChange={(e) => setForm({ ...form, vendorType: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">—</option>
+                        <option value="DOMESTIC">DOMESTIC</option>
+                        <option value="FOREIGN">FOREIGN</option>
+                        <option value="GOVERNMENT">GOVERNMENT</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">PAN Number</label>
+                        <input
+                          type="text"
+                          value={form.panNumber}
+                          onChange={(e) => setForm({ ...form, panNumber: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">GST Number</label>
+                        <input
+                          type="text"
+                          value={form.gstNumber}
+                          onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"

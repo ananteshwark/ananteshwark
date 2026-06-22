@@ -55,6 +55,13 @@ export class ApController {
     return this.apService.findVendor(user.tenantId, id);
   }
 
+  @Get('vendors/:id/summary')
+  @RequirePermission('finance:ap:read')
+  @ApiOperation({ summary: 'Vendor balance/summary (open items total, payment history count)' })
+  getVendorSummary(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.apService.getVendorSummary(user.tenantId, id);
+  }
+
   @Post('vendors')
   @RequirePermission('finance:ap:create')
   @ApiOperation({ summary: 'Create a vendor' })

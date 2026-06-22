@@ -121,6 +121,33 @@ export class ApService {
     return this.vendorRepo.save(vendor);
   }
 
+  async getVendorSummary(tenantId: string, id: string): Promise<any> {
+    const vendor = await this.findVendor(tenantId, id);
+    const openBills = await this.billRepo.find({
+      where: [
+        { tenantId, vendorId: id, status: BillStatus.OPEN },
+        { tenantId, vendorId: id, status: BillStatus.PARTIAL },
+      ],
+    });
+    const openItemsTotal = round2(
+      openBills.reduce((sum, b) => sum + Number(b.balanceDue || 0), 0),
+    );
+    const paymentHistoryCount = await this.paymentRepo.count({
+      where: { tenantId, vendorId: id },
+    });
+    return {
+      vendorId: id,
+      vendorName: vendor.name,
+      currency: vendor.currency,
+      creditLimit: vendor.creditLimit ?? null,
+      paymentBlock: vendor.paymentBlock,
+      orderBlock: vendor.orderBlock,
+      openItemsCount: openBills.length,
+      openItemsTotal,
+      paymentHistoryCount,
+    };
+  }
+
   // -------------------- Bills --------------------
 
   private computeBillLines(lines: BillLineDto[]): {

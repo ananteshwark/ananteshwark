@@ -7,6 +7,7 @@ import {
   IsUUID,
   IsInt,
   IsNumber,
+  IsBoolean,
   IsDateString,
   IsArray,
   ValidateNested,
@@ -71,6 +72,83 @@ export class CreateVendorDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // ─── Phase 30: Vendor Master Enrichment (additive) ───
+  @ApiPropertyOptional({ example: 'NET_30' })
+  @IsOptional()
+  @IsString()
+  paymentTermsCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  iban?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  swift?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  defaultTaxCodeId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  panNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @ApiPropertyOptional({ example: 'DOMESTIC' })
+  @IsOptional()
+  @IsString()
+  vendorType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  creditLimit?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  reconciliationAccountId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  paymentBlock?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  orderBlock?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  blockReason?: string;
 }
 
 export class UpdateVendorDto {
@@ -123,6 +201,83 @@ export class UpdateVendorDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // ─── Phase 30: Vendor Master Enrichment (additive) ───
+  @ApiPropertyOptional({ example: 'NET_30' })
+  @IsOptional()
+  @IsString()
+  paymentTermsCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  iban?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  swift?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  defaultTaxCodeId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  panNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @ApiPropertyOptional({ example: 'DOMESTIC' })
+  @IsOptional()
+  @IsString()
+  vendorType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  creditLimit?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  reconciliationAccountId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  paymentBlock?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  orderBlock?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  blockReason?: string;
 }
 
 export class BillLineDto {
