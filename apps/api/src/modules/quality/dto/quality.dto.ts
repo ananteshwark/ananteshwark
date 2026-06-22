@@ -4,6 +4,8 @@ import { Type } from 'class-transformer';
 import { InspectionType } from '../entities/inspection-plan.entity';
 import { LotReferenceType, UsageDecision } from '../entities/inspection-lot.entity';
 import { NcrSeverity } from '../entities/non-conformance.entity';
+import { CharacteristicType } from '../entities/quality-characteristic.entity';
+import { ResultVerdict } from '../entities/inspection-result.entity';
 
 export class CheckpointDto {
   @ApiProperty() @IsString() name: string;
@@ -55,4 +57,47 @@ export class ResolveNcrDto {
   @ApiProperty() @IsString() rootCause: string;
   @ApiProperty() @IsString() correctiveAction: string;
   @ApiPropertyOptional() @IsOptional() @IsString() preventiveAction?: string;
+}
+
+// ---- Characteristics ----
+export class CreateCharacteristicDto {
+  @ApiProperty() @IsString() code: string;
+  @ApiProperty() @IsString() name: string;
+  @ApiProperty({ enum: CharacteristicType }) @IsEnum(CharacteristicType) type: CharacteristicType;
+  @ApiPropertyOptional() @IsOptional() @IsString() uom?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() lowerLimit?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() upperLimit?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() target?: number;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() mandatory?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() sequence?: number;
+}
+
+export class UpdateCharacteristicDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() code?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional({ enum: CharacteristicType }) @IsOptional() @IsEnum(CharacteristicType) type?: CharacteristicType;
+  @ApiPropertyOptional() @IsOptional() @IsString() uom?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() lowerLimit?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() upperLimit?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() target?: number;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() mandatory?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() sequence?: number;
+}
+
+// ---- Inspection Results ----
+export class InspectionResultItemDto {
+  @ApiProperty() @IsUUID() characteristicId: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() measuredValue?: number | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() qualitativeValue?: string | null;
+  @ApiPropertyOptional({ enum: ResultVerdict }) @IsOptional() @IsEnum(ResultVerdict) verdict?: ResultVerdict;
+}
+
+export class RecordInspectionResultsDto {
+  @ApiProperty({ type: [InspectionResultItemDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => InspectionResultItemDto) results: InspectionResultItemDto[];
+}
+
+// ---- Usage Decision ----
+export class SetUsageDecisionDto {
+  @ApiProperty({ enum: UsageDecision }) @IsEnum(UsageDecision) decision: UsageDecision;
+  @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
 }

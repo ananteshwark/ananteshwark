@@ -34,6 +34,8 @@ export class InspectionLot {
   @Column({ name: 'inspection_date', type: 'date' }) inspectionDate: string;
   @Column({ type: 'enum', enum: InspectionLotStatus, default: InspectionLotStatus.PENDING }) status: InspectionLotStatus;
   @Column({ name: 'usage_decision', type: 'enum', enum: UsageDecision, nullable: true }) usageDecision: UsageDecision | null;
+  @Column({ name: 'usage_decision_at', type: 'timestamptz', nullable: true }) usageDecisionAt: Date | null;
+  @Column({ name: 'usage_decision_by', type: 'uuid', nullable: true }) usageDecisionBy: string | null;
   @Column({ type: 'jsonb', nullable: true }) results: Array<{ checkpointName: string; value?: string | number | null; passed: boolean }> | null;
   @Column({ nullable: true }) remarks: string | null;
   @CreateDateColumn() createdAt: Date;

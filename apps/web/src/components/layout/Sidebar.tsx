@@ -173,7 +173,16 @@ const navItems: NavItem[] = [
       { label: 'Costing', path: '/manufacturing/costing' },
     ],
   },
-  { label: 'Quality', icon: <ClipboardCheck className="h-4 w-4" />, path: '/quality', module: 'quality' },
+  {
+    label: 'Quality',
+    icon: <ClipboardCheck className="h-4 w-4" />,
+    module: 'quality',
+    children: [
+      { label: 'Overview', path: '/quality', end: true },
+      { label: 'Characteristics', path: '/quality/characteristics' },
+      { label: 'Results Recording', path: '/quality/results' },
+    ],
+  },
   { label: 'Maintenance', icon: <Wrench className="h-4 w-4" />, path: '/maintenance', module: 'maintenance' },
   { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits', module: 'benefits' },
   { label: 'Analytics', icon: <BarChart2 className="h-4 w-4" />, path: '/analytics', module: 'analytics' },

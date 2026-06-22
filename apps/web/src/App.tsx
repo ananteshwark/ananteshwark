@@ -92,7 +92,7 @@ import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashbo
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
 import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage } from './pages/manufacturing';
-import { QualityPage } from './pages/quality';
+import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/quality';
 import { MaintenancePage } from './pages/maintenance';
 import { BenefitsPage } from './pages/benefits';
 import { AnalyticsPage } from './pages/analytics';
@@ -227,6 +227,8 @@ export default function App() {
         <Route path="manufacturing/mrp" element={<MrpPage />} />
         <Route path="manufacturing/costing" element={<ProductionCostingPage />} />
         <Route path="quality" element={<QualityPage />} />
+        <Route path="quality/characteristics" element={<CharacteristicsPage />} />
+        <Route path="quality/results" element={<ResultsRecordingPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="benefits" element={<BenefitsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
