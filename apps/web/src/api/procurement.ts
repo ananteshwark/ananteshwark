@@ -67,6 +67,27 @@ export const procurementApi = {
   approveVendorInvoice: (id: string) => apiClient.post(`/procurement/vendor-invoices/${id}/approve`),
   rejectVendorInvoice: (id: string, data: any) => apiClient.post(`/procurement/vendor-invoices/${id}/reject`, data),
   recordInvoicePayment: (id: string, data: any) => apiClient.post(`/procurement/vendor-invoices/${id}/payment`, data),
+
+  // Purchasing Info Records (Phase 31)
+  getInfoRecords: (params?: any) => apiClient.get('/procurement/info-records', { params }),
+  getInfoRecord: (id: string) => apiClient.get(`/procurement/info-records/${id}`),
+  createInfoRecord: (data: any) => apiClient.post('/procurement/info-records', data),
+  updateInfoRecord: (id: string, data: any) => apiClient.patch(`/procurement/info-records/${id}`, data),
+  deleteInfoRecord: (id: string) => apiClient.delete(`/procurement/info-records/${id}`),
+
+  // Service Entry Sheets (Phase 33)
+  getServiceEntries: (params?: any) => apiClient.get('/procurement/service-entries', { params }),
+  getServiceEntry: (id: string) => apiClient.get(`/procurement/service-entries/${id}`),
+  createServiceEntry: (data: any) => apiClient.post('/procurement/service-entries', data),
+  submitServiceEntry: (id: string) => apiClient.post(`/procurement/service-entries/${id}/submit`),
+  approveServiceEntry: (id: string) => apiClient.post(`/procurement/service-entries/${id}/approve`),
+  rejectServiceEntry: (id: string, data: any) => apiClient.post(`/procurement/service-entries/${id}/reject`, data),
+
+  // Purchase Returns (Phase 35)
+  getPurchaseReturns: (params?: any) => apiClient.get('/procurement/returns', { params }),
+  getPurchaseReturn: (id: string) => apiClient.get(`/procurement/returns/${id}`),
+  createPurchaseReturn: (data: any) => apiClient.post('/procurement/returns', data),
+  postPurchaseReturn: (id: string) => apiClient.post(`/procurement/returns/${id}/post`),
 };
 
 // Vendor Portal API — isolated axios instance so the tenant auth/tenant-header

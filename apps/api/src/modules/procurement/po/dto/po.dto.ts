@@ -8,6 +8,7 @@ import {
   IsArray,
   ValidateNested,
   ArrayMinSize,
+  IsBoolean,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -17,6 +18,11 @@ export class PoLineDto {
   @IsOptional()
   @IsString()
   itemCode?: string;
+
+  @ApiPropertyOptional({ description: 'Inventory item ID — used to auto-populate price from a purchasing info record' })
+  @IsOptional()
+  @IsUUID()
+  itemId?: string;
 
   @ApiProperty()
   @IsString()
@@ -52,6 +58,16 @@ export class PoLineDto {
   @IsOptional()
   @IsUUID()
   requisitionLineId?: string;
+
+  @ApiPropertyOptional({ description: 'Marks this line as a service line (Phase 33)' })
+  @IsOptional()
+  @IsBoolean()
+  isService?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  serviceUom?: string;
 }
 
 export class CreatePoDto {

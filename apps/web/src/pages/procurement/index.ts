@@ -4,3 +4,4 @@ export { default as PurchaseOrdersPage } from './PurchaseOrdersPage';
 export { default as GRNPage } from './GRNPage';
 export { default as VendorInvoicesPage } from './VendorInvoicesPage';
 export { ProcurementSettingsPage } from './ProcurementSettingsPage';
+export { default as InfoRecordsPage } from './InfoRecordsPage';

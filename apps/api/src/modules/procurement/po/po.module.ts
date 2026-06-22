@@ -7,12 +7,14 @@ import { PoService } from './po.service';
 import { PoController } from './po.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 import { DoaModule } from '../doa/doa.module';
+import { InfoRecordModule } from '../info-record/info-record.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([PurchaseOrder, PoLine, ApprovalMatrix]),
     RbacModule,
     DoaModule,
+    InfoRecordModule,
   ],
   controllers: [PoController],
   providers: [PoService],

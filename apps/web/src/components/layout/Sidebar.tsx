@@ -104,6 +104,7 @@ const navItems: NavItem[] = [
       { label: 'Purchase Orders', path: '/procurement/purchase-orders' },
       { label: 'Goods Receipts', path: '/procurement/grn' },
       { label: 'Vendor Invoices', path: '/procurement/vendor-invoices' },
+      { label: 'Info Records', path: '/procurement/info-records' },
       { label: 'Settings', path: '/procurement/settings' },
     ],
   },

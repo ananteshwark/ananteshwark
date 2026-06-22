@@ -87,6 +87,13 @@ export class PoLine {
   @Column({ name: 'requisition_line_id', type: 'uuid', nullable: true })
   requisitionLineId: string | null;
 
+  // ─── Phase 33: Service Procurement (additive) ───
+  @Column({ name: 'is_service', type: 'boolean', default: false })
+  isService: boolean;
+
+  @Column({ name: 'service_uom', length: 20, nullable: true })
+  serviceUom: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

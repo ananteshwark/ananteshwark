@@ -7,6 +7,7 @@ import { WorkflowConfigModule } from './workflow/workflow-config.module';
 import { DoaModule } from './doa/doa.module';
 import { VendorInvoiceModule } from './vendor-invoice/vendor-invoice.module';
 import { VendorPortalModule } from './vendor-portal/vendor-portal.module';
+import { InfoRecordModule } from './info-record/info-record.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { VendorPortalModule } from './vendor-portal/vendor-portal.module';
     DoaModule,
     VendorInvoiceModule,
     VendorPortalModule,
+    InfoRecordModule,
   ],
 })
 export class ProcurementModule {}

@@ -11,6 +11,7 @@ import { ApprovalMatrix } from '../entities/approval-matrix.entity';
 import { CreatePoDto, UpdatePoDto } from './dto/po.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 import { DoaService } from '../doa/doa.service';
+import { InfoRecordService } from '../info-record/info-record.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -21,7 +22,28 @@ export class PoService {
     @InjectRepository(PoLine) private readonly lineRepo: Repository<PoLine>,
     @InjectRepository(ApprovalMatrix) private readonly matrixRepo: Repository<ApprovalMatrix>,
     private readonly doaService: DoaService,
+    private readonly infoRecordService: InfoRecordService,
   ) {}
+
+  /**
+   * Phase 31: For lines with an itemId but no explicit price, auto-populate the
+   * unit price from an active, date-valid purchasing info record (additive).
+   */
+  private async applyInfoRecordPricing(
+    tenantId: string,
+    vendorId: string,
+    lines: any[],
+  ): Promise<any[]> {
+    return Promise.all(
+      lines.map(async (l) => {
+        if ((l.unitPrice === undefined || l.unitPrice === null || l.unitPrice === 0) && l.itemId) {
+          const rec = await this.infoRecordService.findRecord(tenantId, vendorId, l.itemId);
+          if (rec) return { ...l, unitPrice: rec.price };
+        }
+        return l;
+      }),
+    );
+  }
 
   private async nextNumber(tenantId: string): Promise<string> {
     const row = await this.poRepo
@@ -55,7 +77,8 @@ export class PoService {
 
   async createPo(tenantId: string, dto: CreatePoDto): Promise<any> {
     const poNumber = await this.nextNumber(tenantId);
-    const { lineData, subtotal, taxAmount, total } = this.computeLines(dto.lines);
+    const pricedLines = await this.applyInfoRecordPricing(tenantId, dto.vendorId, dto.lines);
+    const { lineData, subtotal, taxAmount, total } = this.computeLines(pricedLines);
 
     const po = this.poRepo.create({
       tenantId,
@@ -95,6 +118,8 @@ export class PoService {
         lineTotal: l.lineTotal,
         accountId: l.accountId || null,
         requisitionLineId: l.requisitionLineId || null,
+        isService: l.isService ?? false,
+        serviceUom: l.serviceUom || null,
       }),
     );
     await this.lineRepo.save(entities);
