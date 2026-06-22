@@ -5,3 +5,4 @@ export { default as GRNPage } from './GRNPage';
 export { default as VendorInvoicesPage } from './VendorInvoicesPage';
 export { ProcurementSettingsPage } from './ProcurementSettingsPage';
 export { default as InfoRecordsPage } from './InfoRecordsPage';
+export { default as ServiceEntrySheetPage } from './ServiceEntrySheetPage';

@@ -66,6 +66,7 @@ import {
   VendorInvoicesPage,
   ProcurementSettingsPage,
   InfoRecordsPage,
+  ServiceEntrySheetPage,
 } from './pages/procurement';
 import VendorLoginPage from './pages/vendor/VendorLoginPage';
 import VendorPortalPage from './pages/vendor/VendorPortalPage';
@@ -191,6 +192,7 @@ export default function App() {
         <Route path="procurement/vendor-invoices" element={<VendorInvoicesPage />} />
         <Route path="procurement/settings" element={<ProcurementSettingsPage />} />
         <Route path="procurement/info-records" element={<InfoRecordsPage />} />
+        <Route path="procurement/service-entries" element={<ServiceEntrySheetPage />} />
         <Route path="talent/hiring" element={<HiringPage />} />
         <Route path="talent/ats" element={<AtsPage />} />
         <Route path="talent/onboarding" element={<TalentOnboardingPage />} />
