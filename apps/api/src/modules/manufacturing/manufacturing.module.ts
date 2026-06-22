@@ -3,7 +3,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Bom, BomLine } from './entities/bom.entity';
 import { WorkCenter } from './entities/work-center.entity';
 import { ProductionOrder, MaterialIssuance } from './entities/production-order.entity';
+import { Routing } from './entities/routing.entity';
+import { RoutingOperation } from './entities/routing-operation.entity';
+import { PlannedOrder } from './entities/planned-order.entity';
+import { ProductionConfirmation } from './entities/production-confirmation.entity';
+import { Item } from '../inventory/entities/item.entity';
+import { StockBalance } from '../inventory/entities/stock-balance.entity';
+import { SalesOrder } from '../sales/entities/sales-order.entity';
+import { SalesOrderLine } from '../sales/entities/sales-order-line.entity';
 import { ManufacturingService } from './manufacturing.service';
+import { MrpService } from './mrp.service';
 import { ManufacturingController } from './manufacturing.controller';
 import { GlModule } from '../finance/gl/gl.module';
 import { InventoryModule } from '../inventory/inventory.module';
@@ -11,13 +20,17 @@ import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Bom, BomLine, WorkCenter, ProductionOrder, MaterialIssuance]),
+    TypeOrmModule.forFeature([
+      Bom, BomLine, WorkCenter, ProductionOrder, MaterialIssuance,
+      Routing, RoutingOperation, PlannedOrder, ProductionConfirmation,
+      Item, StockBalance, SalesOrder, SalesOrderLine,
+    ]),
     GlModule,
     InventoryModule,
     RbacModule,
   ],
   controllers: [ManufacturingController],
-  providers: [ManufacturingService],
-  exports: [ManufacturingService],
+  providers: [ManufacturingService, MrpService],
+  exports: [ManufacturingService, MrpService],
 })
 export class ManufacturingModule {}

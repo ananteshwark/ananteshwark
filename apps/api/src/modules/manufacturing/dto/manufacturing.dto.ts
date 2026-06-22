@@ -56,3 +56,41 @@ export class IssueMaterialDto {
   @ApiPropertyOptional() @IsOptional() @IsString() uom?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() issuedDate?: string;
 }
+
+// ─── Phase 46: Routing & Capacity ───────────────────────────────
+export class RoutingOperationDto {
+  @ApiProperty() @IsInt() sequence: number;
+  @ApiProperty() @IsString() workCenterId: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() setupMinutes?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() runMinutesPerUnit?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() yieldPercent?: number;
+}
+
+export class CreateRoutingDto {
+  @ApiProperty() @IsString() itemId: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() version?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiProperty({ type: [RoutingOperationDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => RoutingOperationDto) operations: RoutingOperationDto[];
+}
+
+export class UpdateRoutingDto extends PartialType(CreateRoutingDto) {}
+
+// ─── Phase 47: MRP ──────────────────────────────────────────────
+export class RunMrpDto {
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) horizonDays?: number;
+}
+
+// ─── Phase 48: Production Order Costing ──────────────────────────
+export class ConfirmOperationDto {
+  @ApiPropertyOptional() @IsOptional() @IsInt() operationSequence?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() workCenterId?: string;
+  @ApiProperty() @IsNumber() confirmedQty: number;
+  @ApiProperty() @IsInt() actualMinutes: number;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() confirmationDate?: string;
+}
+
+export class SettleOrderDto {
+  @ApiPropertyOptional() @IsOptional() @IsDateString() settleDate?: string;
+}

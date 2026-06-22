@@ -30,6 +30,15 @@ export class ProductionOrder {
   @Column({ name: 'sales_order_id', type: 'uuid', nullable: true }) salesOrderId: string | null;
   @Column({ type: 'enum', enum: ProductionOrderStatus, default: ProductionOrderStatus.PLANNED }) status: ProductionOrderStatus;
   @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true }) journalEntryId: string | null;
+  // Costing (Phase 48)
+  @Column({ name: 'planned_material_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) plannedMaterialCost: number | null;
+  @Column({ name: 'planned_labor_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) plannedLaborCost: number | null;
+  @Column({ name: 'actual_material_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) actualMaterialCost: number | null;
+  @Column({ name: 'actual_labor_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) actualLaborCost: number | null;
+  @Column({ name: 'material_variance', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) materialVariance: number | null;
+  @Column({ name: 'labor_variance', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) laborVariance: number | null;
+  @Column({ name: 'wip_balance', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) wipBalance: number | null;
+  @Column({ name: 'cost_status', length: 20, default: 'OPEN' }) costStatus: string;
   @Column({ nullable: true }) notes: string | null;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

@@ -82,7 +82,7 @@ import { CrmPage } from './pages/crm';
 import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
-import { ManufacturingPage } from './pages/manufacturing';
+import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage } from './pages/manufacturing';
 import { QualityPage } from './pages/quality';
 import { MaintenancePage } from './pages/maintenance';
 import { BenefitsPage } from './pages/benefits';
@@ -202,6 +202,9 @@ export default function App() {
         <Route path="sales/atp" element={<ATPDashboardPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="manufacturing" element={<ManufacturingPage />} />
+        <Route path="manufacturing/routings" element={<RoutingsPage />} />
+        <Route path="manufacturing/mrp" element={<MrpPage />} />
+        <Route path="manufacturing/costing" element={<ProductionCostingPage />} />
         <Route path="quality" element={<QualityPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="benefits" element={<BenefitsPage />} />

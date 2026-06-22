@@ -28,6 +28,14 @@ export class Item {
   @Column({ name: 'is_active', default: true }) isActive: boolean;
   @Column({ name: 'valuation_method', length: 50, nullable: true, default: 'MOVING_AVERAGE' }) valuationMethod: string | null;
   @Column({ name: 'gl_inventory_account_id', type: 'uuid', nullable: true }) glInventoryAccountId: string | null;
+  // MRP planning attributes
+  @Column({ name: 'mrp_type', length: 50, nullable: true }) mrpType: string | null;
+  @Column({ name: 'safety_stock', type: 'numeric', precision: 18, scale: 4, nullable: true, transformer: decimalTransformer }) safetyStock: number | null;
+  @Column({ name: 'reorder_point', type: 'numeric', precision: 18, scale: 4, nullable: true, transformer: decimalTransformer }) reorderPoint: number | null;
+  @Column({ name: 'lot_size', length: 50, nullable: true }) lotSize: string | null;
+  @Column({ name: 'fixed_lot_size', type: 'numeric', precision: 18, scale: 4, nullable: true, transformer: decimalTransformer }) fixedLotSize: number | null;
+  @Column({ name: 'planned_delivery_days', type: 'int', nullable: true }) plannedDeliveryDays: number | null;
+  @Column({ name: 'procurement_type', length: 10, nullable: true }) procurementType: string | null;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

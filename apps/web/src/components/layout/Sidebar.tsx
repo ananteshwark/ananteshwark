@@ -38,7 +38,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   path?: string;
-  children?: { label: string; path: string }[];
+  children?: { label: string; path: string; end?: boolean }[];
   module?: string;
   superAdmin?: boolean;
 }
@@ -143,7 +143,17 @@ const navItems: NavItem[] = [
     ],
   },
   { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts', module: 'contracts' },
-  { label: 'Manufacturing', icon: <Package className="h-4 w-4" />, path: '/manufacturing', module: 'manufacturing' },
+  {
+    label: 'Manufacturing',
+    icon: <Package className="h-4 w-4" />,
+    module: 'manufacturing',
+    children: [
+      { label: 'Overview', path: '/manufacturing', end: true },
+      { label: 'Routings', path: '/manufacturing/routings' },
+      { label: 'MRP', path: '/manufacturing/mrp' },
+      { label: 'Costing', path: '/manufacturing/costing' },
+    ],
+  },
   { label: 'Quality', icon: <ClipboardCheck className="h-4 w-4" />, path: '/quality', module: 'quality' },
   { label: 'Maintenance', icon: <Wrench className="h-4 w-4" />, path: '/maintenance', module: 'maintenance' },
   { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits', module: 'benefits' },
@@ -266,6 +276,7 @@ export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
                       <NavLink
                         key={child.path}
                         to={child.path}
+                        end={child.end}
                         className={({ isActive }) =>
                           clsx(
                             'block px-3 py-1.5 rounded-lg text-sm transition-colors',
