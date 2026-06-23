@@ -39,6 +39,10 @@ export class PurchaseOrder {
   @Column({ name: 'requisition_id', type: 'uuid', nullable: true })
   requisitionId: string | null;
 
+  // Phase 32: optional link to a framework / outline agreement
+  @Column({ name: 'outline_agreement_id', type: 'uuid', nullable: true })
+  outlineAgreementId: string | null;
+
   @Column({ name: 'vendor_id', type: 'varchar' })
   vendorId: string;
 

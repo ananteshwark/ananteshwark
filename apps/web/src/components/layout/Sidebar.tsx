@@ -111,6 +111,7 @@ const navItems: NavItem[] = [
       { label: 'Service Entries', path: '/procurement/service-entries' },
       { label: 'Returns to Vendor', path: '/procurement/returns' },
       { label: 'Tolerance Settings', path: '/procurement/tolerance' },
+      { label: 'Outline Agreements', path: '/procurement/outline-agreements' },
       { label: 'Settings', path: '/procurement/settings' },
     ],
   },

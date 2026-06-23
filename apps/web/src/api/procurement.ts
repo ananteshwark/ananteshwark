@@ -94,6 +94,16 @@ export const procurementApi = {
   getPurchaseReturn: (id: string) => apiClient.get(`/procurement/returns/${id}`),
   createPurchaseReturn: (data: any) => apiClient.post('/procurement/returns', data),
   postPurchaseReturn: (id: string) => apiClient.post(`/procurement/returns/${id}/post`),
+
+  // Outline Agreements / Framework Contracts (Phase 32)
+  getOutlineAgreements: (params?: any) => apiClient.get('/procurement/outline-agreements', { params }),
+  getOutlineAgreement: (id: string) => apiClient.get(`/procurement/outline-agreements/${id}`),
+  getOutlineAgreementUtilization: (id: string) => apiClient.get(`/procurement/outline-agreements/${id}/utilization`),
+  createOutlineAgreement: (data: any) => apiClient.post('/procurement/outline-agreements', data),
+  updateOutlineAgreement: (id: string, data: any) => apiClient.patch(`/procurement/outline-agreements/${id}`, data),
+  activateOutlineAgreement: (id: string) => apiClient.post(`/procurement/outline-agreements/${id}/activate`),
+  closeOutlineAgreement: (id: string) => apiClient.post(`/procurement/outline-agreements/${id}/close`),
+  recordOutlineAgreementRelease: (id: string, data: any) => apiClient.post(`/procurement/outline-agreements/${id}/record-release`, data),
 };
 
 // Vendor Portal API — isolated axios instance so the tenant auth/tenant-header

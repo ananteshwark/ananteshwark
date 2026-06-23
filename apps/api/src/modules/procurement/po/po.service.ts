@@ -13,6 +13,8 @@ import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/paginat
 import { DoaService } from '../doa/doa.service';
 import { InfoRecordService } from '../info-record/info-record.service';
 import { BudgetService } from '../../finance/budget/budget.service';
+import { OutlineAgreementService } from '../outline-agreement/outline-agreement.service';
+import { OutlineAgreementType } from '../outline-agreement/entities/outline-agreement.entity';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -25,6 +27,7 @@ export class PoService {
     private readonly doaService: DoaService,
     private readonly infoRecordService: InfoRecordService,
     private readonly budgetService: BudgetService,
+    private readonly outlineAgreementService: OutlineAgreementService,
   ) {}
 
   /**
@@ -123,6 +126,7 @@ export class PoService {
       poNumber,
       rfqId: dto.rfqId || null,
       requisitionId: dto.requisitionId || null,
+      outlineAgreementId: dto.outlineAgreementId || null,
       vendorId: dto.vendorId,
       vendorName: dto.vendorName,
       poDate: dto.poDate,
@@ -140,6 +144,24 @@ export class PoService {
     const result = await this.findOne(tenantId, saved.id);
     const budgetWarning = await this.buildBudgetWarning(tenantId, dto);
     if (budgetWarning) result.budgetWarning = budgetWarning;
+
+    // Phase 32: record a release against a linked outline agreement (best-effort).
+    if (dto.outlineAgreementId) {
+      try {
+        const agreement = await this.outlineAgreementService.findOne(tenantId, dto.outlineAgreementId);
+        if (agreement.type === OutlineAgreementType.QUANTITY_CONTRACT) {
+          const qty = round2(pricedLines.reduce((sum, l) => sum + (l.quantity || 0), 0));
+          const rel = await this.outlineAgreementService.recordRelease(tenantId, agreement.id, { quantity: qty });
+          if (rel.overReleased) result.outlineAgreementWarning = { overReleased: true, agreementId: agreement.id };
+        } else {
+          const rel = await this.outlineAgreementService.recordRelease(tenantId, agreement.id, { value: total });
+          if (rel.overReleased) result.outlineAgreementWarning = { overReleased: true, agreementId: agreement.id };
+        }
+      } catch {
+        // ignore — agreement linkage is advisory and must never block PO creation
+      }
+    }
+
     return result;
   }
 

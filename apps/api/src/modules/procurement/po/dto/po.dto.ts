@@ -81,6 +81,11 @@ export class CreatePoDto {
   @IsUUID()
   requisitionId?: string;
 
+  @ApiPropertyOptional({ description: 'Optional link to an outline / framework agreement (Phase 32)' })
+  @IsOptional()
+  @IsUUID()
+  outlineAgreementId?: string;
+
   @ApiProperty()
   @IsString()
   vendorId: string;
