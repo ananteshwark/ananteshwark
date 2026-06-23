@@ -245,7 +245,7 @@ container loses nothing — just re-clone and continue.
   - Return reason codes: defective, wrong item, not needed
   - Customer debit note for pricing disputes
 
-- [ ] **Phase 45 — Delivery Processing** `P2`
+- [x] **Phase 45 — Delivery Processing** `P2`
   - `DeliveryOrder` entity: created from sales order, delivery lines, picking status
   - Picking: allocate specific lot/bin to delivery line
   - Packing: pack lines into shipment packages
