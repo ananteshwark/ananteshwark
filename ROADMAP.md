@@ -238,7 +238,7 @@ container loses nothing — just re-clone and continue.
   - Partial delivery: confirm available qty, backorder remainder
   - ATP dashboard: item-wise stock vs committed vs available
 
-- [ ] **Phase 44 — Returns & Credit Memos (AR)** `P2`
+- [x] **Phase 44 — Returns & Credit Memos (AR)** `P2`
   - `ReturnOrder` entity: references original sales order, return lines, reason
   - On goods receipt of return: inventory increases, creates credit memo request
   - `CreditNote` entity: reduces customer AR balance
