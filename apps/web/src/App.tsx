@@ -97,7 +97,7 @@ import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage } from 
 import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/quality';
 import { MaintenancePage, FunctionalLocationsPage, CounterReadingsPage } from './pages/maintenance';
 import { BenefitsPage } from './pages/benefits';
-import { AnalyticsPage } from './pages/analytics';
+import { AnalyticsPage, CrossAnalyticsPage } from './pages/analytics';
 import { PlatformPage } from './pages/platform';
 import { LicensingPage } from './pages/licensing';
 import { TenantsPage } from './pages/admin';
@@ -240,6 +240,7 @@ export default function App() {
         <Route path="maintenance/counter-readings" element={<CounterReadingsPage />} />
         <Route path="benefits" element={<BenefitsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="analytics/cross" element={<CrossAnalyticsPage />} />
         <Route path="platform" element={<PlatformPage />} />
         <Route path="licensing" element={<LicensingPage />} />
         <Route path="admin/tenants" element={<SuperAdminRoute><TenantsPage /></SuperAdminRoute>} />

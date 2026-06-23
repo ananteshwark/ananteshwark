@@ -198,7 +198,15 @@ const navItems: NavItem[] = [
     ],
   },
   { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits', module: 'benefits' },
-  { label: 'Analytics', icon: <BarChart2 className="h-4 w-4" />, path: '/analytics', module: 'analytics' },
+  {
+    label: 'Analytics',
+    icon: <BarChart2 className="h-4 w-4" />,
+    module: 'analytics',
+    children: [
+      { label: 'Overview', path: '/analytics', end: true },
+      { label: 'Cross-Module KPIs', path: '/analytics/cross' },
+    ],
+  },
   { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform', module: 'platform' },
   { label: 'Licensing', icon: <Key className="h-4 w-4" />, path: '/licensing', module: 'licensing' },
   { label: 'Tenant Management', icon: <Building2 className="h-4 w-4" />, path: '/admin/tenants', superAdmin: true },
