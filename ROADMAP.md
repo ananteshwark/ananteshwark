@@ -328,7 +328,7 @@ container loses nothing — just re-clone and continue.
   - Minority interest calculation
   - Consolidation journal entries for adjustments
 
-- [ ] **Phase 53 — Cross-Module Embedded Analytics** `P2`
+- [x] **Phase 53 — Cross-Module Embedded Analytics** `P2`
   - Hire-to-Retire metrics: time-to-hire, cost-per-hire, attrition rate, tenure distribution
   - Procure-to-Pay metrics: PO cycle time, vendor payment aging, savings vs last price
   - Order-to-Cash metrics: order fill rate, DSO, invoice aging, collection effectiveness index
