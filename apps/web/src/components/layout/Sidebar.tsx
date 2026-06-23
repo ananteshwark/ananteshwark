@@ -161,6 +161,7 @@ const navItems: NavItem[] = [
       { label: 'Pricing', path: '/sales/pricing' },
       { label: 'Credit Management', path: '/sales/credit' },
       { label: 'ATP Dashboard', path: '/sales/atp' },
+      { label: 'Returns & Credit Notes', path: '/sales/returns' },
     ],
   },
   { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts', module: 'contracts' },
