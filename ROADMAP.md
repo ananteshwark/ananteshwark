@@ -157,7 +157,7 @@ container loses nothing — just re-clone and continue.
   - On approval: GRN-equivalent posting to GR/IR for services
   - Link to vendor invoice for 3-way match
 
-- [ ] **Phase 34 — Invoice Tolerance + Matching Controls** `P2`
+- [x] **Phase 34 — Invoice Tolerance + Matching Controls** `P2`
   - Tolerance keys: price variance %, quantity variance %, configurable per vendor/item category
   - Auto-post if within tolerance; flag for manual review if outside
   - Two-way match (PO → invoice, no GRN) and three-way match (PO → GRN → invoice) per item/PO type
