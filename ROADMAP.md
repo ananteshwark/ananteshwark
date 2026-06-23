@@ -404,7 +404,7 @@ container loses nothing — just re-clone and continue.
   - Custom fields appear in forms, list views (optional column), and exports
   - Available in report builder as filterable/sortable columns
 
-- [ ] **Phase 61 — Intercompany Transactions** `P2`
+- [x] **Phase 61 — Intercompany Transactions** `P2`
   - `IntercompanyRelationship` entity: entity A, entity B, markupPercent, eliminationGLAccount
   - IC sales: legal entity A invoices entity B → auto-creates corresponding bill in entity B's books
   - IC elimination: consolidated run removes IC balances
