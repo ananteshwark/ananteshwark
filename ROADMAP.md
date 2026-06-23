@@ -144,7 +144,7 @@ container loses nothing — just re-clone and continue.
   - Info record update on PO invoice match (actual price paid)
   - Info record list/search page
 
-- [ ] **Phase 32 — Outline Agreements (Framework Contracts)** `P2`
+- [x] **Phase 32 — Outline Agreements (Framework Contracts)** `P2`
   - `OutlineAgreement` entity: vendor, type (VALUE_CONTRACT/QTY_CONTRACT/SCHEDULING_AGREEMENT), value/qty limit, validity
   - Release orders against framework: PO references agreement, reduces available amount
   - Agreement utilization report: released vs total
