@@ -83,6 +83,7 @@ const navItems: NavItem[] = [
       { label: 'Payment Run', path: '/finance/payment-runs' },
       { label: 'Advances', path: '/finance/advances' },
       { label: 'Budget vs Actual', path: '/finance/budget' },
+      { label: 'Intercompany', path: '/finance/intercompany' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

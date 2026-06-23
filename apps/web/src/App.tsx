@@ -36,6 +36,7 @@ import {
   BankImportPage,
   PaymentRunPage,
   AdvancesPage,
+  IntercompanyPage,
   BudgetVsActualPage,
 } from './pages/finance';
 import {
@@ -185,6 +186,7 @@ export default function App() {
         <Route path="finance/payment-runs" element={<PaymentRunPage />} />
         <Route path="finance/advances" element={<AdvancesPage />} />
         <Route path="finance/budget" element={<BudgetVsActualPage />} />
+        <Route path="finance/intercompany" element={<IntercompanyPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />
