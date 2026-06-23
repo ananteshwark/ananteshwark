@@ -71,6 +71,7 @@ import {
   InfoRecordsPage,
   ServiceEntrySheetPage,
   PurchaseReturnsPage,
+  ToleranceSettingsPage,
 } from './pages/procurement';
 import VendorLoginPage from './pages/vendor/VendorLoginPage';
 import VendorPortalPage from './pages/vendor/VendorPortalPage';
@@ -201,6 +202,7 @@ export default function App() {
         <Route path="procurement/info-records" element={<InfoRecordsPage />} />
         <Route path="procurement/service-entries" element={<ServiceEntrySheetPage />} />
         <Route path="procurement/returns" element={<PurchaseReturnsPage />} />
+        <Route path="procurement/tolerance" element={<ToleranceSettingsPage />} />
         <Route path="talent/hiring" element={<HiringPage />} />
         <Route path="talent/ats" element={<AtsPage />} />
         <Route path="talent/onboarding" element={<TalentOnboardingPage />} />

@@ -10,6 +10,7 @@ import {
   ArrayMinSize,
   Min,
   IsInt,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -124,6 +125,42 @@ export class ApproveInvoiceDto {
   @IsOptional()
   @IsString()
   userId?: string;
+}
+
+// ─── Phase 34: Tolerance & blocked-invoice controls ───
+export class SaveTolerancePolicyDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ default: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pricePercentTolerance?: number;
+
+  @ApiPropertyOptional({ default: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  qtyPercentTolerance?: number;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  autoPostWithinTolerance?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class OverrideBlockDto {
+  @ApiProperty()
+  @IsString()
+  note: string;
 }
 
 export class ListInvoicesQueryDto {

@@ -28,6 +28,7 @@ export enum MatchStatus {
   NOT_MATCHED = 'NOT_MATCHED',
   MATCHED = 'MATCHED',
   DISCREPANCY = 'DISCREPANCY',
+  BLOCKED = 'BLOCKED',
 }
 
 @Entity('proc_vendor_invoices')
@@ -110,6 +111,33 @@ export class VendorInvoice {
 
   @Column({ name: 'match_details', type: 'jsonb', nullable: true })
   matchDetails: Record<string, any> | null;
+
+  // ─── Phase 34: Tolerance & blocked-invoice controls (additive) ───
+  @Column({
+    name: 'price_variance',
+    type: 'numeric',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  priceVariance: number | null;
+
+  @Column({
+    name: 'qty_variance',
+    type: 'numeric',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  qtyVariance: number | null;
+
+  @Column({ name: 'block_reason', type: 'text', nullable: true })
+  blockReason: string | null;
+
+  @Column({ name: 'block_override_note', type: 'text', nullable: true })
+  blockOverrideNote: string | null;
 
   @Column({ type: 'enum', enum: InvoiceSource, default: InvoiceSource.MANUAL })
   source: InvoiceSource;

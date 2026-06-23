@@ -68,6 +68,12 @@ export const procurementApi = {
   rejectVendorInvoice: (id: string, data: any) => apiClient.post(`/procurement/vendor-invoices/${id}/reject`, data),
   recordInvoicePayment: (id: string, data: any) => apiClient.post(`/procurement/vendor-invoices/${id}/payment`, data),
 
+  // Invoice Tolerance Controls (Phase 34)
+  getTolerancePolicy: () => apiClient.get('/procurement/vendor-invoices/tolerance-policy'),
+  saveTolerancePolicy: (data: any) => apiClient.post('/procurement/vendor-invoices/tolerance-policy', data),
+  getBlockedInvoices: () => apiClient.get('/procurement/vendor-invoices/blocked'),
+  overrideInvoiceBlock: (id: string, note: string) => apiClient.post(`/procurement/vendor-invoices/${id}/override-block`, { note }),
+
   // Purchasing Info Records (Phase 31)
   getInfoRecords: (params?: any) => apiClient.get('/procurement/info-records', { params }),
   getInfoRecord: (id: string) => apiClient.get(`/procurement/info-records/${id}`),

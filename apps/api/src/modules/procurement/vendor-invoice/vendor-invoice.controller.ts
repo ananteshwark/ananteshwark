@@ -14,6 +14,8 @@ import {
   RecordPaymentDto,
   RejectInvoiceDto,
   ListInvoicesQueryDto,
+  SaveTolerancePolicyDto,
+  OverrideBlockDto,
 } from './dto/vendor-invoice.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
@@ -35,6 +37,27 @@ export class VendorInvoiceController {
   @ApiQuery({ name: 'status', required: false })
   list(@CurrentUser() user: any, @Query() query: ListInvoicesQueryDto) {
     return this.service.listInvoices(user.tenantId, query);
+  }
+
+  @Get('tolerance-policy')
+  @RequirePermission('procurement:grn:read')
+  @ApiOperation({ summary: 'Get the tenant tolerance policy' })
+  getTolerancePolicy(@CurrentUser() user: any) {
+    return this.service.getPolicy(user.tenantId);
+  }
+
+  @Get('blocked')
+  @RequirePermission('procurement:grn:read')
+  @ApiOperation({ summary: 'List invoices blocked by tolerance breach' })
+  getBlocked(@CurrentUser() user: any) {
+    return this.service.getBlockedInvoices(user.tenantId);
+  }
+
+  @Post('tolerance-policy')
+  @RequirePermission('procurement:grn:create')
+  @ApiOperation({ summary: 'Create/update the tenant tolerance policy' })
+  saveTolerancePolicy(@CurrentUser() user: any, @Body() dto: SaveTolerancePolicyDto) {
+    return this.service.savePolicy(user.tenantId, dto);
   }
 
   @Get(':id')
@@ -95,5 +118,16 @@ export class VendorInvoiceController {
     @Body() dto: RecordPaymentDto,
   ) {
     return this.service.recordPayment(user.tenantId, id, dto.amount);
+  }
+
+  @Post(':id/override-block')
+  @RequirePermission('procurement:grn:create')
+  @ApiOperation({ summary: 'Manually clear a tolerance block so the invoice can post' })
+  overrideBlock(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: OverrideBlockDto,
+  ) {
+    return this.service.overrideBlock(user.tenantId, id, dto.note);
   }
 }

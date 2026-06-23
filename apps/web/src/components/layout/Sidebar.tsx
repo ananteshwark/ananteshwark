@@ -110,6 +110,7 @@ const navItems: NavItem[] = [
       { label: 'Info Records', path: '/procurement/info-records' },
       { label: 'Service Entries', path: '/procurement/service-entries' },
       { label: 'Returns to Vendor', path: '/procurement/returns' },
+      { label: 'Tolerance Settings', path: '/procurement/tolerance' },
       { label: 'Settings', path: '/procurement/settings' },
     ],
   },

@@ -7,3 +7,4 @@ export { ProcurementSettingsPage } from './ProcurementSettingsPage';
 export { default as InfoRecordsPage } from './InfoRecordsPage';
 export { default as ServiceEntrySheetPage } from './ServiceEntrySheetPage';
 export { default as PurchaseReturnsPage } from './PurchaseReturnsPage';
+export { default as ToleranceSettingsPage } from './ToleranceSettingsPage';
