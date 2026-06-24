@@ -320,7 +320,7 @@ container loses nothing — just re-clone and continue.
   - Budget revision workflow: change request → approval → updated budget
   - Budget carry-forward at year end
 
-- [ ] **Phase 52 — Financial Consolidation** `P2`
+- [x] **Phase 52 — Financial Consolidation** `P2`
   - `ConsolidationGroup` entity: parent entity, subsidiaries, elimination rules
   - Intercompany elimination: IC receivable vs IC payable automatic offset
   - Currency translation: translate subsidiary P&L at average rate, balance sheet at closing rate
