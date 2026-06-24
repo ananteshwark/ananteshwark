@@ -35,6 +35,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { LanguageSelector } from '../i18n/LanguageSelector';
 
 interface NavItem {
   label: string;
@@ -375,6 +376,11 @@ export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
           );
         })}
       </nav>
+
+      {/* Language selector at bottom */}
+      <div className="border-t border-gray-700 px-3 py-3">
+        <LanguageSelector compact={collapsed} />
+      </div>
     </div>
   );
 };

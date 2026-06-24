@@ -1,0 +1,128 @@
+{
+  "common": {
+    "search": "Rechercher...",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "submit": "Soumettre",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "yes": "Oui",
+    "no": "Non",
+    "all": "Tout",
+    "none": "Aucun",
+    "noData": "Aucune donnée trouvée",
+    "error": "Une erreur s'est produite",
+    "success": "Opération réussie",
+    "required": "Ce champ est obligatoire",
+    "actions": "Actions"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "users": "Utilisateurs",
+    "roles": "Rôles et permissions",
+    "workflows": "Flux de travail",
+    "notifications": "Notifications",
+    "audit": "Journal d'audit",
+    "settings": "Paramètres",
+    "hr": "RH",
+    "finance": "Finance",
+    "payroll": "Paie",
+    "procurement": "Achats"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "register": "Créer un compte",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "rememberMe": "Se souvenir de moi",
+    "noAccount": "Pas de compte ?",
+    "hasAccount": "Vous avez déjà un compte ?",
+    "welcomeBack": "Bon retour",
+    "signInSubtitle": "Connectez-vous à votre compte ERP"
+  },
+  "users": {
+    "title": "Utilisateurs",
+    "description": "Gérer les utilisateurs et leurs accès",
+    "invite": "Inviter un utilisateur",
+    "name": "Nom",
+    "email": "E-mail",
+    "role": "Rôle",
+    "status": "Statut",
+    "lastLogin": "Dernière connexion",
+    "joined": "Inscrit le",
+    "deactivate": "Désactiver",
+    "resendInvite": "Renvoyer l'invitation",
+    "noUsers": "Aucun utilisateur trouvé",
+    "inviteDescription": "Invitez vos collaborateurs à rejoindre votre organisation"
+  },
+  "roles": {
+    "title": "Rôles et permissions",
+    "create": "Créer un rôle",
+    "name": "Nom du rôle",
+    "description": "Description",
+    "permissions": "Permissions",
+    "systemRole": "Rôle système",
+    "noRoles": "Aucun rôle trouvé"
+  },
+  "workflow": {
+    "title": "Flux de travail",
+    "definitions": "Définitions",
+    "pending": "Approbations en attente",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "comment": "Commentaire",
+    "noPending": "Aucune approbation en attente",
+    "allCaughtUp": "Vous êtes à jour !"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "noNotifications": "Aucune notification",
+    "allCaughtUp": "Vous êtes à jour !"
+  },
+  "audit": {
+    "title": "Journal d'audit",
+    "description": "Registre immuable de toutes les actions système",
+    "user": "Utilisateur",
+    "action": "Action",
+    "resource": "Ressource",
+    "timestamp": "Horodatage",
+    "noLogs": "Aucun journal d'audit trouvé"
+  },
+  "settings": {
+    "general": "Paramètres généraux",
+    "modules": "Paramètres des modules",
+    "branding": "Identité visuelle",
+    "primaryColor": "Couleur principale",
+    "logoUrl": "URL du logo",
+    "companyInfo": "Informations de l'entreprise"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bonjour",
+    "totalUsers": "Total utilisateurs",
+    "pendingApprovals": "Approbations en attente",
+    "unreadNotifications": "Notifications non lues",
+    "systemStatus": "État du système",
+    "quickActions": "Actions rapides",
+    "myPendingApprovals": "Mes approbations en attente"
+  },
+  "onboarding": {
+    "title": "Configurer votre ERP",
+    "subtitle": "Quelques étapes pour démarrer",
+    "companyInfo": "Informations de l'entreprise",
+    "fiscalYear": "Exercice fiscal et devise",
+    "modules": "Sélectionner les modules",
+    "adminAccount": "Compte administrateur",
+    "done": "Terminé",
+    "ready": "Votre ERP est prêt !"
+  }
+}
