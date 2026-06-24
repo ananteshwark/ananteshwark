@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ProfitCenter } from './entities/profit-center.entity';
 import { CostAllocationCycle, AllocationCycleStatus } from './entities/cost-allocation-cycle.entity';
 import { CostAllocationEntry } from './entities/cost-allocation-entry.entity';
+import { InternalOrder, InternalOrderStatus } from './entities/internal-order.entity';
 import { GlService, PostJournalEntryInput } from '../gl/gl.service';
 import { CostCenter } from '../gl/entities/cost-center.entity';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
@@ -19,7 +20,10 @@ export class ControllingService {
     private readonly entryRepo: Repository<CostAllocationEntry>,
     @InjectRepository(CostCenter)
     private readonly costCenterRepo: Repository<CostCenter>,
+    @InjectRepository(InternalOrder)
+    private readonly internalOrderRepo: Repository<InternalOrder>,
     private readonly glService: GlService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ─── Profit Centers ────────────────────────────────────────────────────────
@@ -206,6 +210,160 @@ export class ControllingService {
         };
       }),
     );
+  }
+
+  // ─── Internal Orders ──────────────────────────────────────────────────────
+
+  private async nextOrderNumber(tenantId: string): Promise<string> {
+    const count = await this.internalOrderRepo.count({ where: { tenantId } });
+    return `IO-${String(count + 1).padStart(6, '0')}`;
+  }
+
+  async createInternalOrder(tenantId: string, dto: any): Promise<InternalOrder> {
+    const orderNumber = dto.orderNumber ?? await this.nextOrderNumber(tenantId);
+    const order = this.internalOrderRepo.create({ ...dto, tenantId, orderNumber } as any);
+    return (this.internalOrderRepo.save(order) as unknown) as Promise<InternalOrder>;
+  }
+
+  async listInternalOrders(tenantId: string): Promise<InternalOrder[]> {
+    return this.internalOrderRepo.find({ where: { tenantId }, order: { orderNumber: 'ASC' } });
+  }
+
+  async getInternalOrder(tenantId: string, id: string): Promise<InternalOrder> {
+    const order = await this.internalOrderRepo.findOne({ where: { id, tenantId } });
+    if (!order) throw new NotFoundException(`Internal order ${id} not found`);
+    return order;
+  }
+
+  async updateInternalOrder(tenantId: string, id: string, dto: any): Promise<InternalOrder> {
+    const order = await this.getInternalOrder(tenantId, id);
+    Object.assign(order, dto);
+    return this.internalOrderRepo.save(order);
+  }
+
+  async releaseInternalOrder(tenantId: string, id: string): Promise<InternalOrder> {
+    const order = await this.getInternalOrder(tenantId, id);
+    if (order.status !== InternalOrderStatus.OPEN) {
+      throw new BadRequestException('Only OPEN orders can be released');
+    }
+    order.status = InternalOrderStatus.RELEASED;
+    return this.internalOrderRepo.save(order);
+  }
+
+  async getInternalOrderActuals(tenantId: string, id: string): Promise<any> {
+    const order = await this.getInternalOrder(tenantId, id);
+    const rows = await this.dataSource.query(
+      `SELECT l.account_id, SUM(l.debit) AS total_debit, SUM(l.credit) AS total_credit
+       FROM fin_journal_lines l
+       JOIN fin_journal_entries e ON e.id = l.journal_entry_id
+       WHERE e.tenant_id = $1 AND e.status = 'POSTED' AND l.internal_order_id = $2
+       GROUP BY l.account_id`,
+      [tenantId, id],
+    );
+    const totalDebit: number = rows.reduce((s: number, r: any) => s + Number(r.total_debit), 0);
+    const totalCredit: number = rows.reduce((s: number, r: any) => s + Number(r.total_credit), 0);
+    const netCost = totalDebit - totalCredit;
+    order.actualCost = netCost;
+    await this.internalOrderRepo.save(order);
+    return { order, rows, netCost };
+  }
+
+  async settleInternalOrder(tenantId: string, id: string, userId?: string): Promise<any> {
+    const order = await this.getInternalOrder(tenantId, id);
+    if (order.status === InternalOrderStatus.CLOSED) {
+      throw new BadRequestException('Order is already closed');
+    }
+    if (!order.settlementAccountId) {
+      throw new BadRequestException('settlementAccountId must be set before settlement');
+    }
+
+    const actualsResult = await this.getInternalOrderActuals(tenantId, id);
+    const netCost = actualsResult.netCost;
+
+    if (Math.abs(netCost) > 0.001) {
+      const lines: PostJournalEntryInput['lines'] = [
+        {
+          accountId: order.settlementAccountId,
+          costCenterId: order.settlementCostCenterId ?? null,
+          debit: netCost > 0 ? netCost : 0,
+          credit: netCost < 0 ? Math.abs(netCost) : 0,
+          description: `Settlement — ${order.orderNumber}`,
+        },
+        {
+          accountId: order.settlementAccountId,
+          costCenterId: order.responsibleCostCenterId ?? null,
+          debit: netCost < 0 ? Math.abs(netCost) : 0,
+          credit: netCost > 0 ? netCost : 0,
+          description: `Settlement clearing — ${order.orderNumber}`,
+        },
+      ];
+      await this.glService.postJournalEntry(
+        tenantId,
+        {
+          date: new Date().toISOString().split('T')[0],
+          description: `Internal Order Settlement: ${order.name} (${order.orderNumber})`,
+          reference: `IO-SETTLE-${id.slice(0, 8)}`,
+          source: JournalSource.SYSTEM,
+          lines,
+        },
+        userId ?? null,
+      );
+    }
+
+    order.status = InternalOrderStatus.TECHNICALLY_CLOSED;
+    return this.internalOrderRepo.save(order);
+  }
+
+  // ─── CO-PA Report ─────────────────────────────────────────────────────────
+
+  async copaReport(
+    tenantId: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<any[]> {
+    const rows = await this.dataSource.query(
+      `SELECT
+         l.profit_center_id,
+         a.type AS account_type,
+         SUM(l.debit)  AS total_debit,
+         SUM(l.credit) AS total_credit
+       FROM fin_journal_lines l
+       JOIN fin_journal_entries e ON e.id = l.journal_entry_id
+       JOIN fin_accounts a ON a.id = l.account_id
+       WHERE e.tenant_id = $1
+         AND e.status = 'POSTED'
+         AND e.date BETWEEN $2 AND $3
+       GROUP BY l.profit_center_id, a.type
+       ORDER BY l.profit_center_id NULLS LAST`,
+      [tenantId, fromDate, toDate],
+    );
+
+    const profitCenters = await this.profitCenterRepo.find({ where: { tenantId } });
+    const pcMap = new Map(profitCenters.map(pc => [pc.id, pc]));
+
+    const grouped = new Map<string, any>();
+    for (const row of rows) {
+      const key = row.profit_center_id ?? 'unassigned';
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          profitCenterId: row.profit_center_id,
+          profitCenterName: pcMap.get(row.profit_center_id)?.name ?? '(Unassigned)',
+          revenue: 0,
+          expenses: 0,
+          grossProfit: 0,
+        });
+      }
+      const entry = grouped.get(key);
+      const net = Number(row.total_credit) - Number(row.total_debit);
+      if (['INCOME', 'REVENUE'].includes(row.account_type)) {
+        entry.revenue += net;
+      } else if (['EXPENSE', 'COGS'].includes(row.account_type)) {
+        entry.expenses += Math.abs(net);
+      }
+      entry.grossProfit = entry.revenue - entry.expenses;
+    }
+
+    return Array.from(grouped.values());
   }
 
   // ─── Profit Center P&L ─────────────────────────────────────────────────────

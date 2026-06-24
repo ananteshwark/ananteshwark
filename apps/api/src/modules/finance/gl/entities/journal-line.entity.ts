@@ -51,4 +51,7 @@ export class JournalLine {
 
   @Column({ name: 'profit_center_id', type: 'uuid', nullable: true })
   profitCenterId: string | null;
+
+  @Column({ name: 'internal_order_id', type: 'uuid', nullable: true })
+  internalOrderId: string | null;
 }

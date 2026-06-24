@@ -45,6 +45,7 @@ import {
   AdvancesPage,
   IntercompanyPage,
   BudgetVsActualPage,
+  InternalOrdersPage,
 } from './pages/finance';
 import ConsolidationPage from './pages/finance/ConsolidationPage';
 import {
@@ -198,6 +199,7 @@ export default function App() {
         <Route path="finance/grir" element={<GrirPage />} />
         <Route path="finance/cost-center-report" element={<CostCenterReportPage />} />
         <Route path="finance/profit-centers" element={<ProfitCentersPage />} />
+        <Route path="finance/internal-orders" element={<InternalOrdersPage />} />
         <Route path="finance/bank-import" element={<BankImportPage />} />
         <Route path="finance/payment-runs" element={<PaymentRunPage />} />
         <Route path="finance/advances" element={<AdvancesPage />} />

@@ -92,4 +92,68 @@ export class ControllingController {
   costCenterReport(@CurrentUser() user: any, @Query('period') period: string) {
     return this.controllingService.costCenterReport(user.tenantId, period);
   }
+
+  // ─── Internal Orders ────────────────────────────────────────────────────
+
+  @Get('internal-orders')
+  @ApiOperation({ summary: 'List internal orders' })
+  listInternalOrders(@CurrentUser() user: any) {
+    return this.controllingService.listInternalOrders(user.tenantId);
+  }
+
+  @Get('internal-orders/:id')
+  @ApiOperation({ summary: 'Get internal order' })
+  getInternalOrder(@CurrentUser() user: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.controllingService.getInternalOrder(user.tenantId, id);
+  }
+
+  @Post('internal-orders')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Create internal order' })
+  createInternalOrder(@CurrentUser() user: any, @Body() dto: any) {
+    return this.controllingService.createInternalOrder(user.tenantId, dto);
+  }
+
+  @Patch('internal-orders/:id')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Update internal order' })
+  updateInternalOrder(
+    @CurrentUser() user: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.controllingService.updateInternalOrder(user.tenantId, id, dto);
+  }
+
+  @Post('internal-orders/:id/release')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Release internal order' })
+  releaseInternalOrder(@CurrentUser() user: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.controllingService.releaseInternalOrder(user.tenantId, id);
+  }
+
+  @Get('internal-orders/:id/actuals')
+  @ApiOperation({ summary: 'Get actual costs posted to internal order' })
+  getInternalOrderActuals(@CurrentUser() user: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.controllingService.getInternalOrderActuals(user.tenantId, id);
+  }
+
+  @Post('internal-orders/:id/settle')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Settle internal order — post costs to settlement cost center/account' })
+  settleInternalOrder(@CurrentUser() user: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.controllingService.settleInternalOrder(user.tenantId, id, user.id);
+  }
+
+  // ─── CO-PA Report ────────────────────────────────────────────────────────
+
+  @Get('copa-report')
+  @ApiOperation({ summary: 'CO-PA profitability report grouped by profit center and account type' })
+  copaReport(
+    @CurrentUser() user: any,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.controllingService.copaReport(user.tenantId, from, to);
+  }
 }

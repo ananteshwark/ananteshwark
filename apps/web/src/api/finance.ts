@@ -81,6 +81,16 @@ export const financeApi = {
   getGlDetail: (params?: any) => apiClient.get('/finance/reports/gl-detail', { params }),
   getCashFlow: (params?: any) => apiClient.get('/finance/reports/cash-flow', { params }),
 
+  // Phase 74: Internal Orders + CO-PA
+  getInternalOrders: () => apiClient.get('/finance/controlling/internal-orders'),
+  getInternalOrder: (id: string) => apiClient.get(`/finance/controlling/internal-orders/${id}`),
+  createInternalOrder: (data: any) => apiClient.post('/finance/controlling/internal-orders', data),
+  updateInternalOrder: (id: string, data: any) => apiClient.patch(`/finance/controlling/internal-orders/${id}`, data),
+  releaseInternalOrder: (id: string) => apiClient.post(`/finance/controlling/internal-orders/${id}/release`),
+  getInternalOrderActuals: (id: string) => apiClient.get(`/finance/controlling/internal-orders/${id}/actuals`),
+  settleInternalOrder: (id: string) => apiClient.post(`/finance/controlling/internal-orders/${id}/settle`),
+  getCopaReport: (from: string, to: string) => apiClient.get('/finance/controlling/copa-report', { params: { from, to } }),
+
   // Phase 72: Document Splitting
   getSplittingRules: () => apiClient.get('/finance/splitting-rules'),
   createSplittingRule: (data: any) => apiClient.post('/finance/splitting-rules', data),

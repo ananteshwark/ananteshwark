@@ -15,3 +15,4 @@ export { default as PaymentRunPage } from './PaymentRunPage';
 export { default as AdvancesPage } from './AdvancesPage';
 export { default as BudgetVsActualPage } from './BudgetVsActualPage';
 export { default as IntercompanyPage } from './IntercompanyPage';
+export { default as InternalOrdersPage } from './InternalOrdersPage';
