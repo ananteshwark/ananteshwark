@@ -526,6 +526,198 @@ _Based on SAP-GAP-ANALYSIS.md — closing the gap between this ERP and SAP S/4HA
 
 ---
 
+## Phase 79–104 — SAP Gap Remediation (Round 2)
+
+_Derived from the v2 SAP-GAP-ANALYSIS.md evidence-based survey. Ordered by business-correctness impact._
+
+- [ ] **Phase 79 — Activity Types + Overhead Costing Sheet** `P1`
+  - Activity type master: code, unit (hours/cycles), planned/actual rate per cost center
+  - Activity price calculation: planned rate = planned cost / planned activity quantity
+  - Activity confirmation on production operations: confirm activity quantity, debit production order, credit cost center
+  - Overhead costing sheet: define base (material/labor cost), overhead %, overhead account; apply to production order on costing run
+  - CO-PA enrichment: populate activity-based contribution margin fields
+
+- [ ] **Phase 80 — Transactional GL for GR/IR + Production Order Settlement** `P1`
+  - Wrap GRN GL call in a database transaction — if GL fails the GRN fails (no silent loss)
+  - Wrap production order `completeOrder()` + `settleOrder()` GL calls transactionally
+  - Wrap service entry sheet approval GL call transactionally
+  - Add compensating-transaction reversal endpoint: if GL fails post-commit, expose a retry/reverse path
+  - Add reconciliation report: GRN/settlement rows with missing GL entry for ops alerting
+
+- [ ] **Phase 81 — Payroll Bank File Export** `P1`
+  - NEFT/RTGS flat-file format (India): header + transaction records per employee, batch total
+  - NACHA ACH format (US): 94-char fixed-width records, batch control, file control
+  - WPS SIF format (UAE): fixed-column salary information file
+  - Generic SEPA XML (EU/UK placeholder)
+  - Bank file run entity: associates payroll run → file format → generated file (DMS attachment)
+  - Re-generation endpoint; mark employees paid vs pending
+
+- [ ] **Phase 82 — Statutory Form Generation (W-2, 1099, WPS, EOSB)** `P1`
+  - US: W-2 generation per employee (boxes 1–20 from payroll year aggregates); 1099-NEC for contractors
+  - US: employer W-3 summary; SSA-format electronic submission XML
+  - UAE: WPS SIF file validation rules; EOSB settlement calculation with approval workflow
+  - India: existing Form 16 — verify completeness of Part A (TDS certificate) + Part B (income detail)
+  - PDF generation via existing PDF service; email dispatch to employees
+
+- [ ] **Phase 83 — Parallel Ledgers Complete** `P1`
+  - Ledger group entity: code, description, member ledgers (e.g. IFRS + LOCAL)
+  - Ledger-group-filtered financial reports: TB, P&L, BS per ledger
+  - Ledger group reconciliation matrix: cross-ledger difference report
+  - Posting rules: which transaction sources post to which ledger(s) (GL only vs all ledgers)
+  - Period-close cockpit: separate close checklist per ledger group
+
+- [ ] **Phase 84 — Source List + Quota Arrangement + Auto Source Determination** `P2`
+  - Source list: item → preferred vendor(s) with validity dates and fixed/blocked flags
+  - Quota arrangement: split demand across vendors by percentage per period
+  - Auto source determination: on PR approval, auto-propose vendor from source list / quota
+  - Integration: MRP-generated planned orders use source determination to pre-assign vendor on PO conversion
+  - UI: source list maintenance + quota planning screen
+
+- [ ] **Phase 85 — Tiered Cash Discounts + Early-Payment GL** `P2`
+  - Payment term tiers: e.g. 2% if paid within 10 days, 1% within 20 days, net 30
+  - Store tiers as JSONB array on `PaymentTerm` entity; compute discount on invoice due date vs payment date
+  - AP payment run: auto-apply discount if within window; post discount to cash discount account
+  - AR: record early-payment discount on receipt; post to discount expense/income GL account
+  - Report: cash discount utilization by vendor/customer
+
+- [ ] **Phase 86 — Intercompany Sales + Transfer Pricing** `P2`
+  - IC sales order type: mark SO as intercompany; link to IC relationship entity
+  - Transfer pricing: price determined by IC price list (cost-plus %, fixed, or market rate)
+  - Automatic IC billing: on SO invoice post, generate mirror AP bill in buying entity
+  - IC markup posting: revenue in selling entity, expense in buying entity, elimination on consolidation
+  - Extend consolidation module: IC sales/purchases elimination journal entries
+
+- [ ] **Phase 87 — PM Preventive Maintenance Auto-Scheduling** `P2`
+  - Scheduled job (Bull queue): runs daily, queries `getDuePlans()`, auto-creates maintenance orders
+  - Strategy plan entity: multi-counter decision (e.g. "whichever is earlier — 6 months or 500 hours")
+  - Reusable task list templates: separate entity; plans reference task list by ID
+  - MO auto-number + status GENERATED; notify assigned technician group
+  - Counter-based trigger: on `counter-reading.entity` insert, evaluate whether plan threshold crossed
+
+- [ ] **Phase 88 — PM Warranty + Refurbishment + MTBF/MTTR** `P2`
+  - Warranty master: equipment → warranty period, start date, expiry, coverage type, vendor
+  - Expiry alert: notify maintenance planner 30/60/90 days before expiry
+  - Refurbishment order type: special MO for overhaul; tracks parts consumed, serial-history before/after
+  - Equipment history log: each MO completion appends a history record (failure code, duration, cost)
+  - MTBF / MTTR analytics: calculated from history log per equipment / functional location
+
+- [ ] **Phase 89 — QM Vendor Quality Scoring + Quality Certificates + Calibration** `P2`
+  - Vendor quality score: weighted aggregate of lot acceptance rate, defect rate, on-time delivery
+  - Quality notification entity: formal issue raised against vendor with corrective action tracking
+  - Quality certificate (COC): incoming cert linked to GRN lot; outgoing cert for customer shipment
+  - Certificate template (PDF via existing service); attach to DMS
+  - Calibration instrument master: equipment tag, calibration interval, responsible lab
+  - Calibration due-date tracking: alerts; calibration result record with pass/fail
+
+- [ ] **Phase 90 — Garnishments + Employee Loans + Off-Cycle Payroll** `P2`
+  - Garnishment entity: court order reference, deduction type (child support/tax levy/creditor), amount/%, priority, start/end date
+  - Employee loan entity: principal, disbursement date, installment amount, remaining balance; auto-deducts from payslip
+  - Salary advance: quick-draw against next payslip; deducted in next run
+  - Off-cycle payroll: full run → GL posting → payslip → bank file for a subset of employees on any date
+  - Garnishment disbursement: separate bank file for court/agency payments
+
+- [ ] **Phase 91 — SPC / Control Charts + AQL Sampling** `P3`
+  - Sampling procedure: AQL (Acceptable Quality Level) tables, sample size calculation from lot size
+  - Control chart entity: UCL/LCL/CL from historical data (X-bar, R-chart, p-chart)
+  - Results trigger control chart update on recording; flag out-of-control points
+  - Periodic inspection auto-scheduling: recurrence interval → auto-create inspection lot on due date
+  - Stability study: time-point schedule, environmental conditions, pass/fail criteria per interval
+
+- [ ] **Phase 92 — Wave Management + Handling Units** `P3`
+  - Wave entity: groups warehouse tasks for coordinated release; status OPEN/RELEASED/COMPLETED
+  - Wave creation rules: by carrier/zone/ship-date/cut-off time
+  - Wave release: sets all included tasks to IN_PROGRESS simultaneously
+  - Handling unit (HU): pallet/carton entity with weight/dimensions; items packed into HU
+  - HU picking: pick entire HU; HU transfer task; HU label (QR code via existing QR service)
+  - Putaway strategy rules: zone assignment by item category, weight class, temperature requirement
+
+- [ ] **Phase 93 — SD Output / Message Determination** `P3`
+  - Output condition table: document type × partner function × medium (print/email/EDI) → output type
+  - Output type entity: linked PDF template (via existing PDF service), email template, EDI transaction
+  - Trigger on save/post: evaluate output conditions, enqueue output requests
+  - Reprint / resend endpoint per document
+  - Cover: sales order confirmation, delivery note, invoice, credit memo, purchase order to vendor
+
+- [ ] **Phase 94 — Engineering Change Management (ECN/ECO)** `P3`
+  - ECN (Engineering Change Notice) entity: change number, effectivity date, affected BOM(s), reason, approval workflow
+  - BOM effective-date versioning: BOM lines gain validFrom/validTo; `getBomAtDate()` returns correct version
+  - Routing effectivity: same versioning on routing operations
+  - MRP uses ECN-aware BOM at planned order conversion date
+  - Production order locks to BOM/routing version at release
+
+- [ ] **Phase 95 — LMS Depth (SCORM + Certifications + Learning Paths)** `P3`
+  - Learning path entity: ordered list of courses with prerequisites; completion = all courses done
+  - Certification entity: name, validity period, passing score, linked course(s); auto-renew alert
+  - SCORM 1.2/2004 runtime: store xAPI/SCORM state per enrollment; track completion/score from LMS payload
+  - Content library: course materials stored via DMS; version-controlled
+  - Compliance training: mandatory courses per role/department with deadline tracking
+
+- [ ] **Phase 96 — Driver-Based Planning + What-If Scenarios** `P3`
+  - Scenario entity: copy of a budget with name/description/status (DRAFT/ACTIVE/ARCHIVED)
+  - Driver model: define revenue drivers (headcount × avg salary, units × price); formula-based projection
+  - What-if simulation: change a driver value → re-compute all dependent budget lines
+  - Scenario comparison: side-by-side P&L/BS across base + N scenarios
+  - Promote scenario to plan: copy scenario lines to the active budget version
+
+- [ ] **Phase 97 — Global Statutory Payroll Packs** `P3`
+  - UK: PAYE (tax codes, NIC Class 1A/1B), P60/P45 form generation, RTI submission format
+  - EU / Germany: Lohnsteuer brackets, Sozialversicherung (KV/PV/RV/AV), ELSTER XML
+  - Singapore: CPF contribution rates, IR8A / IR21 form generation, MOM levy
+  - Australia: PAYG withholding, Super Guarantee, STP Phase 2 Single Touch Payroll XML
+  - Shared localization framework: each pack registers tax brackets + contribution tables; payroll engine picks pack by employee work country
+
+- [ ] **Phase 98 — Consolidation Depth (Currency Translation + Minority Interest)** `P3`
+  - Currency translation method: current rate (all BS at closing rate, P&L at average) vs temporal (monetary at closing, non-monetary at historical)
+  - Translation difference: post CTA (Cumulative Translation Adjustment) to OCI equity
+  - Minority interest: ownership % per subsidiary; compute NCI share of equity + net income
+  - Equity method: for associates (20–50% ownership); pick up share of profit/loss
+  - Elimination matrix: configurable eliminations (IC revenue vs expense, IC receivable vs payable, IC profit in inventory)
+  - Consolidation report: group P&L / BS showing eliminations as a column
+
+- [ ] **Phase 99 — Validation + Substitution Rules** `P3`
+  - Validation rule entity: condition expression (account type / cost center / amount range) + error/warning
+  - Evaluated on journal entry POST: block if HARD error; warn if SOFT warning
+  - Substitution rule: when condition met, auto-fill a field (e.g. cost center → profit center)
+  - UI: rule builder with condition and result dropdowns; test mode against sample entry
+  - Covers: account combination validity, mandatory fields by account type, amount thresholds
+
+- [ ] **Phase 100 — KANBAN + Repetitive Manufacturing** `P4`
+  - KANBAN card entity: item, work center, quantity per card, replenishment strategy (INTERNAL/EXTERNAL/ONE_CARD/TWO_CARD)
+  - KANBAN board: visual lane per status (FULL/EMPTY/IN_TRANSIT); move card by scan
+  - Replenishment trigger: on card marked EMPTY, auto-create production order or PO
+  - Repetitive manufacturing: rate-based production (quantity/shift vs discrete order); backflush on reporting point
+  - Production list: daily/weekly target quantity; actual vs planned per work center
+
+- [ ] **Phase 101 — Co-products + By-products in Production Orders** `P4`
+  - BOM output lines: mark lines as CO_PRODUCT or BY_PRODUCT with cost split allocation method (% or equivalence units)
+  - Production order: multiple output items with individual planned/produced quantities
+  - Settlement: split production cost across co-products by allocation method; post each to its stock account
+  - Inventory receipt: separate goods receipt per output item on order completion
+  - MRP: co-products count as supply for their items when netting requirements
+
+- [ ] **Phase 102 — Variant Configuration (Configurable Products / ATO)** `P4`
+  - Characteristic master: code, values, data type (string/numeric/boolean)
+  - Configuration profile: set of characteristics per material class
+  - BOM explosion at order entry: match characteristic values to BOM selection conditions → explode correct components
+  - Sales order: configurable item selection UI; captures characteristic values; explodes BOM on confirmation
+  - Routing selection: same condition logic selects routing operations based on configuration
+
+- [ ] **Phase 103 — Consignment Sales + Backorder Rescheduling** `P4`
+  - Consignment fill-up order type: ship to customer consignment stock; no invoice at ship time
+  - Consignment issue/return: invoice when customer withdraws from consignment; return reduces customer stock
+  - Consignment stock report: quantity at each customer location by material
+  - Backorder rescheduling: when ATP check fails at delivery, auto-split into confirmed + backorder line
+  - Backorder proposal: batch rescheduling run suggests new dates based on incoming supply (MRP pegging)
+
+- [ ] **Phase 104 — Total Rewards Statement + ESS/MSS Portal Hardening** `P4`
+  - Total rewards statement PDF: annual summary of salary + bonus + benefits value + equity + PF contribution
+  - ESS enhancements: leave self-service (apply/cancel/check balance) with manager approval in-portal
+  - MSS enhancements: team leave calendar, timesheet approval, salary change request initiation
+  - Org chart viewer: interactive drill-down using existing org hierarchy data
+  - Comp planning UI: manager views team's salary vs band; requests merit increase; approval workflow
+
+---
+
 ## Quick Reference — What Each Gap Unlocks
 
 | Gap | Business Value |
