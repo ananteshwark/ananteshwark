@@ -156,4 +156,100 @@ export class ControllingController {
   ) {
     return this.controllingService.copaReport(user.tenantId, from, to);
   }
+
+  // ─── Activity Types (Phase 79) ───────────────────────────────────────────
+
+  @Get('activity-types')
+  @ApiOperation({ summary: 'List activity types' })
+  listActivityTypes(@CurrentUser() user: any) {
+    return this.controllingService.listActivityTypes(user.tenantId);
+  }
+
+  @Post('activity-types')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Create activity type' })
+  createActivityType(@CurrentUser() user: any, @Body() dto: any) {
+    return this.controllingService.createActivityType(user.tenantId, dto);
+  }
+
+  @Patch('activity-types/:id')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Update activity type' })
+  updateActivityType(
+    @CurrentUser() user: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.controllingService.updateActivityType(user.tenantId, id, dto);
+  }
+
+  // ─── Activity Prices (Phase 79) ──────────────────────────────────────────
+
+  @Get('activity-prices')
+  @ApiOperation({ summary: 'List activity prices, optionally filtered by fiscalYear' })
+  listActivityPrices(
+    @CurrentUser() user: any,
+    @Query('fiscalYear') fiscalYear?: string,
+  ) {
+    return this.controllingService.listActivityPrices(
+      user.tenantId,
+      fiscalYear ? parseInt(fiscalYear, 10) : undefined,
+    );
+  }
+
+  @Post('activity-prices')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Upsert activity price (plannedCost / plannedQty → plannedRate)' })
+  setActivityPrice(@CurrentUser() user: any, @Body() dto: any) {
+    return this.controllingService.setActivityPrice(user.tenantId, dto);
+  }
+
+  @Post('activity-confirmations')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Confirm activity: post GL and update actual rate' })
+  confirmActivity(@CurrentUser() user: any, @Body() dto: any) {
+    return this.controllingService.confirmActivity(user.tenantId, dto);
+  }
+
+  // ─── Overhead Costing Sheets (Phase 79) ─────────────────────────────────
+
+  @Get('overhead-sheets')
+  @ApiOperation({ summary: 'List overhead costing sheets' })
+  listOverheadCostingSheets(@CurrentUser() user: any) {
+    return this.controllingService.listOverheadCostingSheets(user.tenantId);
+  }
+
+  @Post('overhead-sheets')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Create overhead costing sheet' })
+  createOverheadCostingSheet(@CurrentUser() user: any, @Body() dto: any) {
+    return this.controllingService.createOverheadCostingSheet(user.tenantId, dto);
+  }
+
+  @Patch('overhead-sheets/:id')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Update overhead costing sheet' })
+  updateOverheadCostingSheet(
+    @CurrentUser() user: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.controllingService.updateOverheadCostingSheet(user.tenantId, id, dto);
+  }
+
+  @Post('overhead-sheets/:id/apply')
+  @RequirePermission('finance:gl:write')
+  @ApiOperation({ summary: 'Apply overhead sheet to a production order' })
+  applyOverheadToOrder(
+    @CurrentUser() user: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.controllingService.applyOverheadToOrder(
+      user.tenantId,
+      id,
+      dto,
+      user.id,
+    );
+  }
 }

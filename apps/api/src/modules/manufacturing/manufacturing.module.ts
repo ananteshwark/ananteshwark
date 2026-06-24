@@ -18,6 +18,7 @@ import { MrpService } from './mrp.service';
 import { FcsService } from './fcs.service';
 import { ManufacturingController } from './manufacturing.controller';
 import { GlModule } from '../finance/gl/gl.module';
+import { ControllingModule } from '../finance/controlling/controlling.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { RbacModule } from '../rbac/rbac.module';
 
@@ -29,6 +30,7 @@ import { RbacModule } from '../rbac/rbac.module';
       CapacitySlot, Item, StockBalance, SalesOrder, SalesOrderLine,
     ]),
     GlModule,
+    ControllingModule,
     InventoryModule,
     RbacModule,
   ],

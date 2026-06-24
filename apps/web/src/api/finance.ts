@@ -134,4 +134,16 @@ export const financeApi = {
   updateSweepRule: (id: string, data: any) => apiClient.patch(`/finance/treasury/sweep-rules/${id}`, data),
   executeSweep: (id: string) => apiClient.post(`/finance/treasury/sweep-rules/${id}/execute`),
   getSweepLogs: (params?: any) => apiClient.get('/finance/treasury/sweep-logs', { params }),
+
+  // Phase 79: Activity Types + Overhead Costing
+  getActivityTypes: () => apiClient.get('/finance/controlling/activity-types'),
+  createActivityType: (data: any) => apiClient.post('/finance/controlling/activity-types', data),
+  updateActivityType: (id: string, data: any) => apiClient.patch(`/finance/controlling/activity-types/${id}`, data),
+  getActivityPrices: (fiscalYear?: number) => apiClient.get('/finance/controlling/activity-prices', { params: fiscalYear ? { fiscalYear } : {} }),
+  setActivityPrice: (data: any) => apiClient.post('/finance/controlling/activity-prices', data),
+  confirmActivity: (data: any) => apiClient.post('/finance/controlling/activity-confirmations', data),
+  getOverheadSheets: () => apiClient.get('/finance/controlling/overhead-sheets'),
+  createOverheadSheet: (data: any) => apiClient.post('/finance/controlling/overhead-sheets', data),
+  updateOverheadSheet: (id: string, data: any) => apiClient.patch(`/finance/controlling/overhead-sheets/${id}`, data),
+  applyOverheadToOrder: (sheetId: string, data: any) => apiClient.post(`/finance/controlling/overhead-sheets/${sheetId}/apply`, data),
 };

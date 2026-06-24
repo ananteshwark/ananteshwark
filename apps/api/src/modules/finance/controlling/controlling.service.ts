@@ -5,6 +5,9 @@ import { ProfitCenter } from './entities/profit-center.entity';
 import { CostAllocationCycle, AllocationCycleStatus } from './entities/cost-allocation-cycle.entity';
 import { CostAllocationEntry } from './entities/cost-allocation-entry.entity';
 import { InternalOrder, InternalOrderStatus } from './entities/internal-order.entity';
+import { ActivityType } from './entities/activity-type.entity';
+import { ActivityPrice } from './entities/activity-price.entity';
+import { OverheadCostingSheet } from './entities/overhead-costing-sheet.entity';
 import { GlService, PostJournalEntryInput } from '../gl/gl.service';
 import { CostCenter } from '../gl/entities/cost-center.entity';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
@@ -22,6 +25,12 @@ export class ControllingService {
     private readonly costCenterRepo: Repository<CostCenter>,
     @InjectRepository(InternalOrder)
     private readonly internalOrderRepo: Repository<InternalOrder>,
+    @InjectRepository(ActivityType)
+    private readonly activityTypeRepo: Repository<ActivityType>,
+    @InjectRepository(ActivityPrice)
+    private readonly activityPriceRepo: Repository<ActivityPrice>,
+    @InjectRepository(OverheadCostingSheet)
+    private readonly overheadSheetRepo: Repository<OverheadCostingSheet>,
     private readonly glService: GlService,
     private readonly dataSource: DataSource,
   ) {}
@@ -392,5 +401,190 @@ export class ControllingService {
       expenses,
       netIncome: revenues - expenses,
     };
+  }
+
+  // ─── Phase 79: Activity Types ─────────────────────────────────────────────
+
+  async listActivityTypes(tenantId: string): Promise<ActivityType[]> {
+    return this.activityTypeRepo.find({ where: { tenantId }, order: { code: 'ASC' } });
+  }
+
+  async createActivityType(tenantId: string, dto: any): Promise<ActivityType> {
+    const at = this.activityTypeRepo.create({ ...dto, tenantId } as any);
+    return (this.activityTypeRepo.save(at) as unknown) as Promise<ActivityType>;
+  }
+
+  async updateActivityType(tenantId: string, id: string, dto: any): Promise<ActivityType> {
+    const at = await this.activityTypeRepo.findOne({ where: { id, tenantId } });
+    if (!at) throw new NotFoundException(`Activity type ${id} not found`);
+    Object.assign(at, dto);
+    return this.activityTypeRepo.save(at);
+  }
+
+  async findActivityTypeById(tenantId: string, id: string): Promise<ActivityType | null> {
+    return this.activityTypeRepo.findOne({ where: { id, tenantId } });
+  }
+
+  // ─── Phase 79: Activity Prices ────────────────────────────────────────────
+
+  async setActivityPrice(tenantId: string, dto: {
+    activityTypeId: string;
+    costCenterId: string;
+    fiscalYear: number;
+    plannedCost: number;
+    plannedQty: number;
+  }): Promise<ActivityPrice> {
+    const { activityTypeId, costCenterId, fiscalYear, plannedCost, plannedQty } = dto;
+    const plannedRate = plannedQty > 0 ? plannedCost / plannedQty : 0;
+
+    let price = await this.activityPriceRepo.findOne({
+      where: { tenantId, activityTypeId, costCenterId, fiscalYear },
+    });
+    if (price) {
+      price.plannedCost = plannedCost;
+      price.plannedQty = plannedQty;
+      price.plannedRate = Math.round(plannedRate * 1000000) / 1000000;
+    } else {
+      price = (this.activityPriceRepo.create({
+        tenantId, activityTypeId, costCenterId, fiscalYear,
+        plannedCost, plannedQty,
+        plannedRate: Math.round(plannedRate * 1000000) / 1000000,
+        actualCost: 0, actualQty: 0, actualRate: 0,
+      } as any) as unknown) as ActivityPrice;
+    }
+    return (this.activityPriceRepo.save(price) as unknown) as Promise<ActivityPrice>;
+  }
+
+  async listActivityPrices(tenantId: string, fiscalYear?: number): Promise<ActivityPrice[]> {
+    const where: any = { tenantId };
+    if (fiscalYear) where.fiscalYear = fiscalYear;
+    return this.activityPriceRepo.find({ where, order: { fiscalYear: 'DESC' } });
+  }
+
+  /**
+   * Confirm activity consumption: debit production order WIP account,
+   * credit cost center activity clearing account, update ActivityPrice actuals.
+   */
+  async confirmActivity(tenantId: string, dto: {
+    activityTypeId: string;
+    costCenterId: string;
+    productionOrderId: string;
+    qty: number;
+    confirmationDate: string;
+    userId?: string;
+  }): Promise<{ journalEntryId: string; cost: number }> {
+    const { activityTypeId, costCenterId, productionOrderId, qty, confirmationDate, userId } = dto;
+    const at = await this.activityTypeRepo.findOne({ where: { id: activityTypeId, tenantId } });
+    if (!at) throw new NotFoundException(`Activity type ${activityTypeId} not found`);
+    if (!at.wipAccountId || !at.creditAccountId) {
+      throw new BadRequestException('Activity type must have wipAccountId and creditAccountId configured');
+    }
+
+    // Determine rate: actual rate if set, else planned rate
+    const fiscalYear = new Date(confirmationDate).getFullYear();
+    const price = await this.activityPriceRepo.findOne({
+      where: { tenantId, activityTypeId, costCenterId, fiscalYear },
+    });
+    const rate = price && Number(price.actualRate) > 0
+      ? Number(price.actualRate)
+      : (price ? Number(price.plannedRate) : 0);
+    const cost = Math.round(qty * rate * 100) / 100;
+
+    // Post GL: WIP debit, cost center credit
+    const je = await this.glService.postJournalEntry(
+      tenantId,
+      {
+        date: confirmationDate,
+        description: `Activity: ${at.name} — Order ${productionOrderId.slice(0, 8)}`,
+        reference: `ACT-${activityTypeId.slice(0, 8)}-${productionOrderId.slice(0, 8)}`,
+        source: JournalSource.SYSTEM,
+        lines: [
+          { accountId: at.wipAccountId, costCenterId, debit: cost, credit: 0, description: `Activity ${at.code}` },
+          { accountId: at.creditAccountId, costCenterId, debit: 0, credit: cost, description: `Activity ${at.code} output` },
+        ],
+      } as unknown as PostJournalEntryInput,
+      userId ?? null,
+    );
+
+    // Update ActivityPrice actuals
+    if (price) {
+      price.actualQty = Number(price.actualQty) + qty;
+      price.actualCost = Number(price.actualCost) + cost;
+      price.actualRate = price.actualQty > 0
+        ? Math.round((price.actualCost / price.actualQty) * 1000000) / 1000000
+        : 0;
+      await this.activityPriceRepo.save(price);
+    }
+
+    return { journalEntryId: je.id, cost };
+  }
+
+  // ─── Phase 79: Overhead Costing Sheets ───────────────────────────────────
+
+  async listOverheadCostingSheets(tenantId: string): Promise<OverheadCostingSheet[]> {
+    return this.overheadSheetRepo.find({ where: { tenantId }, order: { code: 'ASC' } });
+  }
+
+  async createOverheadCostingSheet(tenantId: string, dto: any): Promise<OverheadCostingSheet> {
+    const sheet = this.overheadSheetRepo.create({ ...dto, tenantId } as any);
+    return (this.overheadSheetRepo.save(sheet) as unknown) as Promise<OverheadCostingSheet>;
+  }
+
+  async updateOverheadCostingSheet(tenantId: string, id: string, dto: any): Promise<OverheadCostingSheet> {
+    const sheet = await this.overheadSheetRepo.findOne({ where: { id, tenantId } });
+    if (!sheet) throw new NotFoundException(`Overhead costing sheet ${id} not found`);
+    Object.assign(sheet, dto);
+    return this.overheadSheetRepo.save(sheet);
+  }
+
+  /**
+   * Apply an overhead costing sheet to a production order.
+   * Computes overhead per line (base cost × rate), posts GL entries,
+   * and returns the total overhead amount applied.
+   */
+  async applyOverheadToOrder(
+    tenantId: string,
+    sheetId: string,
+    costInfo: { materialCost: number; laborCost: number; productionOrderId: string },
+    userId?: string,
+  ): Promise<{ totalOverhead: number; lineResults: Array<{ name: string; overhead: number }> }> {
+    const sheet = await this.overheadSheetRepo.findOne({ where: { id: sheetId, tenantId } });
+    if (!sheet) throw new NotFoundException(`Overhead costing sheet ${sheetId} not found`);
+    if (!sheet.isActive) throw new BadRequestException('Overhead costing sheet is inactive');
+
+    const { materialCost, laborCost, productionOrderId } = costInfo;
+    const totalBase = materialCost + laborCost;
+    let totalOverhead = 0;
+    const lineResults: Array<{ name: string; overhead: number }> = [];
+    const date = new Date().toISOString().split('T')[0];
+
+    for (const line of sheet.lines) {
+      const base =
+        line.base === 'MATERIAL_COST' ? materialCost
+        : line.base === 'LABOR_COST' ? laborCost
+        : totalBase;
+      const overhead = Math.round(base * (line.rate / 100) * 100) / 100;
+      if (overhead <= 0) continue;
+
+      await this.glService.postJournalEntry(
+        tenantId,
+        {
+          date,
+          description: `Overhead: ${line.name} — Order ${productionOrderId.slice(0, 8)}`,
+          reference: `OH-${sheetId.slice(0, 6)}-${productionOrderId.slice(0, 6)}`,
+          source: JournalSource.SYSTEM,
+          lines: [
+            { accountId: line.debitAccountId, debit: overhead, credit: 0, description: `OH ${line.name}` },
+            { accountId: line.creditAccountId, debit: 0, credit: overhead, description: `OH ${line.name} offset` },
+          ],
+        } as unknown as PostJournalEntryInput,
+        userId ?? null,
+      );
+
+      totalOverhead += overhead;
+      lineResults.push({ name: line.name, overhead });
+    }
+
+    return { totalOverhead: Math.round(totalOverhead * 100) / 100, lineResults };
   }
 }

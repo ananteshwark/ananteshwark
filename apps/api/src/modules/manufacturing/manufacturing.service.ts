@@ -19,6 +19,7 @@ import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination
 import { GlService } from '../finance/gl/gl.service';
 import { JournalSource } from '../finance/gl/entities/journal-entry.entity';
 import { InventoryService } from '../inventory/inventory.service';
+import { ControllingService } from '../finance/controlling/controlling.service';
 
 @Injectable()
 export class ManufacturingService {
@@ -34,6 +35,7 @@ export class ManufacturingService {
     @InjectRepository(CostingRun) private readonly costingRunRepo: Repository<CostingRun>,
     private readonly glService: GlService,
     private readonly inventoryService: InventoryService,
+    private readonly controllingService: ControllingService,
   ) {}
 
   // ---- BOMs ----
@@ -449,6 +451,29 @@ export class ManufacturingService {
     const laborCost = Number(dto.actualMinutes) * ratePerMinute;
     order.actualLaborCost = Number(order.actualLaborCost ?? 0) + laborCost;
     order.wipBalance = Number(order.wipBalance ?? 0) + laborCost;
+
+    // If routing operation has an activity type, post CO activity confirmation
+    if (dto.operationSequence && dto.workCenterId) {
+      const routing = await this.routingRepo.findOne({ where: { tenantId } });
+      if (routing) {
+        const op = await this.routingOpRepo.findOne({
+          where: { tenantId, routingId: routing.id, sequence: dto.operationSequence },
+        });
+        if (op?.activityTypeId) {
+          const actType = await this.controllingService.findActivityTypeById(tenantId, op.activityTypeId);
+          if (actType?.costCenterId) {
+            await this.controllingService.confirmActivity(tenantId, {
+              activityTypeId: op.activityTypeId,
+              costCenterId: actType.costCenterId,
+              productionOrderId: orderId,
+              qty: Number(dto.confirmedQty),
+              confirmationDate: dto.confirmationDate ?? new Date().toISOString().slice(0, 10),
+            });
+          }
+        }
+      }
+    }
+
     await this.orderRepo.save(order);
 
     return confirmation;

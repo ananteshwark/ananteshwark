@@ -50,6 +50,7 @@ import {
   TreasuryPage,
 } from './pages/finance';
 import ConsolidationPage from './pages/finance/ConsolidationPage';
+import ActivityCostingPage from './pages/finance/ActivityCostingPage';
 import {
   EmployeesPage,
   DepartmentsPage,
@@ -210,6 +211,7 @@ export default function App() {
         <Route path="finance/budget" element={<BudgetVsActualPage />} />
         <Route path="finance/intercompany" element={<IntercompanyPage />} />
         <Route path="finance/consolidation" element={<ConsolidationPage />} />
+        <Route path="finance/activity-costing" element={<ActivityCostingPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />

@@ -35,6 +35,9 @@ export class ProductionOrder {
   @Column({ name: 'planned_labor_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) plannedLaborCost: number | null;
   @Column({ name: 'actual_material_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) actualMaterialCost: number | null;
   @Column({ name: 'actual_labor_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) actualLaborCost: number | null;
+  @Column({ name: 'planned_overhead_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) plannedOverheadCost: number | null;
+  @Column({ name: 'actual_overhead_cost', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) actualOverheadCost: number | null;
+  @Column({ name: 'overhead_variance', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) overheadVariance: number | null;
   @Column({ name: 'material_variance', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) materialVariance: number | null;
   @Column({ name: 'labor_variance', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) laborVariance: number | null;
   @Column({ name: 'wip_balance', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) wipBalance: number | null;
