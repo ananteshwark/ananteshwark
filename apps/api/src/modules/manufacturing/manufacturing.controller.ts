@@ -2,6 +2,8 @@ import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@ne
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ManufacturingService } from './manufacturing.service';
 import { MrpService } from './mrp.service';
+import { FcsService } from './fcs.service';
+import { SlotStatus } from './entities/capacity-slot.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../common/guards/rbac.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -21,6 +23,7 @@ export class ManufacturingController {
   constructor(
     private readonly service: ManufacturingService,
     private readonly mrpService: MrpService,
+    private readonly fcsService: FcsService,
   ) {}
 
   // BOMs
@@ -184,5 +187,49 @@ export class ManufacturingController {
   @RequirePermission('manufacturing:read')
   listCostingRuns(@CurrentUser() user: any, @Query() pagination: any) {
     return this.service.listCostingRuns(user.tenantId, pagination);
+  }
+
+  // ─── Phase 78: Finite Capacity Scheduling ─────────────────────────
+  @Post('production-orders/:id/schedule')
+  @RequirePermission('manufacturing:manage')
+  scheduleOrder(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.fcsService.scheduleOrder(user.tenantId, id);
+  }
+
+  @Get('production-orders/:id/slots')
+  @RequirePermission('manufacturing:read')
+  getOrderSlots(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.fcsService.getOrderSlots(user.tenantId, id);
+  }
+
+  @Get('fcs/capacity-load')
+  @RequirePermission('manufacturing:read')
+  getFcsCapacityLoad(
+    @CurrentUser() user: any,
+    @Query('workCenterId') workCenterId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.fcsService.getCapacityLoad(user.tenantId, workCenterId, from, to);
+  }
+
+  @Get('fcs/capacity-load/all')
+  @RequirePermission('manufacturing:read')
+  getAllCapacityLoads(
+    @CurrentUser() user: any,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.fcsService.listAllCapacityLoads(user.tenantId, from, to);
+  }
+
+  @Patch('capacity-slots/:id/status')
+  @RequirePermission('manufacturing:manage')
+  updateSlotStatus(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { status: SlotStatus },
+  ) {
+    return this.fcsService.updateSlotStatus(user.tenantId, id, body.status);
   }
 }

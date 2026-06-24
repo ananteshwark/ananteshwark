@@ -98,14 +98,14 @@ import {
   SuccessionPage,
 } from './pages/talent';
 import HiringPage from './pages/hiring/HiringPage';
-import { InventoryPage, StockValuationPage, SpecialProcurementPage } from './pages/inventory';
+import { InventoryPage, StockValuationPage, SpecialProcurementPage, WmsPage } from './pages/inventory';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
 import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage, ReturnsPage, DeliveriesPage, BillingPlansPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
-import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage } from './pages/manufacturing';
+import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage, FcsPage } from './pages/manufacturing';
 import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/quality';
 import { MaintenancePage, FunctionalLocationsPage, CounterReadingsPage } from './pages/maintenance';
 import { BenefitsPage } from './pages/benefits';
@@ -241,6 +241,7 @@ export default function App() {
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="inventory/valuation" element={<StockValuationPage />} />
         <Route path="inventory/special-procurement" element={<SpecialProcurementPage />} />
+        <Route path="inventory/wms" element={<WmsPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="crm" element={<CrmPage />} />
@@ -259,6 +260,7 @@ export default function App() {
         <Route path="manufacturing/routings" element={<RoutingsPage />} />
         <Route path="manufacturing/mrp" element={<MrpPage />} />
         <Route path="manufacturing/costing" element={<ProductionCostingPage />} />
+        <Route path="manufacturing/fcs" element={<FcsPage />} />
         <Route path="quality" element={<QualityPage />} />
         <Route path="quality/characteristics" element={<CharacteristicsPage />} />
         <Route path="quality/results" element={<ResultsRecordingPage />} />

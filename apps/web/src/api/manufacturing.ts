@@ -41,4 +41,14 @@ export const manufacturingApi = {
   rollupStandardCost: (bomId: string, runDate?: string) =>
     apiClient.post('/manufacturing/costing-runs', { bomId, ...(runDate ? { runDate } : {}) }),
   listCostingRuns: (params?: any) => apiClient.get('/manufacturing/costing-runs', { params }),
+
+  // Phase 78: Finite Capacity Scheduling
+  scheduleOrder: (id: string) => apiClient.post(`/manufacturing/production-orders/${id}/schedule`),
+  getOrderSlots: (id: string) => apiClient.get(`/manufacturing/production-orders/${id}/slots`),
+  getFcsCapacityLoad: (workCenterId: string, from: string, to: string) =>
+    apiClient.get('/manufacturing/fcs/capacity-load', { params: { workCenterId, from, to } }),
+  getAllCapacityLoads: (from: string, to: string) =>
+    apiClient.get('/manufacturing/fcs/capacity-load/all', { params: { from, to } }),
+  updateSlotStatus: (id: string, status: string) =>
+    apiClient.patch(`/manufacturing/capacity-slots/${id}/status`, { status }),
 };

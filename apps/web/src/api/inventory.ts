@@ -79,4 +79,21 @@ export const inventoryApi = {
   issueGoodsSto: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/issue-goods`, { date }),
   receiveGoodsSto: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/receive-goods`, { date }),
   completeSto: (id: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/complete`),
+
+  // Phase 78: Batch Management
+  getBatchCharacteristics: (lotSerialId: string) => apiClient.get(`/inventory/wms/batch/${lotSerialId}/characteristics`),
+  recordBatchCharacteristics: (lotSerialId: string, characteristics: any[]) => apiClient.post(`/inventory/wms/batch/${lotSerialId}/characteristics`, { characteristics }),
+  releaseBatch: (lotSerialId: string) => apiClient.post(`/inventory/wms/batch/${lotSerialId}/release`),
+  quarantineBatch: (lotSerialId: string) => apiClient.post(`/inventory/wms/batch/${lotSerialId}/quarantine`),
+  fefoPickSuggestion: (itemId: string, warehouseId: string, qty: number) => apiClient.get('/inventory/wms/batch/fefo-suggestion', { params: { itemId, warehouseId, qty } }),
+
+  // Phase 78: Extended WMS
+  getBinStock: (params?: any) => apiClient.get('/inventory/wms/bin-stock', { params }),
+  suggestPutawayBin: (data: any) => apiClient.post('/inventory/wms/bin-stock/suggest-putaway', data),
+  getWarehouseTasks: (params?: any) => apiClient.get('/inventory/wms/tasks', { params }),
+  getWarehouseTask: (id: string) => apiClient.get(`/inventory/wms/tasks/${id}`),
+  createWarehouseTask: (data: any) => apiClient.post('/inventory/wms/tasks', data),
+  assignWarehouseTask: (id: string, userId?: string) => apiClient.patch(`/inventory/wms/tasks/${id}/assign`, { userId }),
+  completeWarehouseTask: (id: string) => apiClient.post(`/inventory/wms/tasks/${id}/complete`),
+  cancelWarehouseTask: (id: string) => apiClient.post(`/inventory/wms/tasks/${id}/cancel`),
 };
