@@ -73,6 +73,7 @@ import {
   StatutoryPage,
   PayrollGlMappingsPage,
   RetroPayrollPage,
+  BankFilesPage,
 } from './pages/payroll';
 import {
   RequisitionsPage,
@@ -216,6 +217,7 @@ export default function App() {
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />
         <Route path="payroll/runs/:id" element={<PayrollRunDetailPage />} />
+        <Route path="payroll/runs/:id/bank-files" element={<BankFilesPage />} />
         <Route path="payroll/payslips" element={<PayslipsListPage />} />
         <Route path="payroll/payslips/:id" element={<PayslipPage />} />
         <Route path="payroll/statutory" element={<StatutoryPage />} />

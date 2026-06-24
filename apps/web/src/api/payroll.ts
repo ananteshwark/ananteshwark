@@ -57,4 +57,14 @@ export const payrollApi = {
     apiClient.get('/payroll/retro/records', { params: { runId } }),
   applyArrearsToRun: (runId: string) =>
     apiClient.post(`/payroll/runs/${runId}/apply-arrears`),
+
+  // Bank file export (Phase 81)
+  listBankFileRuns: (runId: string) =>
+    apiClient.get(`/payroll/runs/${runId}/bank-files`),
+  generateBankFile: (runId: string, data: { format: string; options?: Record<string, string> }) =>
+    apiClient.post(`/payroll/runs/${runId}/bank-files`, data),
+  downloadBankFileUrl: (runId: string, fileId: string) =>
+    `/payroll/runs/${runId}/bank-files/${fileId}/download`,
+  markPayslipsPaid: (runId: string) =>
+    apiClient.post(`/payroll/runs/${runId}/mark-payslips-paid`),
 };

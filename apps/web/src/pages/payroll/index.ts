@@ -7,3 +7,4 @@ export { default as PayslipsListPage } from './PayslipsListPage';
 export { default as StatutoryPage } from './StatutoryPage';
 export { default as PayrollGlMappingsPage } from './PayrollGlMappingsPage';
 export { default as RetroPayrollPage } from './RetroPayrollPage';
+export { default as BankFilesPage } from './BankFilesPage';

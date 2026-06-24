@@ -10,8 +10,10 @@ import {
   Header,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { RunService } from './run.service';
+import { BankFileService } from './bank-file.service';
+import { BankFileFormat } from './entities/bank-file-run.entity';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -25,7 +27,10 @@ import { renderPayslipPrint } from './payslip-print.template';
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('payroll')
 export class RunController {
-  constructor(private readonly service: RunService) {}
+  constructor(
+    private readonly service: RunService,
+    private readonly bankFileService: BankFileService,
+  ) {}
 
   // Runs
   @Get('runs')
@@ -74,10 +79,59 @@ export class RunController {
     return this.service.cancelRun(user.tenantId, id);
   }
 
+  // ─── Phase 81: Bank File Export ─────────────────────────────────────────
+
+  @Get('runs/:id/bank-files')
+  @RequirePermission('payroll:runs:approve')
+  @ApiOperation({ summary: 'List all generated bank file runs for a payroll run' })
+  listBankFileRuns(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.bankFileService.listBankFileRuns(user.tenantId, id);
+  }
+
+  @Post('runs/:id/bank-files')
+  @RequirePermission('payroll:runs:approve')
+  @ApiOperation({ summary: 'Generate a bank file (NEFT_RTGS | NACHA_ACH | WPS_SIF | SEPA_XML)' })
+  generateBankFile(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { format: BankFileFormat; options?: Record<string, string> },
+  ) {
+    return this.bankFileService.generateAndSave(
+      user.tenantId, id, body.format, body.options ?? {}, user.id,
+    );
+  }
+
+  @Get('runs/:id/bank-files/:fileId/download')
+  @RequirePermission('payroll:runs:approve')
+  @ApiOperation({ summary: 'Download raw bank file content' })
+  async downloadBankFile(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @Res() res: Response,
+  ) {
+    const files = await this.bankFileService.listBankFileRuns(user.tenantId, id);
+    const file = files.find(f => f.id === fileId);
+    if (!file) { res.status(404).send('Not found'); return; }
+    const ext = file.format === BankFileFormat.SEPA_XML ? 'xml' : 'txt';
+    const ct  = file.format === BankFileFormat.SEPA_XML ? 'application/xml' : 'text/plain';
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Content-Disposition', `attachment; filename="bank-file-${file.format}-${id.slice(0, 8)}.${ext}"`);
+    res.send(file.content);
+  }
+
+  @Post('runs/:id/mark-payslips-paid')
+  @RequirePermission('payroll:runs:approve')
+  @ApiOperation({ summary: 'Mark all payslips in this run as PAID' })
+  markPayslipsPaid(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.bankFileService.markPayslipsPaid(user.tenantId, id);
+  }
+
+  // Legacy CSV endpoint (kept for backwards compatibility)
   @Get('runs/:id/bank-file')
   @RequirePermission('payroll:runs:approve')
   @Header('Content-Type', 'text/csv')
-  async downloadBankFile(
+  async downloadBankFileLegacy(
     @CurrentUser() user: any,
     @Param('id') id: string,
     @Res() res: Response,

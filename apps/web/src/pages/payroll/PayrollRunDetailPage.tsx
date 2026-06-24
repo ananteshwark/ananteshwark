@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, BookOpen } from 'lucide-react';
+import { ArrowLeft, Download, BookOpen, FileText } from 'lucide-react';
 import { payrollApi } from '../../api/payroll';
 import { payrollGlApi } from '../../api/payrollGl';
 
@@ -131,7 +131,15 @@ export default function PayrollRunDetailPage() {
               disabled={downloading}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" /> {downloading ? 'Downloading...' : 'Bank File'}
+              <Download className="w-4 h-4" /> {downloading ? 'Downloading...' : 'Bank File (CSV)'}
+            </button>
+          )}
+          {(run.status === 'APPROVED' || run.status === 'PAID') && (
+            <button
+              onClick={() => navigate(`/payroll/runs/${id}/bank-files`)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100"
+            >
+              <FileText className="w-4 h-4" /> Bank Files
             </button>
           )}
         </div>
