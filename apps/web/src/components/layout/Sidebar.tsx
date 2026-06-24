@@ -84,6 +84,7 @@ const navItems: NavItem[] = [
       { label: 'Advances', path: '/finance/advances' },
       { label: 'Budget vs Actual', path: '/finance/budget' },
       { label: 'Intercompany', path: '/finance/intercompany' },
+      { label: 'Consolidation', path: '/finance/consolidation' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },
