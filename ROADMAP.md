@@ -452,7 +452,7 @@ container loses nothing — just re-clone and continue.
   - RTL layout support for Arabic
   - Number/date/currency formatting per locale
 
-- [ ] **Phase 67 — Mobile App (PWA)** `P4`
+- [x] **Phase 67 — Mobile App (PWA)** `P4`
   - Progressive Web App (PWA) — installable on iOS/Android from browser
   - Offline capability: view recent records, queue approvals
   - Push notifications: PO approval needed, leave request, payslip ready
