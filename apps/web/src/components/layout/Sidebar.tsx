@@ -32,6 +32,7 @@ import {
   Menu,
   Key,
   SlidersHorizontal,
+  QrCode,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -226,6 +227,11 @@ const navItems: NavItem[] = [
   { label: 'Delegations', icon: <UserCog className="h-4 w-4" />, path: '/delegations' },
   { label: 'Notifications', icon: <Bell className="h-4 w-4" />, path: '/notifications' },
   { label: 'Audit Log', icon: <ClipboardList className="h-4 w-4" />, path: '/audit' },
+  {
+    label: 'QR Scanner',
+    icon: <QrCode className="h-4 w-4" />,
+    path: '/qr/scanner',
+  },
   {
     label: 'Settings',
     icon: <Settings className="h-4 w-4" />,

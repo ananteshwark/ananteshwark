@@ -21,6 +21,7 @@ import FieldConfigPage from './pages/settings/FieldConfigPage';
 import CustomFieldsPage from './pages/settings/CustomFieldsPage';
 import WebhooksPage from './pages/settings/WebhooksPage';
 import SsoSettingsPage from './pages/settings/SsoSettingsPage';
+import QrScannerPage from './pages/qr/QrScannerPage';
 import TaxCodesPage from './pages/settings/TaxCodesPage';
 import EmailSettingsPage from './pages/settings/EmailSettingsPage';
 import {
@@ -165,6 +166,7 @@ export default function App() {
         <Route path="settings/custom-fields" element={<CustomFieldsPage />} />
         <Route path="settings/webhooks" element={<WebhooksPage />} />
         <Route path="settings/sso" element={<SsoSettingsPage />} />
+        <Route path="qr/scanner" element={<QrScannerPage />} />
         <Route path="settings/tax-codes" element={<TaxCodesPage />} />
         <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />
