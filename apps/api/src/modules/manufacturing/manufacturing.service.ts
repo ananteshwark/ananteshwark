@@ -9,6 +9,7 @@ import { ProductionOrder, ProductionOrderStatus, MaterialIssuance } from './enti
 import { Routing } from './entities/routing.entity';
 import { RoutingOperation } from './entities/routing-operation.entity';
 import { ProductionConfirmation } from './entities/production-confirmation.entity';
+import { CostingRun, CostingRunStatus } from './entities/costing-run.entity';
 import {
   CreateBomDto, CreateWorkCenterDto, CreateProductionOrderDto,
   CompleteProductionOrderDto, IssueMaterialDto,
@@ -30,6 +31,7 @@ export class ManufacturingService {
     @InjectRepository(Routing) private readonly routingRepo: Repository<Routing>,
     @InjectRepository(RoutingOperation) private readonly routingOpRepo: Repository<RoutingOperation>,
     @InjectRepository(ProductionConfirmation) private readonly confirmationRepo: Repository<ProductionConfirmation>,
+    @InjectRepository(CostingRun) private readonly costingRunRepo: Repository<CostingRun>,
     private readonly glService: GlService,
     private readonly inventoryService: InventoryService,
   ) {}
@@ -501,5 +503,142 @@ export class ManufacturingService {
       issuances,
       confirmations,
     };
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // Phase 70 — BOM Standard Cost Roll-up
+  // ════════════════════════════════════════════════════════════════
+
+  private async rollupBomMaterialCost(
+    tenantId: string,
+    bomId: string,
+    outputQty: number,
+    depth = 0,
+  ): Promise<{ total: number; lines: Array<{ componentCode: string; qty: number; unitCost: number; lineCost: number }> }> {
+    if (depth > 10) return { total: 0, lines: [] };
+    const lines = await this.bomLineRepo.find({ where: { tenantId, bomId }, order: { lineNumber: 'ASC' } });
+    let total = 0;
+    const breakdown: Array<{ componentCode: string; qty: number; unitCost: number; lineCost: number }> = [];
+
+    for (const line of lines) {
+      const scrapFactor = 1 + Number(line.scrapPct ?? 0) / 100;
+      const qtyPerUnit = (Number(line.quantity ?? 0) / outputQty) * scrapFactor;
+      let unitCost = 0;
+
+      // Phantom BOM: recurse into sub-BOM
+      if (line.isPhantom && line.subBomId) {
+        const subBom = await this.bomRepo.findOne({ where: { tenantId, id: line.subBomId } });
+        if (subBom) {
+          const subResult = await this.rollupBomMaterialCost(tenantId, line.subBomId, Number(subBom.outputQuantity || 1), depth + 1);
+          unitCost = subResult.total;
+        }
+      } else {
+        unitCost = await this.resolveItemUnitCost(tenantId, line.componentCode);
+      }
+
+      const lineCost = unitCost * qtyPerUnit;
+      total += lineCost;
+      breakdown.push({ componentCode: line.componentCode, qty: qtyPerUnit, unitCost, lineCost });
+    }
+
+    return { total, lines: breakdown };
+  }
+
+  async rollupStandardCost(tenantId: string, bomId: string, runDate?: string): Promise<CostingRun> {
+    const bom = await this.bomRepo.findOne({ where: { tenantId, id: bomId } });
+    if (!bom) throw new NotFoundException(`BOM ${bomId} not found`);
+
+    const txDate = runDate ?? new Date().toISOString().slice(0, 10);
+    let materialCost = 0;
+    let laborCost = 0;
+    let costBreakdown: Record<string, unknown> = {};
+    let errorMessage: string | null = null;
+    let status = CostingRunStatus.COMPLETED;
+
+    try {
+      const outputQty = Number(bom.outputQuantity || 1);
+      const matResult = await this.rollupBomMaterialCost(tenantId, bomId, outputQty);
+      materialCost = matResult.total;
+
+      // Labor: routing operations × work center rate / output qty
+      const finishedItem = await this.inventoryService.findItemByCode(tenantId, bom.finishedItemCode);
+      if (finishedItem) {
+        const routing = await this.routingRepo.findOne({ where: { tenantId, itemId: finishedItem.id, isActive: true } });
+        if (routing) {
+          const ops = await this.routingOpRepo.find({ where: { tenantId, routingId: routing.id } });
+          const laborLines: Array<{ operation: number; workCenterId: string; minutes: number; cost: number }> = [];
+          for (const op of ops) {
+            const wc = await this.wcRepo.findOne({ where: { tenantId, id: op.workCenterId } });
+            const ratePerMinute = Number(wc?.costPerHour ?? 0) / 60;
+            const minutesPerUnit = (Number(op.setupMinutes ?? 0) / outputQty) + Number(op.runMinutesPerUnit ?? 0);
+            const opCost = minutesPerUnit * ratePerMinute;
+            laborCost += opCost;
+            laborLines.push({ operation: op.sequence, workCenterId: op.workCenterId, minutes: minutesPerUnit, cost: opCost });
+          }
+          costBreakdown = { materialLines: matResult.lines, laborLines };
+        } else {
+          costBreakdown = { materialLines: matResult.lines };
+        }
+      } else {
+        costBreakdown = { materialLines: matResult.lines };
+      }
+
+      const totalCost = materialCost + laborCost;
+
+      // Retrieve previous standard cost and update item
+      let previousStandardCost: number | null = null;
+      if (finishedItem) {
+        previousStandardCost = Number(finishedItem.standardCost ?? 0);
+        finishedItem.standardCost = Math.round(totalCost * 10000) / 10000;
+        await this.inventoryService.updateItem(tenantId, finishedItem.id, { standardCost: finishedItem.standardCost });
+      }
+
+      return this.costingRunRepo.save(
+        this.costingRunRepo.create({
+          tenantId,
+          bomId,
+          finishedItemCode: bom.finishedItemCode,
+          status,
+          runDate: txDate,
+          materialCost: Math.round(materialCost * 10000) / 10000,
+          laborCost: Math.round(laborCost * 10000) / 10000,
+          overheadCost: 0,
+          totalCost: Math.round((materialCost + laborCost) * 10000) / 10000,
+          previousStandardCost,
+          costBreakdown,
+          errorMessage: null,
+        }),
+      );
+    } catch (err: any) {
+      errorMessage = err?.message ?? 'Unknown error';
+      status = CostingRunStatus.FAILED;
+      return this.costingRunRepo.save(
+        this.costingRunRepo.create({
+          tenantId,
+          bomId,
+          finishedItemCode: bom.finishedItemCode,
+          status,
+          runDate: txDate,
+          materialCost: 0,
+          laborCost: 0,
+          overheadCost: 0,
+          totalCost: 0,
+          previousStandardCost: null,
+          costBreakdown: null,
+          errorMessage,
+        }),
+      );
+    }
+  }
+
+  async listCostingRuns(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<CostingRun>> {
+    const { page = 1, limit = 20 } = pagination;
+    const [items, total] = await this.costingRunRepo.findAndCount({
+      where: { tenantId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return new PaginatedResponseDto(items, total, page, limit);
   }
 }

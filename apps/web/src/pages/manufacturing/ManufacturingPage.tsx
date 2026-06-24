@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Plus, Play, CheckCircle, Package, ArrowDown } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Play, CheckCircle, Package, ArrowDown, RefreshCw } from 'lucide-react';
 import { manufacturingApi } from '../../api/manufacturing';
 
-type Tab = 'orders' | 'boms' | 'work-centers';
+type Tab = 'orders' | 'boms' | 'work-centers' | 'costing-runs';
 
 const ORDER_STATUS_COLORS: Record<string, string> = {
   PLANNED:     'bg-gray-100 text-gray-600',
@@ -298,7 +298,7 @@ export default function ManufacturingPage() {
       </div>
 
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-        {([['orders', 'Production Orders'], ['boms', 'Bills of Materials'], ['work-centers', 'Work Centers']] as const).map(([id, label]) => (
+        {([['orders', 'Production Orders'], ['boms', 'Bills of Materials'], ['work-centers', 'Work Centers'], ['costing-runs', 'Cost Roll-up']] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               tab === id ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
@@ -420,6 +420,10 @@ export default function ManufacturingPage() {
         </div>
       )}
 
+      {tab === 'costing-runs' && (
+        <CostingRunsTab boms={boms} />
+      )}
+
       {showCreateOrder && (
         <CreateOrderModal boms={boms} onClose={() => setShowCreateOrder(false)} onCreated={() => { setShowCreateOrder(false); load(); }} />
       )}
@@ -429,6 +433,167 @@ export default function ManufacturingPage() {
       {issueTarget && (
         <IssueMaterialModal order={issueTarget} onClose={() => setIssueTarget(null)} onDone={() => { setIssueTarget(null); load(); }} />
       )}
+    </div>
+  );
+}
+
+// ─── Costing Runs Tab ─────────────────────────────────────────────────────────
+
+function CostingRunsTab({ boms }: { boms: any[] }) {
+  const [runs, setRuns] = useState<any[]>([]);
+  const [selectedBomId, setSelectedBomId] = useState('');
+  const [rolling, setRolling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const loadRuns = useCallback(async () => {
+    try {
+      const res = await manufacturingApi.listCostingRuns({ limit: 50 });
+      const data = res.data?.data?.items ?? res.data?.items ?? res.data?.data ?? [];
+      setRuns(Array.isArray(data) ? data : []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { loadRuns(); }, [loadRuns]);
+
+  const handleRollup = async () => {
+    if (!selectedBomId) return;
+    setRolling(true);
+    setError(null);
+    try {
+      await manufacturingApi.rollupStandardCost(selectedBomId);
+      await loadRuns();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Roll-up failed');
+    } finally {
+      setRolling(false);
+    }
+  };
+
+  const fmt = (n: number | null | undefined) =>
+    Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border p-5">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Run Standard Cost Roll-up</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Traverses the BOM to compute material + labor cost per unit and updates the item's Standard Cost.
+        </p>
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Select BOM</label>
+            <select
+              value={selectedBomId}
+              onChange={(e) => setSelectedBomId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— pick a BOM —</option>
+              {boms.map((b: any) => (
+                <option key={b.id} value={b.id}>
+                  {b.bomNumber} — {b.finishedItemName} (qty {b.outputQuantity})
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={handleRollup}
+            disabled={!selectedBomId || rolling}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {rolling ? 'Rolling up...' : 'Roll up Cost'}
+          </button>
+          <button onClick={loadRuns} className="p-2 text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
+        {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+      </div>
+
+      <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="px-5 py-3 border-b bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-700">Costing Run History</h3>
+        </div>
+        {runs.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-400">No costing runs yet.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                {['Item', 'Run Date', 'Material', 'Labor', 'Total Cost', 'Previous Std', 'Status', ''].map(h => (
+                  <th key={h} className="text-left px-4 py-2 text-xs text-gray-500 font-medium">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {runs.map((run: any) => (
+                <>
+                  <tr key={run.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedId(expandedId === run.id ? null : run.id)}>
+                    <td className="px-4 py-2 font-medium">{run.finishedItemCode}</td>
+                    <td className="px-4 py-2 text-gray-500">{run.runDate}</td>
+                    <td className="px-4 py-2 text-right font-mono">{fmt(run.materialCost)}</td>
+                    <td className="px-4 py-2 text-right font-mono">{fmt(run.laborCost)}</td>
+                    <td className="px-4 py-2 text-right font-mono font-semibold text-blue-700">{fmt(run.totalCost)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-gray-400">{run.previousStandardCost != null ? fmt(run.previousStandardCost) : '—'}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${run.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {run.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-gray-400 text-xs">{expandedId === run.id ? '▲' : '▼'}</td>
+                  </tr>
+                  {expandedId === run.id && run.costBreakdown && (
+                    <tr key={`${run.id}-detail`}>
+                      <td colSpan={8} className="px-6 py-3 bg-blue-50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {run.costBreakdown.materialLines?.length > 0 && (
+                            <div>
+                              <div className="text-xs font-semibold text-gray-600 mb-1">Material Components</div>
+                              <table className="text-xs w-full">
+                                <thead><tr className="text-gray-400"><th className="text-left pb-1">Component</th><th className="text-right pb-1">Qty/Unit</th><th className="text-right pb-1">Unit Cost</th><th className="text-right pb-1">Line Cost</th></tr></thead>
+                                <tbody>
+                                  {run.costBreakdown.materialLines.map((l: any, i: number) => (
+                                    <tr key={i} className="border-t border-blue-100">
+                                      <td className="py-0.5 pr-3 font-mono">{l.componentCode}</td>
+                                      <td className="text-right pr-3">{Number(l.qty).toFixed(4)}</td>
+                                      <td className="text-right pr-3">{fmt(l.unitCost)}</td>
+                                      <td className="text-right font-medium">{fmt(l.lineCost)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          {run.costBreakdown.laborLines?.length > 0 && (
+                            <div>
+                              <div className="text-xs font-semibold text-gray-600 mb-1">Labor Operations</div>
+                              <table className="text-xs w-full">
+                                <thead><tr className="text-gray-400"><th className="text-left pb-1">Op</th><th className="text-right pb-1">Min/Unit</th><th className="text-right pb-1">Cost</th></tr></thead>
+                                <tbody>
+                                  {run.costBreakdown.laborLines.map((l: any, i: number) => (
+                                    <tr key={i} className="border-t border-blue-100">
+                                      <td className="py-0.5 pr-3">{l.operation}</td>
+                                      <td className="text-right pr-3">{Number(l.minutes).toFixed(2)}</td>
+                                      <td className="text-right font-medium">{fmt(l.cost)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                        {run.errorMessage && (
+                          <div className="mt-2 text-xs text-red-600">{run.errorMessage}</div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

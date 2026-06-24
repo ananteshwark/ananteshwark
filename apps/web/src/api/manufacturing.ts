@@ -36,4 +36,9 @@ export const manufacturingApi = {
   confirmOperation: (id: string, data: any) => apiClient.post(`/manufacturing/production-orders/${id}/confirm`, data),
   settleOrder: (id: string, data?: any) => apiClient.post(`/manufacturing/production-orders/${id}/settle`, data ?? {}),
   getCostSheet: (id: string) => apiClient.get(`/manufacturing/production-orders/${id}/cost-sheet`),
+
+  // BOM Standard Cost Roll-up (Phase 70)
+  rollupStandardCost: (bomId: string, runDate?: string) =>
+    apiClient.post('/manufacturing/costing-runs', { bomId, ...(runDate ? { runDate } : {}) }),
+  listCostingRuns: (params?: any) => apiClient.get('/manufacturing/costing-runs', { params }),
 };

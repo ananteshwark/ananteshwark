@@ -7,6 +7,7 @@ import { Routing } from './entities/routing.entity';
 import { RoutingOperation } from './entities/routing-operation.entity';
 import { PlannedOrder } from './entities/planned-order.entity';
 import { ProductionConfirmation } from './entities/production-confirmation.entity';
+import { CostingRun } from './entities/costing-run.entity';
 import { Item } from '../inventory/entities/item.entity';
 import { StockBalance } from '../inventory/entities/stock-balance.entity';
 import { SalesOrder } from '../sales/entities/sales-order.entity';
@@ -22,7 +23,7 @@ import { RbacModule } from '../rbac/rbac.module';
   imports: [
     TypeOrmModule.forFeature([
       Bom, BomLine, WorkCenter, ProductionOrder, MaterialIssuance,
-      Routing, RoutingOperation, PlannedOrder, ProductionConfirmation,
+      Routing, RoutingOperation, PlannedOrder, ProductionConfirmation, CostingRun,
       Item, StockBalance, SalesOrder, SalesOrderLine,
     ]),
     GlModule,

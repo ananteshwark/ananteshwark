@@ -172,4 +172,17 @@ export class ManufacturingController {
   getCostSheet(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.getCostSheet(user.tenantId, id);
   }
+
+  // ─── Phase 70: BOM Standard Cost Roll-up ─────────────────────────
+  @Post('costing-runs')
+  @RequirePermission('manufacturing:manage')
+  rollupCost(@CurrentUser() user: any, @Body() body: { bomId: string; runDate?: string }) {
+    return this.service.rollupStandardCost(user.tenantId, body.bomId, body.runDate);
+  }
+
+  @Get('costing-runs')
+  @RequirePermission('manufacturing:read')
+  listCostingRuns(@CurrentUser() user: any, @Query() pagination: any) {
+    return this.service.listCostingRuns(user.tenantId, pagination);
+  }
 }
