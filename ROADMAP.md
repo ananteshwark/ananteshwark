@@ -430,7 +430,7 @@ container loses nothing — just re-clone and continue.
   - Webhook retry with exponential backoff
   - Webhook delivery log + test endpoint
 
-- [ ] **Phase 64 — SSO Implementation (SAML/OIDC)** `P3`
+- [x] **Phase 64 — SSO Implementation (SAML/OIDC)** `P3`
   - SSO entity exists; implement actual SAML 2.0 flow
   - Support IdPs: Azure AD, Okta, Google Workspace
   - JIT provisioning: auto-create user on first SSO login
