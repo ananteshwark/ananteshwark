@@ -17,6 +17,8 @@ import {
 } from './entities/journal-entry.entity';
 import { JournalLine } from './entities/journal-line.entity';
 import { DocumentSplittingRule, SplitDimension } from './entities/document-splitting-rule.entity';
+import { RecurringJournal, RecurringFrequency } from './entities/recurring-journal.entity';
+import { AccrualConfig, AccrualConfigStatus } from './entities/accrual-config.entity';
 import {
   CreateAccountDto,
   UpdateAccountDto,
@@ -65,6 +67,10 @@ export class GlService {
     private readonly lineRepo: Repository<JournalLine>,
     @InjectRepository(DocumentSplittingRule)
     private readonly splittingRuleRepo: Repository<DocumentSplittingRule>,
+    @InjectRepository(RecurringJournal)
+    private readonly recurringRepo: Repository<RecurringJournal>,
+    @InjectRepository(AccrualConfig)
+    private readonly accrualConfigRepo: Repository<AccrualConfig>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -1025,5 +1031,196 @@ export class GlService {
       totalCredit: parseFloat(r.totalCredit ?? '0'),
       net: parseFloat(r.totalDebit ?? '0') - parseFloat(r.totalCredit ?? '0'),
     }));
+  }
+
+  // ─── Phase 76: Recurring Journals ─────────────────────────────────────────
+
+  async listRecurringJournals(tenantId: string): Promise<RecurringJournal[]> {
+    return this.recurringRepo.find({ where: { tenantId }, order: { name: 'ASC' } });
+  }
+
+  async createRecurringJournal(tenantId: string, dto: any): Promise<RecurringJournal> {
+    const totalDebit = (dto.templateLines ?? []).reduce((s: number, l: any) => s + (Number(l.debit) || 0), 0);
+    const totalCredit = (dto.templateLines ?? []).reduce((s: number, l: any) => s + (Number(l.credit) || 0), 0);
+    const rj = this.recurringRepo.create({
+      ...dto,
+      tenantId,
+      totalDebit,
+      totalCredit,
+      nextRunDate: dto.nextRunDate ?? dto.startDate,
+    });
+    return (this.recurringRepo.save(rj) as unknown) as Promise<RecurringJournal>;
+  }
+
+  async updateRecurringJournal(tenantId: string, id: string, dto: any): Promise<RecurringJournal> {
+    const rj = await this.recurringRepo.findOne({ where: { id, tenantId } });
+    if (!rj) throw new NotFoundException(`Recurring journal ${id} not found`);
+    Object.assign(rj, dto);
+    return this.recurringRepo.save(rj);
+  }
+
+  private nextDateForFrequency(current: string, frequency: RecurringFrequency): string {
+    const d = new Date(current);
+    switch (frequency) {
+      case RecurringFrequency.DAILY: d.setDate(d.getDate() + 1); break;
+      case RecurringFrequency.WEEKLY: d.setDate(d.getDate() + 7); break;
+      case RecurringFrequency.MONTHLY: d.setMonth(d.getMonth() + 1); break;
+      case RecurringFrequency.QUARTERLY: d.setMonth(d.getMonth() + 3); break;
+      case RecurringFrequency.YEARLY: d.setFullYear(d.getFullYear() + 1); break;
+    }
+    return d.toISOString().split('T')[0];
+  }
+
+  async runRecurringJournals(tenantId: string, asOfDate?: string, userId?: string): Promise<{ run: number; entries: string[] }> {
+    const today = asOfDate ?? new Date().toISOString().split('T')[0];
+    const due = await this.recurringRepo.find({
+      where: { tenantId, isActive: true },
+    });
+    const entries: string[] = [];
+
+    for (const rj of due) {
+      if (rj.nextRunDate > today) continue;
+      if (rj.endDate && today > rj.endDate) continue;
+
+      const je = await this.postJournalEntry(
+        tenantId,
+        {
+          date: rj.nextRunDate,
+          description: `[Recurring] ${rj.name}`,
+          reference: `RECUR-${rj.id.slice(0, 8)}`,
+          source: JournalSource.SYSTEM,
+          ledgerCode: rj.ledgerCode ?? 'MAIN',
+          lines: rj.templateLines.map(l => ({
+            accountId: l.accountId,
+            costCenterId: l.costCenterId ?? null,
+            profitCenterId: l.profitCenterId ?? null,
+            internalOrderId: l.internalOrderId ?? null,
+            debit: l.debit,
+            credit: l.credit,
+            description: l.description ?? rj.name,
+          })),
+        } as any,
+        userId ?? null,
+      );
+      entries.push(je.id);
+      rj.lastRunDate = rj.nextRunDate;
+      rj.nextRunDate = this.nextDateForFrequency(rj.nextRunDate, rj.frequency);
+      await this.recurringRepo.save(rj);
+    }
+
+    return { run: entries.length, entries };
+  }
+
+  // ─── Phase 76: Accrual Engine ──────────────────────────────────────────────
+
+  async listAccrualConfigs(tenantId: string): Promise<AccrualConfig[]> {
+    return this.accrualConfigRepo.find({ where: { tenantId }, order: { name: 'ASC' } });
+  }
+
+  async createAccrualConfig(tenantId: string, dto: any): Promise<AccrualConfig> {
+    const ac = this.accrualConfigRepo.create({ ...dto, tenantId });
+    return (this.accrualConfigRepo.save(ac) as unknown) as Promise<AccrualConfig>;
+  }
+
+  async updateAccrualConfig(tenantId: string, id: string, dto: any): Promise<AccrualConfig> {
+    const ac = await this.accrualConfigRepo.findOne({ where: { id, tenantId } });
+    if (!ac) throw new NotFoundException(`Accrual config ${id} not found`);
+    Object.assign(ac, dto);
+    return this.accrualConfigRepo.save(ac);
+  }
+
+  async postAccrual(tenantId: string, accrualConfigId: string, period: string, userId?: string): Promise<JournalEntry> {
+    const ac = await this.accrualConfigRepo.findOne({ where: { id: accrualConfigId, tenantId } });
+    if (!ac) throw new NotFoundException(`Accrual config ${accrualConfigId} not found`);
+    if (ac.status !== AccrualConfigStatus.ACTIVE) {
+      throw new BadRequestException('Accrual config is not active');
+    }
+
+    const periodDate = `${period}-01`;
+    const je = await this.postJournalEntry(
+      tenantId,
+      {
+        date: periodDate,
+        description: `Accrual: ${ac.name} — ${period}`,
+        reference: `ACC-${ac.id.slice(0, 8)}-${period}`,
+        source: JournalSource.SYSTEM,
+        lines: [
+          {
+            accountId: ac.accrualAccountId,
+            costCenterId: ac.costCenterId ?? null,
+            profitCenterId: ac.profitCenterId ?? null,
+            debit: ac.monthlyAmount,
+            credit: 0,
+            description: `Accrual — ${ac.name}`,
+          },
+          {
+            accountId: ac.offsetAccountId,
+            debit: 0,
+            credit: ac.monthlyAmount,
+            description: `Accrual offset — ${ac.name}`,
+          },
+        ],
+      } as any,
+      userId ?? null,
+    );
+
+    if (ac.autoReverse) {
+      const nextPeriodDate = this.nextDateForFrequency(`${period}-01`, RecurringFrequency.MONTHLY);
+      await this.reverseJournalEntry(tenantId, je.id, userId ?? null, nextPeriodDate);
+    }
+
+    ac.lastPostedPeriod = period;
+    await this.accrualConfigRepo.save(ac);
+    return je;
+  }
+
+  // ─── Phase 76: Period-Close Cockpit ───────────────────────────────────────
+
+  async getPeriodCloseCockpit(tenantId: string, periodId: string): Promise<any> {
+    const period = await this.periodRepo.findOne({ where: { id: periodId, tenantId } });
+    if (!period) throw new NotFoundException(`Period ${periodId} not found`);
+
+    const [draftCount, pendingRecurring, pendingAccruals] = await Promise.all([
+      this.journalRepo.count({
+        where: { tenantId, periodId, status: JournalStatus.DRAFT },
+      }),
+      this.recurringRepo.count({
+        where: { tenantId, isActive: true },
+      }),
+      this.accrualConfigRepo.count({
+        where: { tenantId, status: AccrualConfigStatus.ACTIVE },
+      }),
+    ]);
+
+    const draftEntriesBlocking = draftCount > 0;
+    const canClose = !draftEntriesBlocking;
+
+    return {
+      period,
+      checklist: [
+        {
+          item: 'Draft Journal Entries',
+          status: draftCount === 0 ? 'OK' : 'PENDING',
+          detail: draftCount === 0 ? 'No draft entries' : `${draftCount} draft entries must be posted or deleted`,
+        },
+        {
+          item: 'Recurring Journals',
+          status: 'INFO',
+          detail: `${pendingRecurring} active recurring templates`,
+        },
+        {
+          item: 'Accrual Configs',
+          status: 'INFO',
+          detail: `${pendingAccruals} active accrual configurations`,
+        },
+        {
+          item: 'Period Status',
+          status: period.status === 'OPEN' ? 'OPEN' : period.status,
+          detail: `Current status: ${period.status}`,
+        },
+      ],
+      canClose,
+      draftCount,
+    };
   }
 }

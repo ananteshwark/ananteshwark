@@ -315,4 +315,68 @@ export class GlController {
   ) {
     return this.glService.segmentTrialBalance(user.tenantId, from, to, ledgerCode);
   }
+
+  // ─── Phase 76: Recurring Journals ────────────────────────────────
+  @Get('recurring-journals')
+  @RequirePermission('finance:journal:read')
+  listRecurringJournals(@CurrentUser() user: any) {
+    return this.glService.listRecurringJournals(user.tenantId);
+  }
+
+  @Post('recurring-journals')
+  @RequirePermission('finance:journal:manage')
+  createRecurringJournal(@CurrentUser() user: any, @Body() body: any) {
+    return this.glService.createRecurringJournal(user.tenantId, body);
+  }
+
+  @Patch('recurring-journals/:id')
+  @RequirePermission('finance:journal:manage')
+  updateRecurringJournal(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.glService.updateRecurringJournal(user.tenantId, id, body);
+  }
+
+  @Post('recurring-journals/run')
+  @RequirePermission('finance:journal:post')
+  runRecurringJournals(
+    @CurrentUser() user: any,
+    @Body() body: { asOfDate?: string },
+  ) {
+    return this.glService.runRecurringJournals(user.tenantId, body?.asOfDate, user.id);
+  }
+
+  // ─── Phase 76: Accrual Engine ─────────────────────────────────────
+  @Get('accrual-configs')
+  @RequirePermission('finance:journal:read')
+  listAccrualConfigs(@CurrentUser() user: any) {
+    return this.glService.listAccrualConfigs(user.tenantId);
+  }
+
+  @Post('accrual-configs')
+  @RequirePermission('finance:journal:manage')
+  createAccrualConfig(@CurrentUser() user: any, @Body() body: any) {
+    return this.glService.createAccrualConfig(user.tenantId, body);
+  }
+
+  @Patch('accrual-configs/:id')
+  @RequirePermission('finance:journal:manage')
+  updateAccrualConfig(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.glService.updateAccrualConfig(user.tenantId, id, body);
+  }
+
+  @Post('accrual-configs/:id/post')
+  @RequirePermission('finance:journal:post')
+  postAccrual(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { period: string },
+  ) {
+    return this.glService.postAccrual(user.tenantId, id, body.period, user.id);
+  }
+
+  // ─── Phase 76: Period-Close Cockpit ───────────────────────────────
+  @Get('periods/:id/close-cockpit')
+  @RequirePermission('finance:periods:manage')
+  getPeriodCloseCockpit(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.glService.getPeriodCloseCockpit(user.tenantId, id);
+  }
 }

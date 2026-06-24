@@ -98,4 +98,22 @@ export const financeApi = {
   applySplitting: (journalEntryId: string) => apiClient.post(`/finance/journal-entries/${journalEntryId}/apply-splitting`),
   getSegmentTrialBalance: (params: { from: string; to: string; ledgerCode?: string }) =>
     apiClient.get('/finance/segment-trial-balance', { params }),
+
+  // Phase 76: Recurring Journals
+  getRecurringJournals: () => apiClient.get('/finance/recurring-journals'),
+  createRecurringJournal: (data: any) => apiClient.post('/finance/recurring-journals', data),
+  updateRecurringJournal: (id: string, data: any) => apiClient.patch(`/finance/recurring-journals/${id}`, data),
+  runRecurringJournals: (asOfDate?: string) => apiClient.post('/finance/recurring-journals/run', { asOfDate }),
+
+  // Phase 76: Accrual Engine
+  getAccrualConfigs: () => apiClient.get('/finance/accrual-configs'),
+  createAccrualConfig: (data: any) => apiClient.post('/finance/accrual-configs', data),
+  updateAccrualConfig: (id: string, data: any) => apiClient.patch(`/finance/accrual-configs/${id}`, data),
+  postAccrual: (id: string, period: string) => apiClient.post(`/finance/accrual-configs/${id}/post`, { period }),
+
+  // Periods list
+  getPeriods: (params?: any) => apiClient.get('/finance/periods', { params }),
+
+  // Phase 76: Period-Close Cockpit
+  getPeriodCloseCockpit: (periodId: string) => apiClient.get(`/finance/periods/${periodId}/close-cockpit`),
 };

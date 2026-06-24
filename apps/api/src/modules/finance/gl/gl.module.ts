@@ -7,6 +7,8 @@ import { AccountingPeriod } from './entities/accounting-period.entity';
 import { JournalEntry } from './entities/journal-entry.entity';
 import { JournalLine } from './entities/journal-line.entity';
 import { DocumentSplittingRule } from './entities/document-splitting-rule.entity';
+import { RecurringJournal } from './entities/recurring-journal.entity';
+import { AccrualConfig } from './entities/accrual-config.entity';
 import { GlService } from './gl.service';
 import { GlController } from './gl.controller';
 import { RbacModule } from '../../rbac/rbac.module';
@@ -21,6 +23,8 @@ import { RbacModule } from '../../rbac/rbac.module';
       JournalEntry,
       JournalLine,
       DocumentSplittingRule,
+      RecurringJournal,
+      AccrualConfig,
     ]),
     RbacModule,
   ],
