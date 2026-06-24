@@ -445,7 +445,7 @@ container loses nothing — just re-clone and continue.
     - Record attendance (QR-based clock-in)
     - Look up asset in maintenance
 
-- [ ] **Phase 66 — Multi-Language (i18n)** `P3`
+- [x] **Phase 66 — Multi-Language (i18n)** `P3`
   - Extract all UI strings to locale files (en.json as base)
   - Add: Hindi (hi), Arabic (ar, RTL), French (fr)
   - Language selector in user profile
