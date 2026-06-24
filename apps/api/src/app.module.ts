@@ -40,6 +40,7 @@ import { EmailModule } from './modules/email/email.module';
 import { SearchModule } from './modules/search/search.module';
 import { CustomFieldsModule } from './modules/platform/custom-fields/custom-fields.module';
 import { WebhooksModule } from './modules/platform/webhooks/webhooks.module';
+import { SsoModule } from './modules/platform/sso/sso.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -95,6 +96,7 @@ import { getDatabaseConfig } from './config/database.config';
     SearchModule,
     CustomFieldsModule,
     WebhooksModule,
+    SsoModule,
   ],
   providers: [
     {
