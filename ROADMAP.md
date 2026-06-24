@@ -422,7 +422,7 @@ container loses nothing — just re-clone and continue.
 
 ### SPRINT L — Mobile & Integration (P3-P4)
 
-- [ ] **Phase 63 — Public API + Webhooks** `P3`
+- [x] **Phase 63 — Public API + Webhooks** `P3`
   - API documentation portal (Swagger already exists — enrich with examples)
   - Webhook subscriptions: `POST /webhooks` with event types + target URL
   - Events: employee.created, invoice.posted, po.approved, payroll.run.completed, etc.
