@@ -55,4 +55,28 @@ export const inventoryApi = {
   createRma: (data: any) => apiClient.post('/inventory/v2/rmas', data),
   approveRma: (id: string) => apiClient.post(`/inventory/v2/rmas/${id}/approve`),
   receiveRma: (id: string, receivedDate: string) => apiClient.post(`/inventory/v2/rmas/${id}/receive`, { receivedDate }),
+
+  // Phase 73 — Special Procurement
+  // Subcontracting
+  getSubcontracts: (params?: any) => apiClient.get('/inventory/special-procurement/subcontracts', { params }),
+  getSubcontract: (id: string) => apiClient.get(`/inventory/special-procurement/subcontracts/${id}`),
+  createSubcontract: (data: any) => apiClient.post('/inventory/special-procurement/subcontracts', data),
+  sendComponents: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/subcontracts/${id}/send-components`, { date }),
+  receiveFinishedGoods: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/subcontracts/${id}/receive-finished`, { date }),
+  completeSubcontract: (id: string) => apiClient.post(`/inventory/special-procurement/subcontracts/${id}/complete`),
+
+  // Consignment
+  getConsignmentStock: (params?: any) => apiClient.get('/inventory/special-procurement/consignment', { params }),
+  receiveConsignment: (data: any) => apiClient.post('/inventory/special-procurement/consignment/receive', data),
+  consumeConsignment: (id: string, qty: number, date?: string) => apiClient.post(`/inventory/special-procurement/consignment/${id}/consume`, { qty, date }),
+  returnConsignment: (id: string, qty: number, date?: string) => apiClient.post(`/inventory/special-procurement/consignment/${id}/return`, { qty, date }),
+
+  // Stock Transfer Orders
+  getStos: (params?: any) => apiClient.get('/inventory/special-procurement/stos', { params }),
+  getSto: (id: string) => apiClient.get(`/inventory/special-procurement/stos/${id}`),
+  createSto: (data: any) => apiClient.post('/inventory/special-procurement/stos', data),
+  approveSto: (id: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/approve`),
+  issueGoodsSto: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/issue-goods`, { date }),
+  receiveGoodsSto: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/receive-goods`, { date }),
+  completeSto: (id: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/complete`),
 };

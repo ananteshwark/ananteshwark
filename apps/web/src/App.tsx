@@ -95,7 +95,7 @@ import {
   SuccessionPage,
 } from './pages/talent';
 import HiringPage from './pages/hiring/HiringPage';
-import { InventoryPage, StockValuationPage } from './pages/inventory';
+import { InventoryPage, StockValuationPage, SpecialProcurementPage } from './pages/inventory';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
@@ -234,6 +234,7 @@ export default function App() {
         <Route path="talent/succession" element={<SuccessionPage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="inventory/valuation" element={<StockValuationPage />} />
+        <Route path="inventory/special-procurement" element={<SpecialProcurementPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="crm" element={<CrmPage />} />
