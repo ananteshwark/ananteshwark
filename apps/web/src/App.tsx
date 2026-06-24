@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { PwaInstallPrompt } from './components/pwa/PwaInstallPrompt';
 import { AppLayout } from './components/layout/AppLayout';
 import { useAuthStore } from './store/authStore';
 import { apiClient } from './api/client';
@@ -143,6 +144,8 @@ export default function App() {
   }, [isAuthenticated, setUser, setTenant]);
 
   return (
+    <>
+    <PwaInstallPrompt />
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
@@ -261,5 +264,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </>
   );
 }
