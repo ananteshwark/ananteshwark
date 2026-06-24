@@ -4,3 +4,4 @@ export { default as CreditManagementPage } from './CreditManagementPage';
 export { default as ATPDashboardPage } from './ATPDashboardPage';
 export { default as ReturnsPage } from './ReturnsPage';
 export { default as DeliveriesPage } from './DeliveriesPage';
+export { default as BillingPlansPage } from './BillingPlansPage';
