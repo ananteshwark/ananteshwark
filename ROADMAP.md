@@ -396,7 +396,7 @@ container loses nothing — just re-clone and continue.
   - Keyboard shortcut: Ctrl+K opens command palette / search
   - Recent items: last 10 records viewed per user
 
-- [ ] **Phase 60 — Custom Field Creator** `P2`
+- [x] **Phase 60 — Custom Field Creator** `P2`
   - Admin UI: add custom fields to any entity (employee, vendor, customer, PO, invoice)
   - Field types: text, number, date, dropdown (with configurable options), checkbox, multi-select
   - `CustomFieldDefinition` entity: entityType, fieldName, fieldType, required, options, tenantId
