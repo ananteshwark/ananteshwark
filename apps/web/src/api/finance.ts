@@ -80,4 +80,12 @@ export const financeApi = {
   getBalanceSheet: (params?: any) => apiClient.get('/finance/reports/balance-sheet', { params }),
   getGlDetail: (params?: any) => apiClient.get('/finance/reports/gl-detail', { params }),
   getCashFlow: (params?: any) => apiClient.get('/finance/reports/cash-flow', { params }),
+
+  // Phase 72: Document Splitting
+  getSplittingRules: () => apiClient.get('/finance/splitting-rules'),
+  createSplittingRule: (data: any) => apiClient.post('/finance/splitting-rules', data),
+  updateSplittingRule: (id: string, data: any) => apiClient.patch(`/finance/splitting-rules/${id}`, data),
+  applySplitting: (journalEntryId: string) => apiClient.post(`/finance/journal-entries/${journalEntryId}/apply-splitting`),
+  getSegmentTrialBalance: (params: { from: string; to: string; ledgerCode?: string }) =>
+    apiClient.get('/finance/segment-trial-balance', { params }),
 };

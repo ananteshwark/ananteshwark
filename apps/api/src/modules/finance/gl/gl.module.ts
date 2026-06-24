@@ -6,6 +6,7 @@ import { FiscalYear } from './entities/fiscal-year.entity';
 import { AccountingPeriod } from './entities/accounting-period.entity';
 import { JournalEntry } from './entities/journal-entry.entity';
 import { JournalLine } from './entities/journal-line.entity';
+import { DocumentSplittingRule } from './entities/document-splitting-rule.entity';
 import { GlService } from './gl.service';
 import { GlController } from './gl.controller';
 import { RbacModule } from '../../rbac/rbac.module';
@@ -19,6 +20,7 @@ import { RbacModule } from '../../rbac/rbac.module';
       AccountingPeriod,
       JournalEntry,
       JournalLine,
+      DocumentSplittingRule,
     ]),
     RbacModule,
   ],

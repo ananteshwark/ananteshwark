@@ -279,4 +279,40 @@ export class GlController {
       body?.reversalDate,
     );
   }
+
+  // ─── Phase 72: Document Splitting ────────────────────────────────
+  @Get('splitting-rules')
+  @RequirePermission('finance:journal:read')
+  listSplittingRules(@CurrentUser() user: any) {
+    return this.glService.listSplittingRules(user.tenantId);
+  }
+
+  @Post('splitting-rules')
+  @RequirePermission('finance:journal:manage')
+  createSplittingRule(@CurrentUser() user: any, @Body() body: any) {
+    return this.glService.createSplittingRule(user.tenantId, body);
+  }
+
+  @Patch('splitting-rules/:id')
+  @RequirePermission('finance:journal:manage')
+  updateSplittingRule(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.glService.updateSplittingRule(user.tenantId, id, body);
+  }
+
+  @Post('journal-entries/:id/apply-splitting')
+  @RequirePermission('finance:journal:manage')
+  applySplitting(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.glService.applySplitting(user.tenantId, id);
+  }
+
+  @Get('segment-trial-balance')
+  @RequirePermission('finance:reports:read')
+  segmentTrialBalance(
+    @CurrentUser() user: any,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('ledgerCode') ledgerCode?: string,
+  ) {
+    return this.glService.segmentTrialBalance(user.tenantId, from, to, ledgerCode);
+  }
 }

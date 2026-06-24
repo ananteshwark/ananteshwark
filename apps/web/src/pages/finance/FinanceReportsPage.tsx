@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { financeApi } from '../../api/finance';
 
-type TabKey = 'trialBalance' | 'pnl' | 'balanceSheet' | 'glDetail' | 'cashFlow';
+type TabKey = 'trialBalance' | 'pnl' | 'balanceSheet' | 'glDetail' | 'cashFlow' | 'segmentBalance';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'trialBalance', label: 'Trial Balance' },
@@ -9,6 +9,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'balanceSheet', label: 'Balance Sheet' },
   { key: 'glDetail', label: 'GL Detail' },
   { key: 'cashFlow', label: 'Cash Flow' },
+  { key: 'segmentBalance', label: 'Segment Balance' },
 ];
 
 const today = new Date().toISOString().split('T')[0];
@@ -428,6 +429,107 @@ export default function FinanceReportsPage() {
       {activeTab === 'balanceSheet' && <BalanceSheetTab />}
       {activeTab === 'glDetail' && <GlDetailTab />}
       {activeTab === 'cashFlow' && <CashFlowTab />}
+      {activeTab === 'segmentBalance' && <SegmentBalanceTab />}
+    </div>
+  );
+}
+
+// ---- Segment Balance (Phase 72) ----
+function SegmentBalanceTab() {
+  const [from, setFrom] = useState(firstOfYear);
+  const [to, setTo] = useState(today);
+  const [ledgerCode, setLedgerCode] = useState('');
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await financeApi.getSegmentTrialBalance({ from, to, ...(ledgerCode ? { ledgerCode } : {}) });
+      const data = res.data?.data ?? res.data ?? [];
+      setRows(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Failed to load segment balance');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Group by profit center
+  const grouped: Record<string, any[]> = {};
+  for (const row of rows) {
+    const key = row.profitCenterId ?? '(Unassigned)';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(row);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 flex-wrap items-end">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">From</label>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">To</label>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Ledger</label>
+          <select value={ledgerCode} onChange={(e) => setLedgerCode(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">All Ledgers</option>
+            <option value="MAIN">MAIN</option>
+            <option value="IFRS">IFRS</option>
+            <option value="LOCAL">LOCAL GAAP</option>
+          </select>
+        </div>
+        <button onClick={load} disabled={loading}
+          className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+          {loading ? 'Loading...' : 'Run'}
+        </button>
+      </div>
+
+      {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+
+      {rows.length > 0 && Object.entries(grouped).map(([pc, pcRows]) => (
+        <div key={pc} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-gray-50 px-4 py-2 border-b">
+            <span className="text-sm font-semibold text-gray-700">Profit Center: </span>
+            <span className="text-sm font-mono text-indigo-600">{pc}</span>
+          </div>
+          <table className="min-w-full text-sm divide-y divide-gray-100">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Account Type</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Total Debit</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Total Credit</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Net</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pcRows.map((r, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 font-medium">{r.accountType}</td>
+                  <td className="px-4 py-2 text-right font-mono">{fmt(r.totalDebit)}</td>
+                  <td className="px-4 py-2 text-right font-mono">{fmt(r.totalCredit)}</td>
+                  <td className={`px-4 py-2 text-right font-mono font-semibold ${r.net < 0 ? 'text-red-600' : 'text-green-700'}`}>{fmt(r.net)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+
+      {rows.length === 0 && !loading && (
+        <div className="text-center py-12 text-gray-400 text-sm">Click "Run" to generate the segment trial balance.</div>
+      )}
     </div>
   );
 }

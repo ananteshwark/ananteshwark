@@ -16,6 +16,7 @@ import {
   JournalStatus,
 } from './entities/journal-entry.entity';
 import { JournalLine } from './entities/journal-line.entity';
+import { DocumentSplittingRule, SplitDimension } from './entities/document-splitting-rule.entity';
 import {
   CreateAccountDto,
   UpdateAccountDto,
@@ -62,6 +63,8 @@ export class GlService {
     private readonly journalRepo: Repository<JournalEntry>,
     @InjectRepository(JournalLine)
     private readonly lineRepo: Repository<JournalLine>,
+    @InjectRepository(DocumentSplittingRule)
+    private readonly splittingRuleRepo: Repository<DocumentSplittingRule>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -886,5 +889,141 @@ export class GlService {
       if (r.type === 'EXPENSE') expenses = Math.abs(parseFloat(r.net ?? '0'));
     }
     return { revenues, expenses };
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // Phase 72 — Document Splitting Rules + Segment Trial Balance
+  // ════════════════════════════════════════════════════════════════
+
+  async createSplittingRule(tenantId: string, dto: Partial<DocumentSplittingRule>): Promise<DocumentSplittingRule> {
+    const rule = this.splittingRuleRepo.create({ ...dto, tenantId });
+    return this.splittingRuleRepo.save(rule);
+  }
+
+  async listSplittingRules(tenantId: string): Promise<DocumentSplittingRule[]> {
+    return this.splittingRuleRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' } });
+  }
+
+  async updateSplittingRule(tenantId: string, id: string, dto: Partial<DocumentSplittingRule>): Promise<DocumentSplittingRule> {
+    const rule = await this.splittingRuleRepo.findOne({ where: { id, tenantId } });
+    if (!rule) throw new NotFoundException(`Splitting rule ${id} not found`);
+    Object.assign(rule, dto);
+    return this.splittingRuleRepo.save(rule);
+  }
+
+  /**
+   * Apply document splitting to a posted journal entry.
+   * For each active splitting rule, find lines without a dimension assignment,
+   * derive the assignment from sibling lines that have one, and create clearing lines
+   * so that each segment's balance nets to zero across balance-sheet accounts.
+   */
+  async applySplitting(tenantId: string, journalEntryId: string): Promise<JournalLine[]> {
+    const rules = await this.splittingRuleRepo.find({ where: { tenantId, isActive: true } });
+    if (rules.length === 0) return [];
+
+    const entry = await this.journalRepo.findOne({ where: { id: journalEntryId, tenantId } });
+    if (!entry || entry.status !== JournalStatus.POSTED) {
+      throw new BadRequestException('Entry must be POSTED before splitting can be applied');
+    }
+
+    const lines = await this.lineRepo.find({ where: { journalEntryId, tenantId } });
+    const newLines: Partial<JournalLine>[] = [];
+
+    for (const rule of rules) {
+      if (rule.splitDimension !== SplitDimension.PROFIT_CENTER) continue;
+
+      // Identify lines with profit center and without
+      const withPC = lines.filter((l) => l.profitCenterId);
+      const withoutPC = lines.filter((l) => !l.profitCenterId);
+      if (withoutPC.length === 0 || withPC.length === 0) continue;
+
+      // Determine dominant profit center from lines that have one
+      const pcCounts = new Map<string, number>();
+      for (const l of withPC) {
+        const net = Number(l.debit) - Number(l.credit);
+        pcCounts.set(l.profitCenterId!, (pcCounts.get(l.profitCenterId!) ?? 0) + Math.abs(net));
+      }
+      const dominantPC = [...pcCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (!dominantPC) continue;
+
+      // For each unassigned line, create a clearing entry so the segment balance zeros out
+      if (rule.clearingAccountId) {
+        for (const line of withoutPC) {
+          const dr = Number(line.debit);
+          const cr = Number(line.credit);
+          if (dr === 0 && cr === 0) continue;
+
+          // Assign the line itself to the dominant PC (splitting assignment)
+          line.profitCenterId = dominantPC;
+          await this.lineRepo.save(line);
+
+          // Zero-balance clearing entry to keep the overall journal balanced
+          newLines.push({
+            tenantId,
+            journalEntryId,
+            lineNumber: lines.length + newLines.length + 1,
+            accountId: rule.clearingAccountId,
+            description: `Splitting clearing [${dominantPC}]`,
+            debit: cr, // opposite side to keep balance
+            credit: dr,
+            profitCenterId: dominantPC,
+          });
+        }
+      } else {
+        // No clearing account: just assign the profit center
+        for (const line of withoutPC) {
+          line.profitCenterId = dominantPC;
+          await this.lineRepo.save(line);
+        }
+      }
+    }
+
+    const saved: JournalLine[] = [];
+    for (const nl of newLines) {
+      saved.push(await this.lineRepo.save(this.lineRepo.create(nl)));
+    }
+    return saved;
+  }
+
+  /**
+   * Segment trial balance: group all posted journal lines by profit center
+   * and return debit/credit/net per account type.
+   */
+  async segmentTrialBalance(
+    tenantId: string,
+    fromDate: string,
+    toDate: string,
+    ledgerCode?: string,
+  ): Promise<Array<{ profitCenterId: string | null; accountType: string; totalDebit: number; totalCredit: number; net: number }>> {
+    const qb = this.lineRepo
+      .createQueryBuilder('l')
+      .innerJoin('fin_journal_entries', 'je', 'je.id = l.journal_entry_id')
+      .innerJoin('fin_accounts', 'a', 'a.id = l.account_id')
+      .where('l.tenant_id = :tenantId', { tenantId })
+      .andWhere('je.date >= :fromDate', { fromDate })
+      .andWhere('je.date <= :toDate', { toDate })
+      .andWhere('je.status = :status', { status: 'POSTED' });
+
+    if (ledgerCode) {
+      qb.andWhere('je.ledger_code = :ledgerCode', { ledgerCode });
+    }
+
+    const rows = await qb
+      .select('l.profit_center_id', 'profitCenterId')
+      .addSelect('a.type', 'accountType')
+      .addSelect('COALESCE(SUM(l.debit), 0)', 'totalDebit')
+      .addSelect('COALESCE(SUM(l.credit), 0)', 'totalCredit')
+      .groupBy('l.profit_center_id')
+      .addGroupBy('a.type')
+      .orderBy('l.profit_center_id', 'ASC')
+      .getRawMany();
+
+    return rows.map((r) => ({
+      profitCenterId: r.profitCenterId ?? null,
+      accountType: r.accountType,
+      totalDebit: parseFloat(r.totalDebit ?? '0'),
+      totalCredit: parseFloat(r.totalCredit ?? '0'),
+      net: parseFloat(r.totalDebit ?? '0') - parseFloat(r.totalCredit ?? '0'),
+    }));
   }
 }
