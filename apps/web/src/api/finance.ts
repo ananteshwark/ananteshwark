@@ -116,4 +116,22 @@ export const financeApi = {
 
   // Phase 76: Period-Close Cockpit
   getPeriodCloseCockpit: (periodId: string) => apiClient.get(`/finance/periods/${periodId}/close-cockpit`),
+
+  // Phase 77: Treasury & Cash Management
+  getCashPositions: (params?: any) => apiClient.get('/finance/treasury/cash-positions', { params }),
+  createCashPosition: (data: any) => apiClient.post('/finance/treasury/cash-positions', data),
+  getCashPositionSummary: (date: string) => apiClient.get('/finance/treasury/cash-positions/summary', { params: { date } }),
+  getGuarantees: (params?: any) => apiClient.get('/finance/treasury/guarantees', { params }),
+  createGuarantee: (data: any) => apiClient.post('/finance/treasury/guarantees', data),
+  updateGuaranteeStatus: (id: string, data: any) => apiClient.patch(`/finance/treasury/guarantees/${id}/status`, data),
+  getInstruments: (params?: any) => apiClient.get('/finance/treasury/instruments', { params }),
+  createInstrument: (data: any) => apiClient.post('/finance/treasury/instruments', data),
+  accrueInstrumentInterest: (id: string) => apiClient.post(`/finance/treasury/instruments/${id}/accrue`),
+  redeemInstrument: (id: string) => apiClient.post(`/finance/treasury/instruments/${id}/redeem`),
+  getLiquidityForecast: (params: any) => apiClient.get('/finance/treasury/liquidity-forecast', { params }),
+  getSweepRules: () => apiClient.get('/finance/treasury/sweep-rules'),
+  createSweepRule: (data: any) => apiClient.post('/finance/treasury/sweep-rules', data),
+  updateSweepRule: (id: string, data: any) => apiClient.patch(`/finance/treasury/sweep-rules/${id}`, data),
+  executeSweep: (id: string) => apiClient.post(`/finance/treasury/sweep-rules/${id}/execute`),
+  getSweepLogs: (params?: any) => apiClient.get('/finance/treasury/sweep-logs', { params }),
 };
