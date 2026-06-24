@@ -82,6 +82,9 @@ export class ServiceEntrySheet {
   @Column({ name: 'rejection_reason', type: 'text', nullable: true })
   rejectionReason: string | null;
 
+  @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true })
+  journalEntryId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

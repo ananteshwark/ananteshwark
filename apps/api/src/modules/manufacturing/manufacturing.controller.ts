@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ManufacturingService } from './manufacturing.service';
 import { MrpService } from './mrp.service';
 import { FcsService } from './fcs.service';
@@ -174,6 +174,22 @@ export class ManufacturingController {
   @RequirePermission('manufacturing:read')
   getCostSheet(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.getCostSheet(user.tenantId, id);
+  }
+
+  // ─── Phase 80: GL Reconciliation + Retry ────────────────────────────────
+
+  @Get('gl-reconciliation')
+  @RequirePermission('manufacturing:read')
+  @ApiOperation({ summary: 'List COMPLETED/SETTLED orders missing a GL journal entry' })
+  getGlReconciliation(@CurrentUser() user: any) {
+    return this.service.getGlReconciliation(user.tenantId);
+  }
+
+  @Post('production-orders/:id/retry-gl')
+  @RequirePermission('manufacturing:manage')
+  @ApiOperation({ summary: 'Retry GL posting for a COMPLETED order with missing journal entry' })
+  retryGlForOrder(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.retryGlForOrder(user.tenantId, id, user.id);
   }
 
   // ─── Phase 70: BOM Standard Cost Roll-up ─────────────────────────

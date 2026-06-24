@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import {
   ServiceEntrySheet,
   ServiceEntryStatus,
@@ -12,6 +12,8 @@ import {
 import { CreateServiceEntryDto } from './dto/service-entry.dto';
 import { PoService } from '../po/po.service';
 import { GrirService } from '../../finance/grir/grir.service';
+import { GlService } from '../../finance/gl/gl.service';
+import { JournalSource } from '../../finance/gl/entities/journal-entry.entity';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -22,6 +24,8 @@ export class ServiceEntryService {
     private readonly repo: Repository<ServiceEntrySheet>,
     private readonly poService: PoService,
     private readonly grirService: GrirService,
+    private readonly glService: GlService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -89,28 +93,55 @@ export class ServiceEntryService {
     if (sheet.status !== ServiceEntryStatus.SUBMITTED) {
       throw new BadRequestException('Only SUBMITTED service entry sheets can be approved');
     }
-    sheet.status = ServiceEntryStatus.APPROVED;
-    sheet.approvedBy = userId;
-    sheet.approvedAt = new Date();
-    const saved = await this.repo.save(sheet);
 
-    // On approval, create a GR-equivalent entry to feed the 3-way match.
-    try {
-      await this.grirService.createGrEntry(tenantId, {
-        poId: sheet.poId,
-        poLineId: sheet.poLineId,
-        itemId: null,
-        itemDescription: sheet.description,
-        quantity: sheet.quantity,
-        unitCost: sheet.rate,
-        totalAmount: sheet.amount,
-        postingDate: sheet.periodTo,
-      });
-    } catch (e: any) {
-      console.warn(`GR/IR entry creation failed for service entry ${sheet.id}:`, e.message);
-    }
+    return this.dataSource.transaction(async (manager) => {
+      sheet.status = ServiceEntryStatus.APPROVED;
+      sheet.approvedBy = userId;
+      sheet.approvedAt = new Date();
 
-    return saved;
+      // Transactional GL: DR Service Expense, CR GR/IR (AP accrual)
+      const expenseAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'service expense' });
+      const grirAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'GR/IR' });
+      if (expenseAccts.items.length > 0 && grirAccts.items.length > 0) {
+        const amount = Math.round(Number(sheet.amount) * 100) / 100;
+        const je = await this.glService.postJournalEntry(
+          tenantId,
+          {
+            date: sheet.periodTo,
+            description: `Service entry sheet approval: ${sheet.sheetNumber}`,
+            reference: `SES-APPR-${sheet.sheetNumber ?? id.slice(0, 8)}`,
+            source: JournalSource.SYSTEM,
+            lines: [
+              { accountId: expenseAccts.items[0].id, debit: amount, credit: 0, description: `Service: ${sheet.description.slice(0, 80)}` },
+              { accountId: grirAccts.items[0].id, debit: 0, credit: amount, description: `GR/IR: ${sheet.sheetNumber}` },
+            ],
+          } as any,
+          userId,
+          manager,
+        );
+        sheet.journalEntryId = je.id;
+      }
+
+      const saved = await manager.save(sheet);
+
+      // GR/IR entry creation (outside GL transaction — best-effort)
+      try {
+        await this.grirService.createGrEntry(tenantId, {
+          poId: sheet.poId,
+          poLineId: sheet.poLineId,
+          itemId: null,
+          itemDescription: sheet.description,
+          quantity: sheet.quantity,
+          unitCost: sheet.rate,
+          totalAmount: sheet.amount,
+          postingDate: sheet.periodTo,
+        });
+      } catch (e: any) {
+        console.warn(`GR/IR entry creation failed for service entry ${sheet.id}:`, e.message);
+      }
+
+      return saved;
+    });
   }
 
   async reject(tenantId: string, id: string, reason?: string): Promise<ServiceEntrySheet> {

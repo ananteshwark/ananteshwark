@@ -2,7 +2,7 @@ import {
   Injectable, NotFoundException, ConflictException, BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Bom, BomLine, BomStatus } from './entities/bom.entity';
 import { WorkCenter } from './entities/work-center.entity';
 import { ProductionOrder, ProductionOrderStatus, MaterialIssuance } from './entities/production-order.entity';
@@ -36,6 +36,7 @@ export class ManufacturingService {
     private readonly glService: GlService,
     private readonly inventoryService: InventoryService,
     private readonly controllingService: ControllingService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ---- BOMs ----
@@ -147,36 +148,44 @@ export class ManufacturingService {
     if (![ProductionOrderStatus.RELEASED, ProductionOrderStatus.IN_PROGRESS].includes(order.status)) {
       throw new BadRequestException('Order must be RELEASED or IN_PROGRESS to complete');
     }
-    order.producedQuantity = dto.producedQuantity;
-    order.scrapQuantity = dto.scrapQuantity ?? 0;
-    order.actualEndDate = dto.actualEndDate;
-    order.status = ProductionOrderStatus.COMPLETED;
 
-    // Best-effort GL posting: WIP → Finished Goods, COGS for scrap
-    try {
-      const wipAccounts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'WIP' });
-      const fgAccounts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'finished goods' });
-      if (wipAccounts.items.length > 0 && fgAccounts.items.length > 0) {
-        const wipAccountId = wipAccounts.items[0].id;
-        const fgAccountId = fgAccounts.items[0].id;
-        // Use a nominal transfer amount (production cost estimation would require costing engine)
-        const transferAmount = dto.producedQuantity;
-        await this.glService.postJournalEntry(tenantId, {
-          date: dto.actualEndDate,
-          description: `Production order completion: ${order.orderNumber}`,
-          source: JournalSource.SYSTEM,
-          currency: 'USD',
-          lines: [
-            { accountId: fgAccountId, debit: transferAmount, credit: 0, description: `Finished goods: ${order.finishedItemName}` },
-            { accountId: wipAccountId, debit: 0, credit: transferAmount, description: `WIP transfer: ${order.orderNumber}` },
-          ],
-        }, userId);
+    return this.dataSource.transaction(async (manager) => {
+      order.producedQuantity = dto.producedQuantity;
+      order.scrapQuantity = dto.scrapQuantity ?? 0;
+      order.actualEndDate = dto.actualEndDate;
+      order.status = ProductionOrderStatus.COMPLETED;
+
+      // Transactional GL: WIP → Finished Goods using actual accumulated WIP balance
+      const transferAmount = Math.round(
+        (Number(order.wipBalance ?? 0) ||
+          Number(order.actualMaterialCost ?? 0) + Number(order.actualLaborCost ?? 0)) * 100,
+      ) / 100;
+
+      if (transferAmount > 0) {
+        const wipAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'WIP' });
+        const fgAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'finished goods' });
+        if (wipAccts.items.length > 0 && fgAccts.items.length > 0) {
+          const je = await this.glService.postJournalEntry(
+            tenantId,
+            {
+              date: dto.actualEndDate,
+              description: `Production order completion: ${order.orderNumber}`,
+              reference: `PO-COMP-${order.orderNumber}`,
+              source: JournalSource.SYSTEM,
+              lines: [
+                { accountId: fgAccts.items[0].id, debit: transferAmount, credit: 0, description: `FG transfer: ${order.finishedItemName}` },
+                { accountId: wipAccts.items[0].id, debit: 0, credit: transferAmount, description: `WIP clear: ${order.orderNumber}` },
+              ],
+            } as any,
+            userId,
+            manager,
+          );
+          order.journalEntryId = je.id;
+        }
       }
-    } catch (_) {
-      // GL posting is best-effort
-    }
 
-    return this.orderRepo.save(order);
+      return manager.save(order);
+    });
   }
 
   async issueMaterial(tenantId: string, orderId: string, dto: IssueMaterialDto): Promise<MaterialIssuance> {
@@ -488,12 +497,48 @@ export class ManufacturingService {
     const plannedLabor = Number(order.plannedLaborCost ?? 0);
     const actualMaterial = Number(order.actualMaterialCost ?? 0);
     const actualLabor = Number(order.actualLaborCost ?? 0);
+    const totalVariance = Math.round(
+      ((actualMaterial + actualLabor) - (plannedMaterial + plannedLabor)) * 100,
+    ) / 100;
 
-    order.materialVariance = Math.round((actualMaterial - plannedMaterial) * 100) / 100;
-    order.laborVariance = Math.round((actualLabor - plannedLabor) * 100) / 100;
-    order.costStatus = 'SETTLED';
-    order.wipBalance = 0;
-    return this.orderRepo.save(order);
+    return this.dataSource.transaction(async (manager) => {
+      order.materialVariance = Math.round((actualMaterial - plannedMaterial) * 100) / 100;
+      order.laborVariance = Math.round((actualLabor - plannedLabor) * 100) / 100;
+      order.overheadVariance = Math.round(
+        (Number(order.actualOverheadCost ?? 0) - Number(order.plannedOverheadCost ?? 0)) * 100,
+      ) / 100;
+      order.costStatus = 'SETTLED';
+      order.wipBalance = 0;
+
+      // Post variance GL entry transactionally (non-zero variance only)
+      if (Math.abs(totalVariance) >= 0.01) {
+        const wipAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'WIP' });
+        const varAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'variance' });
+        if (wipAccts.items.length > 0 && varAccts.items.length > 0) {
+          const [wipId, varId] = [wipAccts.items[0].id, varAccts.items[0].id];
+          const absVar = Math.abs(totalVariance);
+          // Unfavorable (actual > planned): DR Variance, CR WIP | Favorable: DR WIP, CR Variance
+          const [drId, crId] = totalVariance > 0 ? [varId, wipId] : [wipId, varId];
+          await this.glService.postJournalEntry(
+            tenantId,
+            {
+              date: new Date().toISOString().slice(0, 10),
+              description: `Production order settlement: ${order.orderNumber}`,
+              reference: `PO-SETL-${order.orderNumber}`,
+              source: JournalSource.SYSTEM,
+              lines: [
+                { accountId: drId, debit: absVar, credit: 0, description: `Settlement variance: ${order.orderNumber}` },
+                { accountId: crId, debit: 0, credit: absVar, description: `Settlement offset: ${order.orderNumber}` },
+              ],
+            } as any,
+            null,
+            manager,
+          );
+        }
+      }
+
+      return manager.save(order);
+    });
   }
 
   async getCostSheet(tenantId: string, orderId: string): Promise<any> {
@@ -665,5 +710,80 @@ export class ManufacturingService {
       take: limit,
     });
     return new PaginatedResponseDto(items, total, page, limit);
+  }
+
+  // ─── Phase 80: Retry GL + Reconciliation ─────────────────────────────────
+
+  /**
+   * Re-attempt the WIP→FG GL posting for a COMPLETED order whose journalEntryId is null.
+   * Idempotent: if journalEntryId is already set the endpoint returns immediately.
+   */
+  async retryGlForOrder(tenantId: string, orderId: string, userId: string): Promise<ProductionOrder> {
+    const order = await this.orderRepo.findOne({ where: { tenantId, id: orderId } });
+    if (!order) throw new NotFoundException(`Production order ${orderId} not found`);
+    if (order.status !== ProductionOrderStatus.COMPLETED) {
+      throw new BadRequestException('Only COMPLETED orders can have GL retried');
+    }
+    if (order.journalEntryId) {
+      return order; // already posted — idempotent
+    }
+
+    const transferAmount = Math.round(
+      (Number(order.wipBalance ?? 0) ||
+        Number(order.actualMaterialCost ?? 0) + Number(order.actualLaborCost ?? 0)) * 100,
+    ) / 100;
+
+    if (transferAmount <= 0) {
+      throw new BadRequestException('No WIP balance to transfer; verify actual costs are posted');
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const wipAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'WIP' });
+      const fgAccts = await this.glService.findAccounts(tenantId, { page: 1, limit: 1 } as any, { search: 'finished goods' });
+      if (!wipAccts.items.length || !fgAccts.items.length) {
+        throw new BadRequestException('WIP or Finished Goods GL account not found; configure chart of accounts first');
+      }
+      const je = await this.glService.postJournalEntry(
+        tenantId,
+        {
+          date: order.actualEndDate ?? new Date().toISOString().slice(0, 10),
+          description: `GL retry — Production order completion: ${order.orderNumber}`,
+          reference: `PO-RETRY-${order.orderNumber}`,
+          source: JournalSource.SYSTEM,
+          lines: [
+            { accountId: fgAccts.items[0].id, debit: transferAmount, credit: 0, description: `FG transfer: ${order.finishedItemName}` },
+            { accountId: wipAccts.items[0].id, debit: 0, credit: transferAmount, description: `WIP clear: ${order.orderNumber}` },
+          ],
+        } as any,
+        userId,
+        manager,
+      );
+      order.journalEntryId = je.id;
+      return manager.save(order);
+    });
+  }
+
+  /**
+   * Returns a reconciliation report of COMPLETED / SETTLED production orders
+   * that are missing a journal entry (journalEntryId IS NULL).
+   * Ops alerting: these represent GL gaps requiring manual investigation or retry.
+   */
+  async getGlReconciliation(tenantId: string): Promise<{ type: string; documentId: string; documentNumber: string; status: string; amount: number }[]> {
+    const orders = await this.orderRepo.find({
+      where: [
+        { tenantId, status: ProductionOrderStatus.COMPLETED, journalEntryId: null as any },
+        { tenantId, costStatus: 'SETTLED', journalEntryId: null as any },
+      ],
+    });
+
+    return orders.map(o => ({
+      type: 'PRODUCTION_ORDER',
+      documentId: o.id,
+      documentNumber: o.orderNumber,
+      status: o.status,
+      amount: Math.round(
+        (Number(o.actualMaterialCost ?? 0) + Number(o.actualLaborCost ?? 0)) * 100,
+      ) / 100,
+    }));
   }
 }

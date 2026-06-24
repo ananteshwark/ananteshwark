@@ -6,6 +6,7 @@ import { ServiceEntryController } from './service-entry.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 import { PoModule } from '../po/po.module';
 import { GrirModule } from '../../finance/grir/grir.module';
+import { GlModule } from '../../finance/gl/gl.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { GrirModule } from '../../finance/grir/grir.module';
     RbacModule,
     PoModule,
     GrirModule,
+    GlModule,
   ],
   controllers: [ServiceEntryController],
   providers: [ServiceEntryService],
