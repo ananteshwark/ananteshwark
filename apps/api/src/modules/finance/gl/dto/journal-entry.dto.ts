@@ -134,4 +134,9 @@ export class JournalEntryFilterDto {
   @IsOptional()
   @IsDateString()
   to?: string;
+
+  @ApiPropertyOptional({ example: 'MAIN', description: 'Ledger code filter (MAIN, IFRS, LOCAL, etc.)' })
+  @IsOptional()
+  @IsString()
+  ledgerCode?: string;
 }

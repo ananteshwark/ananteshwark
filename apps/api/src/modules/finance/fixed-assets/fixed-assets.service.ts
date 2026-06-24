@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { AssetCategory, DepreciationMethod } from './entities/asset-category.entity';
 import { FixedAsset, AssetStatus } from './entities/fixed-asset.entity';
 import { DepreciationRun, DepreciationRunLine, DepreciationRunStatus } from './entities/depreciation-run.entity';
+import { AssetDepreciationArea } from './entities/asset-depreciation-area.entity';
 import {
   CreateAssetCategoryDto, UpdateAssetCategoryDto,
   CreateFixedAssetDto, UpdateFixedAssetDto,
@@ -26,6 +27,8 @@ export class FixedAssetsService {
     private readonly runRepo: Repository<DepreciationRun>,
     @InjectRepository(DepreciationRunLine)
     private readonly runLineRepo: Repository<DepreciationRunLine>,
+    @InjectRepository(AssetDepreciationArea)
+    private readonly areaRepo: Repository<AssetDepreciationArea>,
     private readonly glService: GlService,
   ) {}
 
@@ -372,5 +375,95 @@ export class FixedAssetsService {
       });
     }
     return schedule;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // Phase 71 — Parallel Depreciation Areas
+  // ════════════════════════════════════════════════════════════════
+
+  async createDepreciationArea(tenantId: string, assetId: string, dto: {
+    areaCode: string;
+    areaName: string;
+    ledgerCode: string;
+    depreciationMethod: DepreciationMethod;
+    usefulLifeMonths: number;
+    residualValue?: number;
+    depreciationGlAccountId?: string;
+    accumulatedDepGlAccountId?: string;
+  }): Promise<AssetDepreciationArea> {
+    const asset = await this.findAsset(tenantId, assetId);
+    const existing = await this.areaRepo.findOne({ where: { tenantId, assetId, areaCode: dto.areaCode } });
+    if (existing) throw new ConflictException(`Depreciation area ${dto.areaCode} already exists for this asset`);
+    const area = this.areaRepo.create({
+      ...dto,
+      tenantId,
+      assetId,
+      residualValue: dto.residualValue ?? 0,
+      accumulatedDepreciation: 0,
+      netBookValue: asset.acquisitionCost,
+    });
+    return this.areaRepo.save(area);
+  }
+
+  async listDepreciationAreas(tenantId: string, assetId: string): Promise<AssetDepreciationArea[]> {
+    return this.areaRepo.find({ where: { tenantId, assetId }, order: { areaCode: 'ASC' } });
+  }
+
+  async runDepreciationForArea(
+    tenantId: string,
+    areaId: string,
+    periodDate: string,
+    userId: string,
+  ): Promise<{ area: AssetDepreciationArea; depreciationAmount: number; journalEntryId: string | null }> {
+    const area = await this.areaRepo.findOne({ where: { id: areaId, tenantId } });
+    if (!area) throw new NotFoundException(`Depreciation area ${areaId} not found`);
+    if (!area.isActive) throw new BadRequestException('Area is inactive');
+
+    const asset = await this.findAsset(tenantId, area.assetId);
+    if (asset.status !== AssetStatus.ACTIVE) throw new BadRequestException('Asset is not active');
+
+    const asCopy = {
+      acquisitionCost: asset.acquisitionCost,
+      residualValue: area.residualValue,
+      usefulLifeMonths: area.usefulLifeMonths,
+      depreciationMethod: area.depreciationMethod,
+      accumulatedDepreciation: area.accumulatedDepreciation,
+      netBookValue: area.netBookValue,
+    } as FixedAsset;
+
+    const dep = Math.round(this.computeMonthlyDepreciation(asCopy) * 100) / 100;
+    if (dep <= 0) {
+      return { area, depreciationAmount: 0, journalEntryId: null };
+    }
+
+    area.accumulatedDepreciation = Math.round((area.accumulatedDepreciation + dep) * 100) / 100;
+    area.netBookValue = Math.round((area.netBookValue - dep) * 100) / 100;
+    await this.areaRepo.save(area);
+
+    // Post GL entry in the area's ledger
+    let journalEntryId: string | null = null;
+    if (area.depreciationGlAccountId && area.accumulatedDepGlAccountId) {
+      try {
+        const je = await this.glService.postJournalEntry(
+          tenantId,
+          {
+            date: periodDate,
+            description: `Depreciation [${area.ledgerCode}] ${asset.assetCode} — ${area.areaCode}`,
+            source: JournalSource.FIXED_ASSETS,
+            reference: asset.assetCode,
+            currency: 'USD',
+            ledgerCode: area.ledgerCode,
+            lines: [
+              { accountId: area.depreciationGlAccountId!, debit: dep, credit: 0, description: `Dep exp ${area.areaCode}` },
+              { accountId: area.accumulatedDepGlAccountId!, debit: 0, credit: dep, description: `Accum dep ${area.areaCode}` },
+            ],
+          } as any,
+          userId,
+        );
+        journalEntryId = je.id;
+      } catch { /* GL posting failure is non-fatal */ }
+    }
+
+    return { area, depreciationAmount: dep, journalEntryId };
   }
 }

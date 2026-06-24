@@ -455,6 +455,7 @@ export class GlService {
         totalDebit,
         totalCredit,
         currency: dto.currency || 'USD',
+        ledgerCode: (dto as any).ledgerCode ?? 'MAIN',
       });
       const savedEntry = await manager.save(entry);
       await this.persistLines(manager, tenantId, savedEntry.id, dto.lines);
@@ -498,6 +499,7 @@ export class GlService {
     if (filters.periodId) qb.andWhere('je.periodId = :periodId', { periodId: filters.periodId });
     if (filters.from) qb.andWhere('je.date >= :from', { from: filters.from });
     if (filters.to) qb.andWhere('je.date <= :to', { to: filters.to });
+    if ((filters as any).ledgerCode) qb.andWhere('je.ledgerCode = :ledgerCode', { ledgerCode: (filters as any).ledgerCode });
 
     const validSort = ['date', 'entryNumber', 'createdAt', 'status'];
     const orderField = validSort.includes(sortBy) ? sortBy : 'date';
@@ -642,6 +644,7 @@ export class GlService {
         totalDebit,
         totalCredit,
         currency: input.currency || 'USD',
+        ledgerCode: (input as any).ledgerCode ?? 'MAIN',
         postedById: userId,
         postedAt: new Date(),
       });

@@ -87,6 +87,9 @@ export class JournalEntry {
   @Column({ name: 'reversed_entry_id', type: 'uuid', nullable: true })
   reversedEntryId: string | null;
 
+  @Column({ name: 'ledger_code', length: 20, nullable: true, default: 'MAIN' })
+  ledgerCode: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

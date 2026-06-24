@@ -109,4 +109,27 @@ export class FixedAssetsController {
   postRun(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.postDepreciationRun(user.tenantId, id, user.id);
   }
+
+  // ─── Phase 71: Parallel Depreciation Areas ────────────────────────
+  @Get(':id/depreciation-areas')
+  @RequirePermission('finance:fixed-assets:read')
+  listAreas(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.listDepreciationAreas(user.tenantId, id);
+  }
+
+  @Post(':id/depreciation-areas')
+  @RequirePermission('finance:fixed-assets:manage')
+  createArea(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.service.createDepreciationArea(user.tenantId, id, body);
+  }
+
+  @Post('depreciation-areas/:areaId/run')
+  @RequirePermission('finance:fixed-assets:manage')
+  runAreaDepreciation(
+    @CurrentUser() user: any,
+    @Param('areaId') areaId: string,
+    @Body() body: { periodDate: string },
+  ) {
+    return this.service.runDepreciationForArea(user.tenantId, areaId, body.periodDate, user.id);
+  }
 }

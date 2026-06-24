@@ -43,12 +43,14 @@ export default function JournalEntriesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [ledgerFilter, setLedgerFilter] = useState('');
 
   const fetchEntries = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await financeApi.getJournalEntries();
+      const params = ledgerFilter ? { ledgerCode: ledgerFilter } : {};
+      const res = await financeApi.getJournalEntries(params);
       setEntries(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load journal entries');
@@ -59,7 +61,8 @@ export default function JournalEntriesPage() {
 
   useEffect(() => {
     fetchEntries();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ledgerFilter]);
 
   const totalDebit = lines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
   const totalCredit = lines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
@@ -145,6 +148,27 @@ export default function JournalEntriesPage() {
         </button>
       </div>
 
+      {/* Ledger filter */}
+      <div className="mb-4 flex gap-3 items-center">
+        <label className="text-sm font-medium text-gray-700">Ledger:</label>
+        <select
+          value={ledgerFilter}
+          onChange={(e) => setLedgerFilter(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">All Ledgers</option>
+          <option value="MAIN">MAIN (Statutory)</option>
+          <option value="IFRS">IFRS</option>
+          <option value="LOCAL">LOCAL GAAP</option>
+          <option value="TAX">TAX</option>
+        </select>
+        {ledgerFilter && (
+          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-medium">
+            Filtered: {ledgerFilter}
+          </span>
+        )}
+      </div>
+
       {actionError && <p className="mb-4 text-sm text-red-600">{actionError}</p>}
       {loading && <p className="text-gray-500">Loading...</p>}
       {error && <p className="text-red-600">{error}</p>}
@@ -157,6 +181,7 @@ export default function JournalEntriesPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry #</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ledger</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Debit</th>
@@ -167,7 +192,7 @@ export default function JournalEntriesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">No journal entries found</td>
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">No journal entries found</td>
                 </tr>
               )}
               {entries.map((entry) => (
@@ -175,6 +200,11 @@ export default function JournalEntriesPage() {
                   <td className="px-4 py-3 text-sm font-mono text-gray-900">{entry.entryNumber}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{entry.date?.split('T')[0]}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{entry.description}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${(entry as any).ledgerCode === 'IFRS' ? 'bg-purple-100 text-purple-700' : (entry as any).ledgerCode === 'LOCAL' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {(entry as any).ledgerCode ?? 'MAIN'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-500">{entry.source ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[entry.status] ?? 'bg-gray-100 text-gray-800'}`}>
