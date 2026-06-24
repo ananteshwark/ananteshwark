@@ -437,7 +437,7 @@ container loses nothing — just re-clone and continue.
   - Attribute mapping: email, displayName, department → local user fields
   - SSO bypass: emergency local login if IdP down
 
-- [ ] **Phase 65 — Barcode / QR Scanning** `P3`
+- [x] **Phase 65 — Barcode / QR Scanning** `P3`
   - QR code generation on: PO, GRN, asset, employee badge, item label
   - Mobile camera scan (progressive web app camera API) to:
     - Look up item in inventory
