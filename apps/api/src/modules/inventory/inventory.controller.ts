@@ -209,6 +209,19 @@ export class StockController {
       body.date,
     );
   }
+
+  @Get('fifo-layers')
+  @RequirePermission('inventory:stock:read')
+  @ApiOperation({ summary: 'Get FIFO cost layers for an item' })
+  @ApiQuery({ name: 'itemId', required: true })
+  @ApiQuery({ name: 'warehouseId', required: false })
+  getFifoLayers(
+    @CurrentUser() user: any,
+    @Query('itemId') itemId: string,
+    @Query('warehouseId') warehouseId?: string,
+  ) {
+    return this.service.getFifoLayers(user.tenantId, itemId, warehouseId);
+  }
 }
 
 // ─── Adjustment Controller ────────────────────────────────────────────────────

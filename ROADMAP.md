@@ -467,6 +467,65 @@ container loses nothing — just re-clone and continue.
 
 ---
 
+## SAP Gap Remediation Phases (P1 → P3)
+
+_Based on SAP-GAP-ANALYSIS.md — closing the gap between this ERP and SAP S/4HANA._
+
+- [ ] **Phase 69 — Inventory Valuation Methods (FIFO + Standard Cost)** `P1`
+  - FIFO: track per-receipt cost layers; issues consume oldest layers first
+  - Standard Cost: receive at item.standardCost; compute Purchase Price Variance (PPV) and post GL entry
+  - `valuationMethod` field already on Item entity; only MOVING_AVERAGE was computed — now all three methods branch correctly
+  - Frontend: show current valuation method and FIFO layers on item detail
+
+- [ ] **Phase 70 — BOM Standard Cost Roll-up (Product Costing)** `P1`
+  - Costing run: traverse multi-level BOM, sum material cost + labor (routing × activity rate) + overhead
+  - Update item.standardCost from roll-up result
+  - Store costing run history with cost breakdown per component
+  - Manufacturing variance becomes meaningful once standard cost is accurate
+
+- [ ] **Phase 71 — Parallel Ledgers + Asset Parallel Depreciation Areas** `P1`
+  - Add `ledgerCode` dimension to journal entries (e.g. "IFRS", "LOCAL")
+  - Depreciation area per fixed asset: each area has its own method, life, accumulated depreciation
+  - Period-end generates separate depreciation postings per ledger
+  - Financial reports filter by ledger
+
+- [ ] **Phase 72 — Document Splitting (Segment/Profit-Center Balancing)** `P2`
+  - Splitting rules: define which account types trigger split, which dimension (segment/profit center) carries the balance
+  - On journal post: apply splitting rules to generate zero-sum balancing lines per segment
+  - Segment-level trial balance becomes possible
+
+- [ ] **Phase 73 — MM Special Procurement (Subcontracting + Consignment + STO)** `P2`
+  - Subcontracting PO: issue components to vendor, receive finished goods, consume components on GR
+  - Consignment: track vendor-owned stock; settlement run to convert to owned stock
+  - Stock Transport Orders: inter-plant / inter-company stock moves with proper inventory and GL postings
+
+- [ ] **Phase 74 — CO Internal Orders + CO-PA (Profitability Analysis)** `P2`
+  - Internal order object for event/project cost capture; settle to cost center / P&L at period-end
+  - CO-PA: profitability segments (product/customer/region), contribution-margin reporting
+  - Activity types with planned/actual activity rates for allocation
+
+- [ ] **Phase 75 — SD Billing Plans + Rebate Management** `P2`
+  - Billing plans: milestone billing (% of contract on date) and periodic billing (monthly/quarterly)
+  - Rebate agreements: accruals on invoicing, periodic settlement run to issue credit memo
+  - Partial billing from sales order lines
+
+- [ ] **Phase 76 — Recurring Journals + Accrual Engine + Period-Close Cockpit** `P3`
+  - Recurring document templates: frequency (monthly/quarterly), auto-post or require approval
+  - Accrual engine: prepaid/deferred postings with automatic reversal on next period open
+  - Period-close cockpit: orchestrated checklist (depreciation → accruals → allocations → forex revaluation → close)
+
+- [ ] **Phase 77 — Treasury & Cash Management (TRM)** `P3`
+  - Liquidity forecast: consolidate bank balances + AR/AP aging into rolling cash-flow projection
+  - Financial instruments: money market, FX forwards, interest rate instruments
+  - Hedge accounting: designate hedging relationships, effectiveness test, P&L/OCI reclassification
+
+- [ ] **Phase 78 — Finite Capacity Scheduling + Batch Management + Extended WMS** `P3`
+  - Finite scheduling: capacity leveling, dispatch list, sequencing rules per work center
+  - Batch management: batch master, batch characteristics, FEFO determination on issue
+  - Extended WMS: putaway/picking strategies, wave management, handling units, warehouse tasks
+
+---
+
 ## Quick Reference — What Each Gap Unlocks
 
 | Gap | Business Value |

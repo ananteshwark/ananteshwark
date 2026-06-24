@@ -4,14 +4,19 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThan } from 'typeorm';
 import { Warehouse } from './entities/warehouse.entity';
 import { ItemCategory } from './entities/item-category.entity';
 import { Item } from './entities/item.entity';
 import { StockLedger, TransactionType } from './entities/stock-ledger.entity';
 import { StockBalance } from './entities/stock-balance.entity';
 import { StockAdjustment, AdjustmentStatus } from './entities/stock-adjustment.entity';
+import { FifoLayer } from './entities/fifo-layer.entity';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
+
+export const VALUATION_MOVING_AVERAGE = 'MOVING_AVERAGE';
+export const VALUATION_FIFO = 'FIFO';
+export const VALUATION_STANDARD = 'STANDARD_COST';
 
 @Injectable()
 export class InventoryService {
@@ -28,6 +33,8 @@ export class InventoryService {
     private readonly balanceRepo: Repository<StockBalance>,
     @InjectRepository(StockAdjustment)
     private readonly adjustmentRepo: Repository<StockAdjustment>,
+    @InjectRepository(FifoLayer)
+    private readonly fifoLayerRepo: Repository<FifoLayer>,
   ) {}
 
   // ─── Warehouse ──────────────────────────────────────────────
@@ -152,6 +159,11 @@ export class InventoryService {
 
   // ─── Stock Operations ────────────────────────────────────────
 
+  private async getItemValuationMethod(tenantId: string, itemId: string): Promise<string> {
+    const item = await this.itemRepo.findOne({ where: { id: itemId, tenantId } });
+    return item?.valuationMethod ?? VALUATION_MOVING_AVERAGE;
+  }
+
   async receiveStock(
     tenantId: string,
     itemId: string,
@@ -163,42 +175,80 @@ export class InventoryService {
     date?: string,
     notes?: string,
   ): Promise<StockLedger> {
+    const valuationMethod = await this.getItemValuationMethod(tenantId, itemId);
+    const txDate = date ?? new Date().toISOString().split('T')[0];
     const balance = await this.getOrCreateBalance(tenantId, itemId, warehouseId);
+
+    let postUnitCost = unitCost;
+    let ppv = 0;
+
+    if (valuationMethod === VALUATION_STANDARD) {
+      const item = await this.itemRepo.findOne({ where: { id: itemId, tenantId } });
+      const stdCost = Number(item?.standardCost ?? unitCost);
+      ppv = (unitCost - stdCost) * qty;
+      postUnitCost = stdCost;
+    }
+
     const currentQty = Number(balance.qtyOnHand ?? 0);
     const currentUnitCost = Number(balance.unitCost ?? balance.avgCost ?? 0);
-    const newTotalCost = balance.totalCost + qty * unitCost;
+    const newTotalCost = balance.totalCost + qty * postUnitCost;
     const newQty = currentQty + qty;
 
-    // Moving average unit cost
-    const newUnitCost = newQty > 0
-      ? ((currentQty * currentUnitCost) + (qty * unitCost)) / newQty
-      : unitCost;
+    if (valuationMethod === VALUATION_MOVING_AVERAGE) {
+      const newUnitCost = newQty > 0
+        ? ((currentQty * currentUnitCost) + (qty * postUnitCost)) / newQty
+        : postUnitCost;
+      balance.avgCost = newQty > 0 ? newTotalCost / newQty : postUnitCost;
+      balance.unitCost = newUnitCost;
+    } else {
+      // FIFO and STANDARD_COST: balance.avgCost tracks total/qty for reporting
+      balance.avgCost = newQty > 0 ? newTotalCost / newQty : postUnitCost;
+      balance.unitCost = postUnitCost;
+    }
 
-    balance.avgCost = newQty > 0 ? newTotalCost / newQty : unitCost;
     balance.totalCost = newTotalCost;
     balance.qtyOnHand = newQty;
-    balance.unitCost = newUnitCost;
-    balance.totalValue = newQty * newUnitCost;
+    balance.totalValue = newQty * (balance.unitCost ?? postUnitCost);
     await this.balanceRepo.save(balance);
 
-    const ledger = this.ledgerRepo.create({
-      tenantId,
-      itemId,
-      warehouseId,
-      transactionType: TransactionType.RECEIPT,
-      referenceType: referenceType ?? null,
-      referenceId: referenceId ?? null,
-      quantity: qty,
-      unitCost,
-      totalCost: qty * unitCost,
-      balanceQty: newQty,
-      balanceCost: newTotalCost,
-      transactionDate: date ?? new Date().toISOString().split('T')[0],
-      notes: notes ?? null,
-      unitCostMv: unitCost,
-      transactionValue: qty * unitCost,
-    });
-    return this.ledgerRepo.save(ledger);
+    const ledger = await this.ledgerRepo.save(
+      this.ledgerRepo.create({
+        tenantId,
+        itemId,
+        warehouseId,
+        transactionType: TransactionType.RECEIPT,
+        referenceType: referenceType ?? null,
+        referenceId: referenceId ?? null,
+        quantity: qty,
+        unitCost: postUnitCost,
+        totalCost: qty * postUnitCost,
+        balanceQty: newQty,
+        balanceCost: newTotalCost,
+        transactionDate: txDate,
+        notes: valuationMethod === VALUATION_STANDARD && ppv !== 0
+          ? `${notes ?? ''} | PPV: ${ppv.toFixed(2)} (actual ${unitCost} vs std ${postUnitCost})`.trim()
+          : (notes ?? null),
+        unitCostMv: unitCost,
+        transactionValue: qty * unitCost,
+      }),
+    );
+
+    if (valuationMethod === VALUATION_FIFO) {
+      await this.fifoLayerRepo.save(
+        this.fifoLayerRepo.create({
+          tenantId,
+          itemId,
+          warehouseId,
+          receiptLedgerId: ledger.id,
+          layerDate: txDate,
+          qtyOriginal: qty,
+          qtyRemaining: qty,
+          unitCost: postUnitCost,
+        }),
+      );
+    }
+
+    return ledger;
   }
 
   async findItemByCode(tenantId: string, code: string): Promise<Item | null> {
@@ -220,33 +270,103 @@ export class InventoryService {
     date?: string,
     notes?: string,
   ): Promise<StockLedger> {
+    const valuationMethod = await this.getItemValuationMethod(tenantId, itemId);
+    const txDate = date ?? new Date().toISOString().split('T')[0];
     const balance = await this.getOrCreateBalance(tenantId, itemId, warehouseId);
+
     if (balance.qtyOnHand < qty) {
       throw new BadRequestException(
         `Insufficient stock. Available: ${balance.qtyOnHand}, Requested: ${qty}`,
       );
     }
-    const costDeducted = balance.avgCost * qty;
+
+    let issueCost: number;
+
+    if (valuationMethod === VALUATION_FIFO) {
+      issueCost = await this.consumeFifoLayers(tenantId, itemId, warehouseId, qty);
+    } else if (valuationMethod === VALUATION_STANDARD) {
+      const item = await this.itemRepo.findOne({ where: { id: itemId, tenantId } });
+      issueCost = Number(item?.standardCost ?? balance.avgCost) * qty;
+    } else {
+      issueCost = balance.avgCost * qty;
+    }
+
+    const issueUnitCost = qty > 0 ? issueCost / qty : 0;
     balance.qtyOnHand -= qty;
-    balance.totalCost -= costDeducted;
+    balance.totalCost = Math.max(0, balance.totalCost - issueCost);
+    balance.avgCost = balance.qtyOnHand > 0 ? balance.totalCost / balance.qtyOnHand : 0;
     await this.balanceRepo.save(balance);
 
-    const ledger = this.ledgerRepo.create({
+    return this.ledgerRepo.save(
+      this.ledgerRepo.create({
+        tenantId,
+        itemId,
+        warehouseId,
+        transactionType: TransactionType.ISSUE,
+        referenceType: referenceType ?? null,
+        referenceId: referenceId ?? null,
+        quantity: qty,
+        unitCost: issueUnitCost,
+        totalCost: issueCost,
+        balanceQty: balance.qtyOnHand,
+        balanceCost: balance.totalCost,
+        transactionDate: txDate,
+        notes: notes ?? null,
+      }),
+    );
+  }
+
+  private async consumeFifoLayers(
+    tenantId: string,
+    itemId: string,
+    warehouseId: string,
+    qty: number,
+  ): Promise<number> {
+    const layers = await this.fifoLayerRepo.find({
+      where: { tenantId, itemId, warehouseId },
+      order: { layerDate: 'ASC', createdAt: 'ASC' },
+    });
+
+    let remaining = qty;
+    let totalCost = 0;
+
+    for (const layer of layers) {
+      if (remaining <= 0) break;
+      const consume = Math.min(remaining, Number(layer.qtyRemaining));
+      totalCost += consume * Number(layer.unitCost);
+      layer.qtyRemaining = Number(layer.qtyRemaining) - consume;
+      remaining -= consume;
+      await this.fifoLayerRepo.save(layer);
+    }
+
+    if (remaining > 0) {
+      throw new BadRequestException(
+        `Insufficient FIFO layers to fulfill issue of ${qty} units`,
+      );
+    }
+
+    // Clean up fully consumed layers
+    await this.fifoLayerRepo.delete({
       tenantId,
       itemId,
       warehouseId,
-      transactionType: TransactionType.ISSUE,
-      referenceType: referenceType ?? null,
-      referenceId: referenceId ?? null,
-      quantity: qty,
-      unitCost: balance.avgCost,
-      totalCost: costDeducted,
-      balanceQty: balance.qtyOnHand,
-      balanceCost: balance.totalCost,
-      transactionDate: date ?? new Date().toISOString().split('T')[0],
-      notes: notes ?? null,
+      qtyRemaining: LessThan(0.0001),
     });
-    return this.ledgerRepo.save(ledger);
+
+    return totalCost;
+  }
+
+  async getFifoLayers(
+    tenantId: string,
+    itemId: string,
+    warehouseId?: string,
+  ): Promise<FifoLayer[]> {
+    const where: any = { tenantId, itemId };
+    if (warehouseId) where.warehouseId = warehouseId;
+    return this.fifoLayerRepo.find({
+      where,
+      order: { layerDate: 'ASC', createdAt: 'ASC' },
+    });
   }
 
   async transferStock(
@@ -257,18 +377,30 @@ export class InventoryService {
     qty: number,
     date?: string,
   ): Promise<void> {
+    const valuationMethod = await this.getItemValuationMethod(tenantId, itemId);
     const fromBalance = await this.getOrCreateBalance(tenantId, itemId, fromWarehouseId);
     if (fromBalance.qtyOnHand < qty) {
       throw new BadRequestException(
         `Insufficient stock in source warehouse. Available: ${fromBalance.qtyOnHand}`,
       );
     }
-    const avgCost = fromBalance.avgCost;
     const txDate = date ?? new Date().toISOString().split('T')[0];
+
+    let transferCost: number;
+    let transferUnitCost: number;
+
+    if (valuationMethod === VALUATION_FIFO) {
+      transferCost = await this.consumeFifoLayers(tenantId, itemId, fromWarehouseId, qty);
+      transferUnitCost = qty > 0 ? transferCost / qty : 0;
+    } else {
+      transferUnitCost = fromBalance.avgCost;
+      transferCost = transferUnitCost * qty;
+    }
 
     // TRANSFER_OUT
     fromBalance.qtyOnHand -= qty;
-    fromBalance.totalCost -= avgCost * qty;
+    fromBalance.totalCost = Math.max(0, fromBalance.totalCost - transferCost);
+    fromBalance.avgCost = fromBalance.qtyOnHand > 0 ? fromBalance.totalCost / fromBalance.qtyOnHand : 0;
     await this.balanceRepo.save(fromBalance);
 
     await this.ledgerRepo.save(
@@ -280,8 +412,8 @@ export class InventoryService {
         referenceType: null,
         referenceId: null,
         quantity: qty,
-        unitCost: avgCost,
-        totalCost: avgCost * qty,
+        unitCost: transferUnitCost,
+        totalCost: transferCost,
         balanceQty: fromBalance.qtyOnHand,
         balanceCost: fromBalance.totalCost,
         transactionDate: txDate,
@@ -291,12 +423,28 @@ export class InventoryService {
 
     // TRANSFER_IN
     const toBalance = await this.getOrCreateBalance(tenantId, itemId, toWarehouseId);
-    const newTotalCost = toBalance.totalCost + avgCost * qty;
+    const newTotalCost = toBalance.totalCost + transferCost;
     const newQty = toBalance.qtyOnHand + qty;
-    toBalance.avgCost = newQty > 0 ? newTotalCost / newQty : avgCost;
+    toBalance.avgCost = newQty > 0 ? newTotalCost / newQty : transferUnitCost;
     toBalance.totalCost = newTotalCost;
     toBalance.qtyOnHand = newQty;
     await this.balanceRepo.save(toBalance);
+
+    // For FIFO: move layers from source to destination warehouse
+    if (valuationMethod === VALUATION_FIFO) {
+      await this.fifoLayerRepo.save(
+        this.fifoLayerRepo.create({
+          tenantId,
+          itemId,
+          warehouseId: toWarehouseId,
+          receiptLedgerId: null,
+          layerDate: txDate,
+          qtyOriginal: qty,
+          qtyRemaining: qty,
+          unitCost: transferUnitCost,
+        }),
+      );
+    }
 
     await this.ledgerRepo.save(
       this.ledgerRepo.create({
@@ -307,8 +455,8 @@ export class InventoryService {
         referenceType: null,
         referenceId: null,
         quantity: qty,
-        unitCost: avgCost,
-        totalCost: avgCost * qty,
+        unitCost: transferUnitCost,
+        totalCost: transferCost,
         balanceQty: newQty,
         balanceCost: newTotalCost,
         transactionDate: txDate,

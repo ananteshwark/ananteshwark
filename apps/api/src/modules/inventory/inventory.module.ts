@@ -11,6 +11,7 @@ import { LotSerial } from './entities/lot-serial.entity';
 import { UomConversion } from './entities/uom-conversion.entity';
 import { CycleCount, CycleCountLine } from './entities/cycle-count.entity';
 import { Rma } from './entities/rma.entity';
+import { FifoLayer } from './entities/fifo-layer.entity';
 import { InventoryService } from './inventory.service';
 import {
   WarehouseController,
@@ -38,6 +39,7 @@ import { RbacModule } from '../rbac/rbac.module';
       CycleCount,
       CycleCountLine,
       Rma,
+      FifoLayer,
     ]),
     RbacModule,
   ],

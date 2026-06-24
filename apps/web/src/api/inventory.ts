@@ -22,6 +22,8 @@ export const inventoryApi = {
   receiveStock: (data: any) => apiClient.post('/inventory/stock/receive', data),
   issueStock: (data: any) => apiClient.post('/inventory/stock/issue', data),
   transferStock: (data: any) => apiClient.post('/inventory/stock/transfer', data),
+  getFifoLayers: (itemId: string, warehouseId?: string) =>
+    apiClient.get('/inventory/stock/fifo-layers', { params: { itemId, ...(warehouseId ? { warehouseId } : {}) } }),
 
   // Adjustments
   getAdjustments: (params?: any) => apiClient.get('/inventory/adjustments', { params }),
