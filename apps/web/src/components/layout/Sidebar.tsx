@@ -235,6 +235,7 @@ const navItems: NavItem[] = [
       { label: 'Localization', path: '/settings/localization' },
       { label: 'Field Configuration', path: '/settings/field-config' },
       { label: 'Custom Fields', path: '/settings/custom-fields' },
+      { label: 'Webhooks', path: '/settings/webhooks' },
       { label: 'Tax Codes', path: '/settings/tax-codes' },
       { label: 'Email Settings', path: '/settings/email' },
     ],
