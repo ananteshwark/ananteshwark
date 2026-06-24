@@ -23,6 +23,7 @@ import CustomFieldsPage from './pages/settings/CustomFieldsPage';
 import WebhooksPage from './pages/settings/WebhooksPage';
 import SsoSettingsPage from './pages/settings/SsoSettingsPage';
 import QrScannerPage from './pages/qr/QrScannerPage';
+import EdiPage from './pages/settings/EdiPage';
 import TaxCodesPage from './pages/settings/TaxCodesPage';
 import EmailSettingsPage from './pages/settings/EmailSettingsPage';
 import {
@@ -170,6 +171,7 @@ export default function App() {
         <Route path="settings/webhooks" element={<WebhooksPage />} />
         <Route path="settings/sso" element={<SsoSettingsPage />} />
         <Route path="qr/scanner" element={<QrScannerPage />} />
+        <Route path="settings/edi" element={<EdiPage />} />
         <Route path="settings/tax-codes" element={<TaxCodesPage />} />
         <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />

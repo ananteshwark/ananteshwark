@@ -458,7 +458,7 @@ container loses nothing — just re-clone and continue.
   - Push notifications: PO approval needed, leave request, payslip ready
   - Key flows: approve/reject (leave, PO, expense), clock in/out, view payslip, submit expense
 
-- [ ] **Phase 68 — EDI Integration** `P4`
+- [x] **Phase 68 — EDI Integration** `P4`
   - Support EDI 850 (PO to vendor), EDI 855 (vendor PO acknowledgment), EDI 856 (ship notice), EDI 810 (invoice)
   - EDI trading partner configuration
   - Inbound EDI: create vendor invoice / shipment notice from EDI file
