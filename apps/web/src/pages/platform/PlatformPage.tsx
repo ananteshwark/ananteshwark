@@ -67,7 +67,7 @@ export const PlatformPage: React.FC = () => {
   const handleComputeTax = async () => {
     if (!taxCompute.taxCodeId || !taxCompute.amount) return;
     const res = await platformApi.computeTax({ taxCodeId: taxCompute.taxCodeId, amount: parseFloat(taxCompute.amount) });
-    setTaxResult(res.data);
+    setTaxResult(res.data?.data ?? res.data);
   };
 
   const handleSsoSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

@@ -74,7 +74,7 @@ export default function LocalizationPage() {
       const gross = parseFloat(grossMonthly) || 0;
       const basic = basicMonthly ? parseFloat(basicMonthly) : undefined;
       const res = await localizationApi.calculateTax(selectedCountry, gross, basic);
-      setTaxResult(res.data);
+      setTaxResult(res.data?.data ?? res.data);
     } catch (err: any) {
       setCalcError(err?.response?.data?.message || 'Calculation failed');
     } finally {

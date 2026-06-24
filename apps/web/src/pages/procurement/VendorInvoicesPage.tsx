@@ -174,7 +174,7 @@ function InvoiceDetail({ invoice, onClose, onChanged }: { invoice: any; onClose:
   const reload = async () => {
     try {
       const res = await procurementApi.getVendorInvoice(invoice.id);
-      setDetail(res.data);
+      setDetail(res.data?.data ?? res.data);
       onChanged();
     } catch {}
   };

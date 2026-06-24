@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
     if (expandedBudget === budgetId) { setExpandedBudget(null); setBudgetVariance(null); return; }
     const res = await analyticsApi.getBudgetVariance(budgetId);
     setExpandedBudget(budgetId);
-    setBudgetVariance(res.data);
+    setBudgetVariance(res.data?.data ?? res.data);
   };
 
   return (

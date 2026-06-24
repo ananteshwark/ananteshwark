@@ -144,7 +144,7 @@ export const LicensingPage: React.FC = () => {
   const handleViewInvoice = async (id: string) => {
     if (expandedInvoice === id) { setExpandedInvoice(null); setInvoiceDetail(null); return; }
     const res = await licensingApi.getInvoice(id);
-    setInvoiceDetail(res.data);
+    setInvoiceDetail(res.data?.data ?? res.data);
     setExpandedInvoice(id);
   };
 
@@ -152,7 +152,7 @@ export const LicensingPage: React.FC = () => {
     if (!validateForm.employeeId) return;
     try {
       const res = await licensingApi.validateAccess(validateForm);
-      setValidateResult(res.data);
+      setValidateResult(res.data?.data ?? res.data);
     } catch (e: any) {
       setValidateResult({ allowed: false, reason: e.response?.data?.message || 'Error', action: 'HARD_BLOCK' });
     }

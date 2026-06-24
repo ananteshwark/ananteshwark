@@ -155,7 +155,7 @@ export default function PurchaseOrdersPage() {
   const loadDetail = async (id: string) => {
     try {
       const res = await procurementApi.getPurchaseOrder(id);
-      setSelected(res.data);
+      setSelected(res.data?.data ?? res.data);
     } catch {}
   };
 

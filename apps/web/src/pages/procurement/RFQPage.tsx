@@ -157,7 +157,7 @@ export default function RFQPage() {
   const loadComparative = async (id: string) => {
     try {
       const res = await procurementApi.getComparative(id);
-      setComparative(res.data);
+      setComparative(res.data?.data ?? res.data);
     } catch (e: any) {
       alert('Failed to load comparative statement');
     }

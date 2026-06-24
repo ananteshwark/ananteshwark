@@ -21,9 +21,10 @@ function NewGrnDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     if (!poId) return;
     try {
       const res = await procurementApi.getPurchaseOrder(poId);
-      setPoDetail(res.data);
+      const po = res.data?.data ?? res.data;
+      setPoDetail(po);
       setLines(
-        (res.data.lines || []).map((l: any) => ({
+        (po.lines || []).map((l: any) => ({
           poLineId: l.id,
           description: l.description,
           quantityOrdered: l.quantity,
@@ -160,7 +161,7 @@ export default function GRNPage() {
     try {
       await procurementApi.confirmGrn(id);
       const matchRes = await procurementApi.getGrnMatch(id);
-      setMatchResult(matchRes.data);
+      setMatchResult(matchRes.data?.data ?? matchRes.data);
       loadData();
     } catch (e: any) {
       alert(e.response?.data?.message || 'Confirm failed');
