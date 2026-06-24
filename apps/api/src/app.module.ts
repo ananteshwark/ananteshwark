@@ -38,6 +38,7 @@ import { SettingsModule } from './modules/settings/field-config.module';
 import { DmsModule } from './modules/dms/dms.module';
 import { EmailModule } from './modules/email/email.module';
 import { SearchModule } from './modules/search/search.module';
+import { CustomFieldsModule } from './modules/platform/custom-fields/custom-fields.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -91,6 +92,7 @@ import { getDatabaseConfig } from './config/database.config';
     DmsModule,
     EmailModule,
     SearchModule,
+    CustomFieldsModule,
   ],
   providers: [
     {

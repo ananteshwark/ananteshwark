@@ -18,6 +18,7 @@ import GeneralSettingsPage from './pages/settings/GeneralSettingsPage';
 import ModulesSettingsPage from './pages/settings/ModulesSettingsPage';
 import LocalizationPage from './pages/settings/LocalizationPage';
 import FieldConfigPage from './pages/settings/FieldConfigPage';
+import CustomFieldsPage from './pages/settings/CustomFieldsPage';
 import TaxCodesPage from './pages/settings/TaxCodesPage';
 import EmailSettingsPage from './pages/settings/EmailSettingsPage';
 import {
@@ -159,6 +160,7 @@ export default function App() {
         <Route path="settings/modules" element={<ModulesSettingsPage />} />
         <Route path="settings/localization" element={<LocalizationPage />} />
         <Route path="settings/field-config" element={<FieldConfigPage />} />
+        <Route path="settings/custom-fields" element={<CustomFieldsPage />} />
         <Route path="settings/tax-codes" element={<TaxCodesPage />} />
         <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />
