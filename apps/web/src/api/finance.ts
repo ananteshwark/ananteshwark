@@ -175,4 +175,15 @@ export const financeApi = {
   computeCashDiscount: (data: any) => apiClient.post('/finance/cash-discount/compute', data),
   getCashDiscountRecords: (params?: any) => apiClient.get('/finance/cash-discount/records', { params }),
   getCashDiscountUtilization: (params?: any) => apiClient.get('/finance/cash-discount/utilization', { params }),
+
+  // Phase 93–95: Subledger Accounting Engine (SLA)
+  listSlaRules: (eventClass?: string) => apiClient.get('/finance/sla/rules', { params: eventClass ? { eventClass } : {} }),
+  getSlaRule: (id: string) => apiClient.get(`/finance/sla/rules/${id}`),
+  createSlaRule: (data: any) => apiClient.post('/finance/sla/rules', data),
+  updateSlaRule: (id: string, data: any) => apiClient.patch(`/finance/sla/rules/${id}`, data),
+  deleteSlaRule: (id: string) => apiClient.delete(`/finance/sla/rules/${id}`),
+  deriveAccount: (data: { eventClass: string; lineType: string; eventContext: Record<string, any> }) =>
+    apiClient.post('/finance/sla/derive-account', data),
+  getSlaAuditTrail: (params?: { sourceDocumentId?: string; journalEntryId?: string; eventClass?: string; limit?: number }) =>
+    apiClient.get('/finance/sla/audit-trail', { params }),
 };

@@ -48,6 +48,7 @@ import {
   InternalOrdersPage,
   PeriodCloseCockpitPage,
   TreasuryPage,
+  SubledgerAccountingPage,
 } from './pages/finance';
 import ConsolidationPage from './pages/finance/ConsolidationPage';
 import ActivityCostingPage from './pages/finance/ActivityCostingPage';
@@ -223,6 +224,7 @@ export default function App() {
         <Route path="finance/parallel-ledgers" element={<ParallelLedgersPage />} />
         <Route path="finance/cash-discounts" element={<CashDiscountsPage />} />
         <Route path="finance/revenue-recognition" element={<RevenueRecognitionPage />} />
+        <Route path="finance/subledger-accounting" element={<SubledgerAccountingPage />} />
         <Route path="finance/leases" element={<LeasesPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />

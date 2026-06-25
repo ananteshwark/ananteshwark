@@ -14,6 +14,8 @@ import { ReceiptAllocation } from './entities/receipt-allocation.entity';
 import { Account } from '../gl/entities/account.entity';
 import { BankAccount } from '../bank/entities/bank-account.entity';
 import { GlService } from '../gl/gl.service';
+import { SlaService } from '../gl/sla.service';
+import { SlaEventClass, SlaLineType } from '../gl/entities/sla-rule.entity';
 import { CurrencyService } from '../currency/currency.service';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../finance.constants';
@@ -44,6 +46,7 @@ export class ArService {
     @InjectRepository(Account) private readonly accountRepo: Repository<Account>,
     @InjectRepository(BankAccount) private readonly bankAccountRepo: Repository<BankAccount>,
     private readonly glService: GlService,
+    private readonly slaService: SlaService,
     private readonly currencyService: CurrencyService,
     private readonly dataSource: DataSource,
   ) {}
@@ -298,9 +301,13 @@ export class ArService {
       const customer = await manager.findOne(Customer, {
         where: { id: invoice.customerId, tenantId },
       });
+      const eventCtx = { currency: invoice.currency, amount: invoice.total, customerId: invoice.customerId };
+      const slaDebit = await this.slaService.deriveAccount(tenantId, SlaEventClass.AR_INVOICE, SlaLineType.DEBIT, eventCtx);
       const arAccount = customer?.arAccountId
         ? await this.glService.findAccount(tenantId, customer.arAccountId)
-        : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.AR_CONTROL);
+        : slaDebit
+          ? await this.glService.findAccount(tenantId, slaDebit.accountId)
+          : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.AR_CONTROL);
 
       const jeLines: any[] = [
         {
@@ -347,6 +354,21 @@ export class ArService {
 
       invoice.journalEntryId = je.id;
       invoice.status = InvoiceStatus.SENT;
+
+      // Log XLA accounting event for audit trail
+      void this.slaService.logAccountingEvent({
+        tenantId,
+        eventClass: SlaEventClass.AR_INVOICE,
+        sourceDocumentId: invoice.id,
+        sourceDocumentType: 'AR_INVOICE',
+        journalEntryId: je.id,
+        accountId: arAccount.id,
+        accountCode: arAccount.code,
+        debit: invoice.total,
+        slaRuleId: slaDebit?.ruleId ?? undefined,
+        slaRuleName: slaDebit?.ruleName ?? undefined,
+        eventData: eventCtx,
+      });
 
       // FX conversion: store base-currency equivalent at posting time
       const invDate = new Date(invoice.invoiceDate);

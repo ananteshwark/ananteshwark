@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { GlService } from './gl.service';
+import { SlaService } from './sla.service';
+import { SlaEventClass, SlaLineType } from './entities/sla-rule.entity';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -36,7 +38,10 @@ import { AccountType } from './entities/account.entity';
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('finance')
 export class GlController {
-  constructor(private readonly glService: GlService) {}
+  constructor(
+    private readonly glService: GlService,
+    private readonly slaService: SlaService,
+  ) {}
 
   // -------- Accounts --------
   @Get('accounts')
@@ -378,5 +383,73 @@ export class GlController {
   @RequirePermission('finance:periods:manage')
   getPeriodCloseCockpit(@CurrentUser() user: any, @Param('id') id: string) {
     return this.glService.getPeriodCloseCockpit(user.tenantId, id);
+  }
+
+  // ─── Phase 93–95: Subledger Accounting Engine (SLA) ───────────────
+
+  @Get('sla/rules')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'List SLA account derivation rules' })
+  listSlaRules(
+    @CurrentUser() user: any,
+    @Query('eventClass') eventClass?: SlaEventClass,
+  ) {
+    return this.slaService.listRules(user.tenantId, eventClass);
+  }
+
+  @Get('sla/rules/:id')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'Get a single SLA rule' })
+  getSlaRule(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.slaService.getRule(user.tenantId, id);
+  }
+
+  @Post('sla/rules')
+  @RequirePermission('finance:journal:post')
+  @ApiOperation({ summary: 'Create an SLA account derivation rule' })
+  createSlaRule(@CurrentUser() user: any, @Body() body: any) {
+    return this.slaService.createRule(user.tenantId, body);
+  }
+
+  @Patch('sla/rules/:id')
+  @RequirePermission('finance:journal:post')
+  @ApiOperation({ summary: 'Update an SLA rule' })
+  updateSlaRule(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.slaService.updateRule(user.tenantId, id, body);
+  }
+
+  @Delete('sla/rules/:id')
+  @RequirePermission('finance:journal:post')
+  @ApiOperation({ summary: 'Delete an SLA rule' })
+  deleteSlaRule(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.slaService.deleteRule(user.tenantId, id);
+  }
+
+  @Post('sla/derive-account')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'Test-derive an account from an event context (dry-run)' })
+  deriveAccount(
+    @CurrentUser() user: any,
+    @Body() body: { eventClass: SlaEventClass; lineType: SlaLineType; eventContext: Record<string, any> },
+  ) {
+    return this.slaService.deriveAccount(user.tenantId, body.eventClass, body.lineType, body.eventContext);
+  }
+
+  @Get('sla/audit-trail')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'XLA accounting event audit trail' })
+  getSlaAuditTrail(
+    @CurrentUser() user: any,
+    @Query('sourceDocumentId') sourceDocumentId?: string,
+    @Query('journalEntryId') journalEntryId?: string,
+    @Query('eventClass') eventClass?: SlaEventClass,
+    @Query('limit') limit?: string,
+  ) {
+    return this.slaService.getAuditTrail(user.tenantId, {
+      sourceDocumentId,
+      journalEntryId,
+      eventClass,
+      limit: limit ? Number(limit) : 200,
+    });
   }
 }

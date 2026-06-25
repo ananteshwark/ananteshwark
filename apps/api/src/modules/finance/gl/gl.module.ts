@@ -9,7 +9,10 @@ import { JournalLine } from './entities/journal-line.entity';
 import { DocumentSplittingRule } from './entities/document-splitting-rule.entity';
 import { RecurringJournal } from './entities/recurring-journal.entity';
 import { AccrualConfig } from './entities/accrual-config.entity';
+import { SlaRule } from './entities/sla-rule.entity';
+import { XlaAccountingEvent } from './entities/xla-accounting-event.entity';
 import { GlService } from './gl.service';
+import { SlaService } from './sla.service';
 import { GlController } from './gl.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 
@@ -25,11 +28,13 @@ import { RbacModule } from '../../rbac/rbac.module';
       DocumentSplittingRule,
       RecurringJournal,
       AccrualConfig,
+      SlaRule,
+      XlaAccountingEvent,
     ]),
     RbacModule,
   ],
   controllers: [GlController],
-  providers: [GlService],
-  exports: [GlService, TypeOrmModule],
+  providers: [GlService, SlaService],
+  exports: [GlService, SlaService, TypeOrmModule],
 })
 export class GlModule {}

@@ -14,6 +14,8 @@ import { PaymentAllocation } from './entities/payment-allocation.entity';
 import { Account } from '../gl/entities/account.entity';
 import { BankAccount } from '../bank/entities/bank-account.entity';
 import { GlService } from '../gl/gl.service';
+import { SlaService } from '../gl/sla.service';
+import { SlaEventClass, SlaLineType } from '../gl/entities/sla-rule.entity';
 import { CurrencyService } from '../currency/currency.service';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../finance.constants';
@@ -43,6 +45,7 @@ export class ApService {
     @InjectRepository(Account) private readonly accountRepo: Repository<Account>,
     @InjectRepository(BankAccount) private readonly bankAccountRepo: Repository<BankAccount>,
     private readonly glService: GlService,
+    private readonly slaService: SlaService,
     private readonly currencyService: CurrencyService,
     private readonly dataSource: DataSource,
   ) {}
@@ -316,9 +319,13 @@ export class ApService {
       if (lines.length === 0) throw new BadRequestException('Bill has no lines');
 
       const vendor = await manager.findOne(Vendor, { where: { id: bill.vendorId, tenantId } });
+      const eventCtx = { currency: bill.currency, amount: bill.total, vendorId: bill.vendorId };
+      const slaCredit = await this.slaService.deriveAccount(tenantId, SlaEventClass.AP_INVOICE, SlaLineType.CREDIT, eventCtx);
       const apAccount = vendor?.apAccountId
         ? await this.glService.findAccount(tenantId, vendor.apAccountId)
-        : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.AP_CONTROL);
+        : slaCredit
+          ? await this.glService.findAccount(tenantId, slaCredit.accountId)
+          : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.AP_CONTROL);
 
       const jeLines: any[] = lines.map((l) => ({
         accountId: l.accountId,
@@ -361,6 +368,21 @@ export class ApService {
 
       bill.journalEntryId = je.id;
       bill.status = BillStatus.OPEN;
+
+      // Log XLA accounting event for audit trail
+      void this.slaService.logAccountingEvent({
+        tenantId,
+        eventClass: SlaEventClass.AP_INVOICE,
+        sourceDocumentId: bill.id,
+        sourceDocumentType: 'AP_BILL',
+        journalEntryId: je.id,
+        accountId: apAccount.id,
+        accountCode: apAccount.code,
+        credit: bill.total,
+        slaRuleId: slaCredit?.ruleId ?? undefined,
+        slaRuleName: slaCredit?.ruleName ?? undefined,
+        eventData: eventCtx,
+      });
 
       // FX conversion: store base-currency equivalent at posting time
       const billDate = new Date(bill.billDate);

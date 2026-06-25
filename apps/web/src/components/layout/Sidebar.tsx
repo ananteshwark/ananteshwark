@@ -91,6 +91,7 @@ const navItems: NavItem[] = [
       { label: 'Cash Discounts', path: '/finance/cash-discounts' },
       { label: 'Revenue Recognition', path: '/finance/revenue-recognition' },
       { label: 'Lease Accounting', path: '/finance/leases' },
+      { label: 'Subledger Accounting', path: '/finance/subledger-accounting' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

@@ -22,5 +22,6 @@ import { RbacModule } from '../../rbac/rbac.module';
   controllers: [ArController],
   providers: [ArService],
   exports: [ArService, TypeOrmModule],
+  // SlaService is provided via GlModule (already imported above)
 })
 export class ArModule {}
