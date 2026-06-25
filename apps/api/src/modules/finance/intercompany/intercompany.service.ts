@@ -83,6 +83,10 @@ export class IntercompanyService {
       buyingEntityId: dto.buyingEntityId,
       markupPercent: dto.markupPercent ?? 0,
       eliminationAccountId: dto.eliminationAccountId ?? null,
+      icCustomerId: dto.icCustomerId ?? null,
+      icVendorId: dto.icVendorId ?? null,
+      revenueAccountId: dto.revenueAccountId ?? null,
+      expenseAccountId: dto.expenseAccountId ?? null,
       description: dto.description ?? null,
       isActive: true,
     });
@@ -99,6 +103,10 @@ export class IntercompanyService {
     if (dto.markupPercent !== undefined) rel.markupPercent = dto.markupPercent;
     if (dto.eliminationAccountId !== undefined)
       rel.eliminationAccountId = dto.eliminationAccountId;
+    if (dto.icCustomerId !== undefined) rel.icCustomerId = dto.icCustomerId;
+    if (dto.icVendorId !== undefined) rel.icVendorId = dto.icVendorId;
+    if (dto.revenueAccountId !== undefined) rel.revenueAccountId = dto.revenueAccountId;
+    if (dto.expenseAccountId !== undefined) rel.expenseAccountId = dto.expenseAccountId;
     if (dto.isActive !== undefined) rel.isActive = dto.isActive;
     if (dto.description !== undefined) rel.description = dto.description;
     return this.relRepo.save(rel);
@@ -180,6 +188,48 @@ export class IntercompanyService {
       sellingDocType: 'IC_AR',
       buyingDocType: 'IC_AP',
       notes: dto.notes ?? null,
+    });
+    return this.txnRepo.save(txn);
+  }
+
+  /**
+   * Record an already-booked intercompany pair directly in POSTED status.
+   * Used by automatic IC billing when a real AR invoice + mirror AP bill have
+   * just been created, so the IC AR/AP balances are already on the books.
+   */
+  async recordPostedTransaction(
+    tenantId: string,
+    input: {
+      sellingEntityId: string;
+      buyingEntityId: string;
+      transactionDate: string;
+      baseAmount: number;
+      markupAmount?: number;
+      totalAmount?: number;
+      relationshipId?: string | null;
+      description?: string | null;
+      notes?: string | null;
+    },
+  ): Promise<IcTransaction> {
+    const base = round2(input.baseAmount);
+    const markupAmount = round2(input.markupAmount ?? 0);
+    const totalAmount = round2(input.totalAmount ?? base + markupAmount);
+    const icNumber = await this.nextIcNumber(tenantId);
+    const txn = this.txnRepo.create({
+      tenantId,
+      icNumber,
+      relationshipId: input.relationshipId ?? null,
+      sellingEntityId: input.sellingEntityId,
+      buyingEntityId: input.buyingEntityId,
+      transactionDate: input.transactionDate,
+      description: input.description ?? null,
+      baseAmount: base,
+      markupAmount,
+      totalAmount,
+      status: IcTransactionStatus.POSTED,
+      sellingDocType: 'IC_AR',
+      buyingDocType: 'IC_AP',
+      notes: input.notes ?? null,
     });
     return this.txnRepo.save(txn);
   }

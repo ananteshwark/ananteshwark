@@ -32,6 +32,7 @@ import { ArModule } from '../finance/ar/ar.module';
 import { GlModule } from '../finance/gl/gl.module';
 import { RbacModule } from '../rbac/rbac.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { IntercompanyModule } from '../finance/intercompany/intercompany.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { InventoryModule } from '../inventory/inventory.module';
     GlModule,
     RbacModule,
     InventoryModule,
+    IntercompanyModule,
   ],
   controllers: [SalesController, PricingController, ReturnsCreditController, DeliveryController, BillingPlansController, RebateController],
   providers: [SalesService, PricingService, CreditService, AtpService, ReturnsCreditService, DeliveryService, BillingPlansService, RebateService],

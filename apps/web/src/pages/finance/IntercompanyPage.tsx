@@ -6,6 +6,8 @@ import {
   Scale,
   AlertTriangle,
   Building2,
+  Tag,
+  Zap,
 } from 'lucide-react';
 import { intercompanyApi } from '../../api/intercompany';
 import { hrApi } from '../../api/hr';
@@ -24,7 +26,7 @@ const STATUS_STYLES: Record<string, string> = {
   ELIMINATED: 'bg-green-100 text-green-700',
 };
 
-type Tab = 'relationships' | 'transactions' | 'reconciliation';
+type Tab = 'relationships' | 'transactions' | 'reconciliation' | 'transfer-prices' | 'ic-operations';
 
 export default function IntercompanyPage() {
   const [tab, setTab] = useState<Tab>('transactions');
@@ -33,6 +35,32 @@ export default function IntercompanyPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [recon, setRecon] = useState<any>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [transferPrices, setTransferPrices] = useState<any[]>([]);
+  const [showTpForm, setShowTpForm] = useState(false);
+  const [tpForm, setTpForm] = useState({
+    sellingEntityId: '',
+    buyingEntityId: '',
+    itemCode: '',
+    method: 'FIXED',
+    fixedPrice: '',
+    marketPrice: '',
+    costPlusPercent: '',
+    currency: 'USD',
+    validFrom: '',
+    validTo: '',
+  });
+  const [resolveForm, setResolveForm] = useState({
+    sellingEntityId: '',
+    buyingEntityId: '',
+    itemCode: '',
+    baseCost: '',
+    asOf: '',
+  });
+  const [resolveResult, setResolveResult] = useState<any>(null);
+  const [mirrorForm, setMirrorForm] = useState({ arInvoiceId: '', relationshipId: '' });
+  const [mirrorResult, setMirrorResult] = useState<any>(null);
+  const [elimForm, setElimForm] = useState({ periodEnd: '', groupId: '' });
+  const [elimResult, setElimResult] = useState<any>(null);
 
   const today = new Date().toISOString().slice(0, 10);
   const [showRelForm, setShowRelForm] = useState(false);
@@ -83,6 +111,11 @@ export default function IntercompanyPage() {
       .reconciliation()
       .then((res) => setRecon(unwrap(res)))
       .catch(() => setRecon(null));
+  const loadTransferPrices = () =>
+    intercompanyApi
+      .listTransferPrices()
+      .then((res) => setTransferPrices(unwrapList(res)))
+      .catch(() => setTransferPrices([]));
 
   useEffect(() => {
     hrApi
@@ -92,6 +125,7 @@ export default function IntercompanyPage() {
     loadRelationships();
     loadTransactions();
     loadRecon();
+    loadTransferPrices();
   }, []);
 
   const createRelationship = async () => {
@@ -176,6 +210,83 @@ export default function IntercompanyPage() {
     }
   };
 
+  const createTransferPrice = async () => {
+    if (!tpForm.sellingEntityId || !tpForm.buyingEntityId || !tpForm.validFrom) {
+      setMsg('Selling entity, buying entity and valid-from date are required');
+      return;
+    }
+    setMsg(null);
+    try {
+      await intercompanyApi.createTransferPrice({
+        sellingEntityId: tpForm.sellingEntityId,
+        buyingEntityId: tpForm.buyingEntityId,
+        itemCode: tpForm.itemCode || undefined,
+        method: tpForm.method,
+        fixedPrice: tpForm.fixedPrice ? Number(tpForm.fixedPrice) : undefined,
+        marketPrice: tpForm.marketPrice ? Number(tpForm.marketPrice) : undefined,
+        costPlusPercent: tpForm.costPlusPercent ? Number(tpForm.costPlusPercent) : undefined,
+        currency: tpForm.currency || 'USD',
+        validFrom: tpForm.validFrom,
+        validTo: tpForm.validTo || undefined,
+      });
+      setTpForm({ sellingEntityId: '', buyingEntityId: '', itemCode: '', method: 'FIXED', fixedPrice: '', marketPrice: '', costPlusPercent: '', currency: 'USD', validFrom: '', validTo: '' });
+      setShowTpForm(false);
+      loadTransferPrices();
+    } catch {
+      setMsg('Failed to create transfer price');
+    }
+  };
+
+  const resolvePrice = async () => {
+    if (!resolveForm.sellingEntityId || !resolveForm.buyingEntityId) {
+      setMsg('Selling and buying entity are required');
+      return;
+    }
+    setMsg(null);
+    try {
+      const res = await intercompanyApi.resolveTransferPrice({
+        sellingEntityId: resolveForm.sellingEntityId,
+        buyingEntityId: resolveForm.buyingEntityId,
+        itemCode: resolveForm.itemCode || undefined,
+        baseCost: resolveForm.baseCost ? Number(resolveForm.baseCost) : undefined,
+        asOf: resolveForm.asOf || undefined,
+      });
+      setResolveResult(unwrap(res));
+    } catch {
+      setMsg('Failed to resolve transfer price');
+    }
+  };
+
+  const generateMirrorBill = async () => {
+    if (!mirrorForm.arInvoiceId || !mirrorForm.relationshipId) {
+      setMsg('AR Invoice ID and Relationship ID are required');
+      return;
+    }
+    setMsg(null);
+    try {
+      const res = await intercompanyApi.generateMirrorBill(mirrorForm.arInvoiceId, mirrorForm.relationshipId);
+      setMirrorResult(unwrap(res));
+      loadTransactions();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.message ?? 'Failed to generate mirror bill');
+    }
+  };
+
+  const generateEliminations = async () => {
+    if (!elimForm.periodEnd) {
+      setMsg('Period end date is required');
+      return;
+    }
+    setMsg(null);
+    try {
+      const res = await intercompanyApi.generateEliminations(elimForm.periodEnd, elimForm.groupId || undefined);
+      setElimResult(unwrap(res));
+      loadTransactions();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.message ?? 'Failed to generate eliminations');
+    }
+  };
+
   const Chip = ({ status }: { status: string }) => (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-700'}`}>
       {status}
@@ -186,6 +297,8 @@ export default function IntercompanyPage() {
     { key: 'relationships', label: 'Relationships' },
     { key: 'transactions', label: 'Transactions' },
     { key: 'reconciliation', label: 'Reconciliation' },
+    { key: 'transfer-prices', label: 'Transfer Pricing' },
+    { key: 'ic-operations', label: 'IC Operations' },
   ];
 
   return (
@@ -210,6 +323,12 @@ export default function IntercompanyPage() {
           <button onClick={() => setShowTxnForm((s) => !s)}
             className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
             <Plus className="h-4 w-4" /> New IC Transaction
+          </button>
+        )}
+        {tab === 'transfer-prices' && (
+          <button onClick={() => setShowTpForm((s) => !s)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+            <Plus className="h-4 w-4" /> New Rule
           </button>
         )}
       </div>
@@ -406,6 +525,270 @@ export default function IntercompanyPage() {
             </table>
           </div>
         </>
+      )}
+
+      {/* ─── Transfer Pricing ─── */}
+      {tab === 'transfer-prices' && (
+        <>
+          {showTpForm && (
+            <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Selling Entity</label>
+                  <select value={tpForm.sellingEntityId} onChange={(e) => setTpForm({ ...tpForm, sellingEntityId: e.target.value })}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44">
+                    <option value="">Select...</option>
+                    {entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Buying Entity</label>
+                  <select value={tpForm.buyingEntityId} onChange={(e) => setTpForm({ ...tpForm, buyingEntityId: e.target.value })}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44">
+                    <option value="">Select...</option>
+                    {entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Item Code (blank=pair default)</label>
+                  <input value={tpForm.itemCode} onChange={(e) => setTpForm({ ...tpForm, itemCode: e.target.value })}
+                    placeholder="e.g. SKU-001"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Method</label>
+                  <select value={tpForm.method} onChange={(e) => setTpForm({ ...tpForm, method: e.target.value })}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="FIXED">FIXED</option>
+                    <option value="COST_PLUS">COST_PLUS</option>
+                    <option value="MARKET">MARKET</option>
+                  </select>
+                </div>
+                {tpForm.method === 'FIXED' && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Fixed Price</label>
+                    <input type="number" value={tpForm.fixedPrice} onChange={(e) => setTpForm({ ...tpForm, fixedPrice: e.target.value })}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-28" />
+                  </div>
+                )}
+                {tpForm.method === 'MARKET' && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Market Price</label>
+                    <input type="number" value={tpForm.marketPrice} onChange={(e) => setTpForm({ ...tpForm, marketPrice: e.target.value })}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-28" />
+                  </div>
+                )}
+                {tpForm.method === 'COST_PLUS' && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Cost Plus %</label>
+                    <input type="number" value={tpForm.costPlusPercent} onChange={(e) => setTpForm({ ...tpForm, costPlusPercent: e.target.value })}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24" />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Currency</label>
+                  <input value={tpForm.currency} onChange={(e) => setTpForm({ ...tpForm, currency: e.target.value })}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-20" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Valid From</label>
+                  <input type="date" value={tpForm.validFrom} onChange={(e) => setTpForm({ ...tpForm, validFrom: e.target.value })}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Valid To</label>
+                  <input type="date" value={tpForm.validTo} onChange={(e) => setTpForm({ ...tpForm, validTo: e.target.value })}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <button onClick={createTransferPrice}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                  <Plus className="h-4 w-4" /> Create
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Price resolver */}
+          <div className="mb-4 bg-blue-50 rounded-lg border border-blue-100 p-4">
+            <div className="text-xs font-semibold text-blue-700 mb-2 flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5" /> Resolve Transfer Price
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <select value={resolveForm.sellingEntityId} onChange={(e) => setResolveForm({ ...resolveForm, sellingEntityId: e.target.value })}
+                className="border border-blue-200 rounded-lg px-3 py-2 text-sm w-44 bg-white">
+                <option value="">Selling entity...</option>
+                {entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+              <select value={resolveForm.buyingEntityId} onChange={(e) => setResolveForm({ ...resolveForm, buyingEntityId: e.target.value })}
+                className="border border-blue-200 rounded-lg px-3 py-2 text-sm w-44 bg-white">
+                <option value="">Buying entity...</option>
+                {entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+              <input value={resolveForm.itemCode} onChange={(e) => setResolveForm({ ...resolveForm, itemCode: e.target.value })}
+                placeholder="Item code (optional)" className="border border-blue-200 rounded-lg px-3 py-2 text-sm w-36 bg-white" />
+              <input type="number" value={resolveForm.baseCost} onChange={(e) => setResolveForm({ ...resolveForm, baseCost: e.target.value })}
+                placeholder="Base cost" className="border border-blue-200 rounded-lg px-3 py-2 text-sm w-28 bg-white" />
+              <input type="date" value={resolveForm.asOf} onChange={(e) => setResolveForm({ ...resolveForm, asOf: e.target.value })}
+                className="border border-blue-200 rounded-lg px-3 py-2 text-sm bg-white" />
+              <button onClick={resolvePrice} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Resolve</button>
+            </div>
+            {resolveResult && (
+              <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                {resolveResult.resolved ? (
+                  <>
+                    <span className="text-gray-600">Method: <strong className="text-gray-900">{resolveResult.method}</strong></span>
+                    <span className="text-gray-600">Unit Price: <strong className="text-green-700">{fmt(resolveResult.unitPrice)} {resolveResult.currency}</strong></span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${resolveResult.itemSpecific ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {resolveResult.itemSpecific ? 'Item-specific' : 'Pair default'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-amber-600">No active rule found for this pair/date.</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Selling Entity</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Buying Entity</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Item Code</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Method</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Price / %</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Currency</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Valid From</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Valid To</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {transferPrices.length === 0 ? (
+                  <tr><td colSpan={9} className="text-center py-8 text-gray-400">No transfer pricing rules</td></tr>
+                ) : transferPrices.map((tp) => (
+                  <tr key={tp.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{entityName(tp.sellingEntityId)}</td>
+                    <td className="px-4 py-3 text-gray-700">{entityName(tp.buyingEntityId)}</td>
+                    <td className="px-4 py-3 text-gray-600">{tp.itemCode ?? <span className="text-gray-400 italic">pair default</span>}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        tp.method === 'FIXED' ? 'bg-blue-100 text-blue-700'
+                        : tp.method === 'MARKET' ? 'bg-purple-100 text-purple-700'
+                        : 'bg-orange-100 text-orange-700'
+                      }`}>{tp.method}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-900 font-medium">
+                      {tp.method === 'FIXED' ? fmt(tp.fixedPrice)
+                        : tp.method === 'MARKET' ? fmt(tp.marketPrice)
+                        : `${num(tp.costPlusPercent)}%`}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{tp.currency}</td>
+                    <td className="px-4 py-3 text-gray-600">{tp.validFrom}</td>
+                    <td className="px-4 py-3 text-gray-600">{tp.validTo ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tp.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {tp.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ─── IC Operations ─── */}
+      {tab === 'ic-operations' && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Mirror Bill */}
+          <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="h-4 w-4 text-blue-600" />
+              <h3 className="font-semibold text-gray-900">Generate Mirror AP Bill</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Creates the matching AP bill in the buying entity for an already-posted AR invoice
+              in the selling entity, then records the IC transaction in POSTED status.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">AR Invoice ID</label>
+                <input value={mirrorForm.arInvoiceId} onChange={(e) => setMirrorForm({ ...mirrorForm, arInvoiceId: e.target.value })}
+                  placeholder="UUID of the AR invoice"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">IC Relationship ID</label>
+                <select value={mirrorForm.relationshipId} onChange={(e) => setMirrorForm({ ...mirrorForm, relationshipId: e.target.value })}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full">
+                  <option value="">Select relationship...</option>
+                  {relationships.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {entityName(r.sellingEntityId)} → {entityName(r.buyingEntityId)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button onClick={generateMirrorBill}
+                className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+                Generate Mirror Bill
+              </button>
+              {mirrorResult && (
+                <div className="mt-3 p-3 bg-green-50 rounded-lg text-sm text-green-700">
+                  <div>Bill: <strong>{mirrorResult.billNumber}</strong></div>
+                  <div>IC Txn: <strong>{mirrorResult.icNumber}</strong></div>
+                  <div>Total: <strong>{fmt(mirrorResult.total)}</strong></div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Eliminations */}
+          <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Scale className="h-4 w-4 text-green-600" />
+              <h3 className="font-semibold text-gray-900">Generate Elimination Entries</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Posts a single journal entry that eliminates IC revenue against IC expense
+              for all POSTED intercompany transactions up to the period end, then marks
+              those transactions ELIMINATED.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Period End Date</label>
+                <input type="date" value={elimForm.periodEnd} onChange={(e) => setElimForm({ ...elimForm, periodEnd: e.target.value })}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Consolidation Group ID (optional)</label>
+                <input value={elimForm.groupId} onChange={(e) => setElimForm({ ...elimForm, groupId: e.target.value })}
+                  placeholder="Leave blank for all entities"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full" />
+              </div>
+              <button onClick={generateEliminations}
+                className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
+                Generate Eliminations
+              </button>
+              {elimResult && (
+                <div className={`mt-3 p-3 rounded-lg text-sm ${elimResult.eliminatedCount > 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
+                  {elimResult.eliminatedCount === 0 ? (
+                    <div>No in-scope POSTED transactions found.</div>
+                  ) : (
+                    <>
+                      <div>Eliminated: <strong>{elimResult.eliminatedCount} transaction{elimResult.eliminatedCount === 1 ? '' : 's'}</strong></div>
+                      <div>Total eliminated: <strong>{fmt(elimResult.totalEliminated)}</strong></div>
+                      <div>Journal Entry: <strong>{elimResult.journalEntryId}</strong></div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ─── Reconciliation ─── */}

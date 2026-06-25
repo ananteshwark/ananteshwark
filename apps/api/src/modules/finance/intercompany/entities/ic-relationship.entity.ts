@@ -41,6 +41,23 @@ export class IcRelationship {
   @Column({ name: 'elimination_account_id', type: 'uuid', nullable: true })
   eliminationAccountId: string | null;
 
+  // Phase 86 — automatic IC billing wiring.
+  /** Customer record in the SELLING entity's books representing the buying entity. */
+  @Column({ name: 'ic_customer_id', type: 'uuid', nullable: true })
+  icCustomerId: string | null;
+
+  /** Vendor record in the BUYING entity's books representing the selling entity. */
+  @Column({ name: 'ic_vendor_id', type: 'uuid', nullable: true })
+  icVendorId: string | null;
+
+  /** Revenue GL account used by the selling entity for IC sales (elimination). */
+  @Column({ name: 'revenue_account_id', type: 'uuid', nullable: true })
+  revenueAccountId: string | null;
+
+  /** Expense/COGS GL account used by the buying entity for IC purchases (elimination). */
+  @Column({ name: 'expense_account_id', type: 'uuid', nullable: true })
+  expenseAccountId: string | null;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

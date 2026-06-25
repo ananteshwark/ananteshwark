@@ -13,6 +13,7 @@ import {
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { ArService } from '../finance/ar/ar.service';
 import { GlService } from '../finance/gl/gl.service';
+import { IcBillingService } from '../finance/intercompany/ic-billing.service';
 import { CreditService } from './credit.service';
 import { AtpService } from './atp.service';
 
@@ -31,6 +32,7 @@ export class SalesService {
     private readonly priceListItemRepo: Repository<PriceListItem>,
     private readonly arService: ArService,
     private readonly glService: GlService,
+    private readonly icBillingService: IcBillingService,
     private readonly creditService: CreditService,
     private readonly atpService: AtpService,
   ) {}
@@ -251,6 +253,21 @@ export class SalesService {
         }
       } catch (_) {
         // AR invoice creation is best-effort
+      }
+    }
+
+    // Intercompany: generate the mirror AP bill in the buying entity.
+    if (order.isIntercompany && order.icRelationshipId && order.arInvoiceId && !order.icBillId) {
+      try {
+        const result = await this.icBillingService.generateMirrorBill(
+          tenantId,
+          order.arInvoiceId,
+          order.icRelationshipId,
+          userId,
+        );
+        order.icBillId = result.billId;
+      } catch (_) {
+        // Mirror bill generation is best-effort; relationship may be misconfigured.
       }
     }
 

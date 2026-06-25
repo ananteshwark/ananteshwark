@@ -22,4 +22,20 @@ export const intercompanyApi = {
 
   // Reconciliation
   reconciliation: () => apiClient.get('/finance/intercompany/reconciliation'),
+
+  // Transfer Pricing (Phase 86)
+  listTransferPrices: (params?: { sellingEntityId?: string; buyingEntityId?: string; itemCode?: string }) =>
+    apiClient.get('/finance/intercompany/transfer-prices', { params: params ?? {} }),
+  createTransferPrice: (data: any) =>
+    apiClient.post('/finance/intercompany/transfer-prices', data),
+  updateTransferPrice: (id: string, data: any) =>
+    apiClient.patch(`/finance/intercompany/transfer-prices/${id}`, data),
+  resolveTransferPrice: (data: any) =>
+    apiClient.post('/finance/intercompany/transfer-prices/resolve', data),
+
+  // IC Billing + Eliminations (Phase 86)
+  generateMirrorBill: (arInvoiceId: string, relationshipId: string) =>
+    apiClient.post('/finance/intercompany/mirror-bill', { arInvoiceId, relationshipId }),
+  generateEliminations: (periodEnd: string, groupId?: string) =>
+    apiClient.post('/finance/intercompany/eliminations', { periodEnd, groupId }),
 };

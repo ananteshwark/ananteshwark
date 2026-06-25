@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsNumber, IsOptional, IsDateString, IsArray, ValidateNested, IsInt, Min } from 'class-validator';
+import { IsString, IsEnum, IsNumber, IsOptional, IsDateString, IsArray, ValidateNested, IsInt, IsBoolean, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { SalesOrderStatus } from '../entities/sales-order.entity';
@@ -26,6 +26,9 @@ export class CreateSalesOrderDto {
   @ApiPropertyOptional() @IsOptional() @IsString() billingAddress?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() priceListId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isIntercompany?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsString() icRelationshipId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() buyingEntityId?: string;
   @ApiProperty({ type: [SalesOrderLineDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => SalesOrderLineDto) lines: SalesOrderLineDto[];
 }
 

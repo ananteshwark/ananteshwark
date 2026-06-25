@@ -42,6 +42,13 @@ export class SalesOrder {
   @Column({ length: 10, default: 'INR' }) currency: string;
 
   @Column({ name: 'ar_invoice_id', type: 'uuid', nullable: true }) arInvoiceId: string | null;
+
+  // Phase 86 — intercompany sales
+  @Column({ name: 'is_intercompany', type: 'boolean', default: false }) isIntercompany: boolean;
+  @Column({ name: 'ic_relationship_id', type: 'uuid', nullable: true }) icRelationshipId: string | null;
+  @Column({ name: 'buying_entity_id', type: 'uuid', nullable: true }) buyingEntityId: string | null;
+  @Column({ name: 'ic_bill_id', type: 'uuid', nullable: true }) icBillId: string | null;
+
   @Column({ name: 'shipping_address', type: 'text', nullable: true }) shippingAddress: string | null;
   @Column({ name: 'billing_address', type: 'text', nullable: true }) billingAddress: string | null;
   @Column({ type: 'text', nullable: true }) notes: string | null;
