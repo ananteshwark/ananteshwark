@@ -12,15 +12,20 @@ export const ALL_PERMISSIONS = [
   'hr:leave:read', 'hr:leave:apply', 'hr:leave:approve',
   'hr:timesheets:read', 'hr:timesheets:approve',
   // Finance module
-  'finance:gl:read', 'finance:gl:create', 'finance:gl:update',
+  'finance:gl:read', 'finance:gl:create', 'finance:gl:update', 'finance:gl:write', 'finance:gl:manage',
   'finance:invoices:read', 'finance:invoices:create', 'finance:invoices:update',
   'finance:accounts:read', 'finance:accounts:create', 'finance:accounts:update',
-  'finance:journal:read', 'finance:journal:create', 'finance:journal:post', 'finance:journal:reverse',
-  'finance:ar:read', 'finance:ar:create', 'finance:ar:post',
-  'finance:ap:read', 'finance:ap:create', 'finance:ap:post',
+  'finance:journal:read', 'finance:journal:create', 'finance:journal:post', 'finance:journal:reverse', 'finance:journal:manage',
+  'finance:ar:read', 'finance:ar:create', 'finance:ar:post', 'finance:ar:write',
+  'finance:ap:read', 'finance:ap:create', 'finance:ap:post', 'finance:ap:write',
   'finance:bank:read', 'finance:bank:create', 'finance:bank:reconcile',
   'finance:reports:read',
   'finance:read', 'finance:write',
+  // Treasury + consolidation (dot-notation convention used by their controllers)
+  'finance.treasury.read', 'finance.treasury.write', 'finance.treasury.execute',
+  'finance.consolidation.read', 'finance.consolidation.write',
+  // Revenue recognition (Phase 87)
+  'finance:revenue:read', 'finance:revenue:write',
   // Payroll module
   'payroll:payroll_run:read', 'payroll:payroll_run:create', 'payroll:payroll_run:execute',
   'payroll:runs:read', 'payroll:runs:process', 'payroll:runs:approve',
@@ -118,6 +123,7 @@ export const SYSTEM_ROLES = {
     description: 'Finance module full access',
     permissions: [
       ...ALL_PERMISSIONS.filter(p => p.startsWith('finance:')),
+      ...ALL_PERMISSIONS.filter(p => p.startsWith('finance.')),
       'workflow:instances:approve',
       'workflow:instances:read',
       'finance:accounts:read', 'finance:accounts:create', 'finance:accounts:update',

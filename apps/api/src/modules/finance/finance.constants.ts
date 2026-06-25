@@ -28,4 +28,7 @@ export const DEFAULT_ACCOUNT_CODES = {
   // Cash discounts (Phase 85)
   CASH_DISCOUNT_RECEIVED: '7100', // AP early-payment discount taken (other income)
   CASH_DISCOUNT_GRANTED: '7110', // AR early-payment discount granted (expense)
+  // Revenue recognition (Phase 87) — IFRS 15 / ASC 606
+  DEFERRED_REVENUE: '2200', // contract liability: billed-but-unrecognised revenue
+  CONTRACT_ASSET: '1150', // unbilled receivable: recognised-but-unbilled revenue
 };

@@ -53,6 +53,7 @@ import ConsolidationPage from './pages/finance/ConsolidationPage';
 import ActivityCostingPage from './pages/finance/ActivityCostingPage';
 import ParallelLedgersPage from './pages/finance/ParallelLedgersPage';
 import CashDiscountsPage from './pages/finance/CashDiscountsPage';
+import RevenueRecognitionPage from './pages/finance/RevenueRecognitionPage';
 import {
   EmployeesPage,
   DepartmentsPage,
@@ -219,6 +220,7 @@ export default function App() {
         <Route path="finance/activity-costing" element={<ActivityCostingPage />} />
         <Route path="finance/parallel-ledgers" element={<ParallelLedgersPage />} />
         <Route path="finance/cash-discounts" element={<CashDiscountsPage />} />
+        <Route path="finance/revenue-recognition" element={<RevenueRecognitionPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />
