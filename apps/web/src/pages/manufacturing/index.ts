@@ -3,3 +3,4 @@ export { default as RoutingsPage } from './RoutingsPage';
 export { default as MrpPage } from './MrpPage';
 export { default as ProductionCostingPage } from './ProductionCostingPage';
 export { default as FcsPage } from './FcsPage';
+export { default as CrpPage } from './CrpPage';

@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ManufacturingService } from './manufacturing.service';
 import { MrpService } from './mrp.service';
 import { FcsService } from './fcs.service';
+import { CrpService, CrpBucket } from './crp.service';
 import { SlotStatus } from './entities/capacity-slot.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../common/guards/rbac.guard';
@@ -24,6 +25,7 @@ export class ManufacturingController {
     private readonly service: ManufacturingService,
     private readonly mrpService: MrpService,
     private readonly fcsService: FcsService,
+    private readonly crpService: CrpService,
   ) {}
 
   // BOMs
@@ -124,6 +126,24 @@ export class ManufacturingController {
   @RequirePermission('manufacturing:read')
   getCapacityLoad(@CurrentUser() user: any, @Query('fromDate') fromDate?: string, @Query('toDate') toDate?: string) {
     return this.service.getCapacityLoad(user.tenantId, fromDate, toDate);
+  }
+
+  // ─── Phase 91: Capacity Requirements Planning ───────────────────
+  @Get('crp')
+  @RequirePermission('manufacturing:read')
+  getCapacityPlan(
+    @CurrentUser() user: any,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('bucket') bucket?: CrpBucket,
+    @Query('includePlanned') includePlanned?: string,
+  ) {
+    return this.crpService.getCapacityPlan(user.tenantId, {
+      from,
+      to,
+      bucket: bucket === 'month' ? 'month' : 'week',
+      includePlanned: includePlanned !== 'false',
+    });
   }
 
   // ─── Phase 47: MRP ──────────────────────────────────────────────

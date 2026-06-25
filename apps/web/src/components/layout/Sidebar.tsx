@@ -185,6 +185,7 @@ const navItems: NavItem[] = [
       { label: 'Routings', path: '/manufacturing/routings' },
       { label: 'Demand Planning', path: '/planning/demand' },
       { label: 'MRP', path: '/manufacturing/mrp' },
+      { label: 'Capacity Planning', path: '/manufacturing/crp' },
       { label: 'Costing', path: '/manufacturing/costing' },
     ],
   },

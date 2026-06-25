@@ -16,6 +16,7 @@ import { SalesOrderLine } from '../sales/entities/sales-order-line.entity';
 import { ManufacturingService } from './manufacturing.service';
 import { MrpService } from './mrp.service';
 import { FcsService } from './fcs.service';
+import { CrpService } from './crp.service';
 import { ManufacturingController } from './manufacturing.controller';
 import { GlModule } from '../finance/gl/gl.module';
 import { ControllingModule } from '../finance/controlling/controlling.module';
@@ -37,7 +38,7 @@ import { PlanningModule } from '../planning/planning.module';
     PlanningModule,
   ],
   controllers: [ManufacturingController],
-  providers: [ManufacturingService, MrpService, FcsService],
-  exports: [ManufacturingService, MrpService, FcsService],
+  providers: [ManufacturingService, MrpService, FcsService, CrpService],
+  exports: [ManufacturingService, MrpService, FcsService, CrpService],
 })
 export class ManufacturingModule {}

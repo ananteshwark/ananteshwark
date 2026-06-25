@@ -31,6 +31,10 @@ export const manufacturingApi = {
   convertPlannedOrder: (id: string) => apiClient.post(`/manufacturing/mrp/planned-orders/${id}/convert`),
   getRequirements: (itemId: string) => apiClient.get(`/manufacturing/mrp/requirements/${itemId}`),
 
+  // Capacity Requirements Planning (Phase 91)
+  getCapacityPlan: (params: { from: string; to: string; bucket?: string; includePlanned?: boolean }) =>
+    apiClient.get('/manufacturing/crp', { params }),
+
   // Production Order Costing (Phase 48)
   calculateCost: (id: string) => apiClient.post(`/manufacturing/production-orders/${id}/calculate-cost`),
   confirmOperation: (id: string, data: any) => apiClient.post(`/manufacturing/production-orders/${id}/confirm`, data),
