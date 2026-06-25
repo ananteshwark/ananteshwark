@@ -17,6 +17,7 @@ export default function MrpPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [horizonDays, setHorizonDays] = useState('90');
+  const [includeForecast, setIncludeForecast] = useState(true);
   const [lastRun, setLastRun] = useState<any>(null);
   const [acting, setActing] = useState<string | null>(null);
 
@@ -32,7 +33,7 @@ export default function MrpPage() {
   const runMrp = async () => {
     setRunning(true);
     try {
-      const r = await manufacturingApi.runMrp({ horizonDays: parseInt(horizonDays, 10) });
+      const r = await manufacturingApi.runMrp({ horizonDays: parseInt(horizonDays, 10), includeForecast });
       setLastRun(r.data?.data ?? r.data);
       load();
     } finally { setRunning(false); }
@@ -55,6 +56,10 @@ export default function MrpPage() {
             <label className="block text-xs text-gray-500 mb-1">Horizon (days)</label>
             <input type="number" className="border rounded-lg px-3 py-2 text-sm w-28" value={horizonDays} onChange={e => setHorizonDays(e.target.value)} />
           </div>
+          <label className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 select-none">
+            <input type="checkbox" checked={includeForecast} onChange={e => setIncludeForecast(e.target.checked)} />
+            Include forecast
+          </label>
           <button onClick={runMrp} disabled={running}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
             <Play className="h-4 w-4" /> {running ? 'Running...' : 'Run MRP'}
@@ -63,12 +68,13 @@ export default function MrpPage() {
       </div>
 
       {lastRun && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {[
             ['Planned Orders', lastRun.plannedOrdersCreated],
             ['Production', lastRun.plannedProduction],
             ['Purchase', lastRun.plannedPurchase],
             ['Exceptions', lastRun.exceptions],
+            ['Forecast Items', lastRun.forecastItemsApplied ?? 0],
           ].map(([label, val]) => (
             <div key={label as string} className="bg-white rounded-xl border p-4">
               <p className="text-xs text-gray-500">{label}</p>

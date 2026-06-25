@@ -80,6 +80,7 @@ export class UpdateRoutingDto extends PartialType(CreateRoutingDto) {}
 // ─── Phase 47: MRP ──────────────────────────────────────────────
 export class RunMrpDto {
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) horizonDays?: number;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() includeForecast?: boolean;
 }
 
 // ─── Phase 48: Production Order Costing ──────────────────────────

@@ -21,6 +21,7 @@ import { GlModule } from '../finance/gl/gl.module';
 import { ControllingModule } from '../finance/controlling/controlling.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { RbacModule } from '../rbac/rbac.module';
+import { PlanningModule } from '../planning/planning.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { RbacModule } from '../rbac/rbac.module';
     ControllingModule,
     InventoryModule,
     RbacModule,
+    PlanningModule,
   ],
   controllers: [ManufacturingController],
   providers: [ManufacturingService, MrpService, FcsService],

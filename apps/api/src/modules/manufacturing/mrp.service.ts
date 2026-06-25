@@ -9,6 +9,7 @@ import { SalesOrder, SalesOrderStatus } from '../sales/entities/sales-order.enti
 import { SalesOrderLine, LineStatus } from '../sales/entities/sales-order-line.entity';
 import { Bom, BomStatus } from './entities/bom.entity';
 import { ManufacturingService } from './manufacturing.service';
+import { DemandPlanningService } from '../planning/demand-planning.service';
 
 @Injectable()
 export class MrpService {
@@ -21,12 +22,22 @@ export class MrpService {
     @InjectRepository(SalesOrderLine) private readonly soLineRepo: Repository<SalesOrderLine>,
     @InjectRepository(Bom) private readonly bomRepo: Repository<Bom>,
     private readonly manufacturingService: ManufacturingService,
+    private readonly demandPlanningService: DemandPlanningService,
   ) {}
 
   private addDays(base: Date, days: number): string {
     const d = new Date(base);
     d.setDate(d.getDate() + days);
     return d.toISOString().slice(0, 10);
+  }
+
+  /**
+   * Forecast consumption: actual sales orders consume the forecast, so only the
+   * portion of forecast demand not already covered by firm orders adds net new
+   * requirement (avoids double-counting demand in MRP).
+   */
+  netForecast(forecastTotal: number, salesOrderTotal: number): number {
+    return Math.max(0, Math.round((forecastTotal - salesOrderTotal) * 10000) / 10000);
   }
 
   private async onHandByItemId(tenantId: string): Promise<Map<string, { onHand: number; committed: number }>> {
@@ -41,7 +52,7 @@ export class MrpService {
     return map;
   }
 
-  async runMrp(tenantId: string, opts: { horizonDays?: number } = {}): Promise<any> {
+  async runMrp(tenantId: string, opts: { horizonDays?: number; includeForecast?: boolean } = {}): Promise<any> {
     const horizonDays = opts.horizonDays ?? 90;
     const today = new Date();
     const horizonDate = this.addDays(today, horizonDays);
@@ -81,6 +92,32 @@ export class MrpService {
         const src = demandSource.get(item.id) ?? [];
         src.push(`SO ${so.orderNumber}`);
         demandSource.set(item.id, src);
+      }
+    }
+
+    // 2b) Released forecast demand (planned independent requirements), netted
+    //     against firm sales-order demand so we don't double-count.
+    let forecastItemsApplied = 0;
+    if (opts.includeForecast !== false) {
+      try {
+        const released = await this.demandPlanningService.getReleasedDemand(tenantId, { to: horizonDate });
+        const forecastByItem = new Map<string, number>();
+        for (const r of released) {
+          forecastByItem.set(r.itemId, (forecastByItem.get(r.itemId) ?? 0) + Number(r.qty ?? 0));
+        }
+        for (const [itemId, forecastTotal] of forecastByItem) {
+          if (!itemById.has(itemId)) continue;
+          const soTotal = demandByItem.get(itemId) ?? 0;
+          const net = this.netForecast(forecastTotal, soTotal);
+          if (net <= 0) continue;
+          demandByItem.set(itemId, soTotal + net);
+          const src = demandSource.get(itemId) ?? [];
+          src.push(`Forecast ${Math.round(net * 100) / 100}`);
+          demandSource.set(itemId, src);
+          forecastItemsApplied += 1;
+        }
+      } catch {
+        // Demand planning is advisory; never block MRP on it.
       }
     }
 
@@ -164,6 +201,7 @@ export class MrpService {
       plannedProduction: created.filter((p) => p.type === PlannedOrderType.PLANNED_PRODUCTION).length,
       plannedPurchase: created.filter((p) => p.type === PlannedOrderType.PLANNED_PO).length,
       exceptions: created.filter((p) => !!p.exceptionMessage).length,
+      forecastItemsApplied,
     };
   }
 
@@ -243,6 +281,18 @@ export class MrpService {
     const plannedOrders = await this.plannedRepo.find({ where: { tenantId, itemId, status: PlannedOrderStatus.PLANNED } });
     const plannedSupply = plannedOrders.reduce((s, p) => s + Number(p.quantity ?? 0), 0);
 
+    // Released forecast demand for this item, netted against firm sales orders.
+    let forecastDemand = 0;
+    try {
+      const released = await this.demandPlanningService.getReleasedDemand(tenantId, {});
+      forecastDemand = released
+        .filter((r) => r.itemId === item.id)
+        .reduce((s, r) => s + Number(r.qty ?? 0), 0);
+    } catch {
+      // advisory only
+    }
+    const netForecastDemand = this.netForecast(forecastDemand, demand);
+
     return {
       item: { id: item.id, code: item.code, name: item.name },
       onHand,
@@ -250,10 +300,12 @@ export class MrpService {
       available,
       openSupply,
       demand,
+      forecastDemand,
+      netForecastDemand,
       plannedSupply,
       reorderPoint: item.reorderPoint != null ? Number(item.reorderPoint) : Number(item.reorderLevel ?? 0),
       safetyStock: item.safetyStock != null ? Number(item.safetyStock) : 0,
-      projectedAvailable: available + openSupply + plannedSupply - demand,
+      projectedAvailable: available + openSupply + plannedSupply - demand - netForecastDemand,
     };
   }
 }
