@@ -96,4 +96,23 @@ export const inventoryApi = {
   assignWarehouseTask: (id: string, userId?: string) => apiClient.patch(`/inventory/wms/tasks/${id}/assign`, { userId }),
   completeWarehouseTask: (id: string) => apiClient.post(`/inventory/wms/tasks/${id}/complete`),
   cancelWarehouseTask: (id: string) => apiClient.post(`/inventory/wms/tasks/${id}/cancel`),
+
+  // Phase 92: Putaway Strategies
+  listPutawayRules: (warehouseId?: string) => apiClient.get('/inventory/wms/putaway-rules', { params: warehouseId ? { warehouseId } : {} }),
+  createPutawayRule: (data: any) => apiClient.post('/inventory/wms/putaway-rules', data),
+  deletePutawayRule: (id: string) => apiClient.delete(`/inventory/wms/putaway-rules/${id}`),
+  suggestPutaway: (data: any) => apiClient.post('/inventory/wms/putaway-suggest', data),
+
+  // Phase 92: Directed Pick Suggestions
+  suggestPicks: (params: { warehouseId: string; itemId: string; qty: number; strategy?: string }) =>
+    apiClient.get('/inventory/wms/pick-suggest', { params }),
+
+  // Phase 92: Pick Waves
+  listWaves: (params?: any) => apiClient.get('/inventory/wms/waves', { params }),
+  createWave: (data: any) => apiClient.post('/inventory/wms/waves', data),
+  getWave: (id: string) => apiClient.get(`/inventory/wms/waves/${id}`),
+  addTasksToWave: (id: string, taskIds: string[]) => apiClient.post(`/inventory/wms/waves/${id}/tasks`, { taskIds }),
+  releaseWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/release`),
+  completeWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/complete`),
+  cancelWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/cancel`),
 };

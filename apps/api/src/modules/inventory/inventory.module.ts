@@ -18,6 +18,8 @@ import { StockTransferOrder } from './entities/stock-transfer-order.entity';
 import { BatchCharacteristic } from './entities/batch-characteristic.entity';
 import { BinStock } from './entities/bin-stock.entity';
 import { WarehouseTask } from './entities/warehouse-task.entity';
+import { PutawayRule } from './entities/putaway-rule.entity';
+import { PickWave } from './entities/pick-wave.entity';
 import { InventoryService } from './inventory.service';
 import {
   WarehouseController,
@@ -31,6 +33,8 @@ import { InventoryV2Service } from './inventory-v2.service';
 import { SpecialProcurementController } from './special-procurement.controller';
 import { SpecialProcurementService } from './special-procurement.service';
 import { WmsService } from './wms.service';
+import { PutawayService } from './putaway.service';
+import { PickingService } from './picking.service';
 import { WmsController } from './wms.controller';
 import { RbacModule } from '../rbac/rbac.module';
 
@@ -56,11 +60,13 @@ import { RbacModule } from '../rbac/rbac.module';
       BatchCharacteristic,
       BinStock,
       WarehouseTask,
+      PutawayRule,
+      PickWave,
     ]),
     RbacModule,
   ],
   controllers: [WarehouseController, CategoryController, ItemController, StockController, AdjustmentController, InventoryV2Controller, SpecialProcurementController, WmsController],
-  providers: [InventoryService, InventoryV2Service, SpecialProcurementService, WmsService],
-  exports: [InventoryService, InventoryV2Service, SpecialProcurementService, WmsService],
+  providers: [InventoryService, InventoryV2Service, SpecialProcurementService, WmsService, PutawayService, PickingService],
+  exports: [InventoryService, InventoryV2Service, SpecialProcurementService, WmsService, PutawayService, PickingService],
 })
 export class InventoryModule {}

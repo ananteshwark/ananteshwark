@@ -33,6 +33,7 @@ export class WarehouseTask {
   @Column({ name: 'reference_id', type: 'uuid', nullable: true }) referenceId: string | null;
   @Column({ name: 'assigned_user_id', type: 'uuid', nullable: true }) assignedUserId: string | null;
   @Column({ name: 'completed_at', type: 'timestamp', nullable: true }) completedAt: Date | null;
+  @Column({ name: 'wave_id', type: 'uuid', nullable: true }) waveId: string | null;
   @Column({ name: 'priority', type: 'int', default: 50 }) priority: number;
   @Column({ type: 'text', nullable: true }) notes: string | null;
   @CreateDateColumn() createdAt: Date;

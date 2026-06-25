@@ -1,18 +1,25 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { WmsService } from './wms.service';
+import { PutawayService } from './putaway.service';
+import { PickingService } from './picking.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../common/guards/rbac.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TaskStatus, TaskType } from './entities/warehouse-task.entity';
+import { WaveStatus, PickStrategy } from './entities/pick-wave.entity';
 
 @ApiTags('wms')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('inventory/wms')
 export class WmsController {
-  constructor(private readonly wmsService: WmsService) {}
+  constructor(
+    private readonly wmsService: WmsService,
+    private readonly putawayService: PutawayService,
+    private readonly pickingService: PickingService,
+  ) {}
 
   // ─── Batch Management ─────────────────────────────────────────────
   @Get('batch/:lotSerialId/characteristics')
@@ -74,7 +81,7 @@ export class WmsController {
 
   @Post('bin-stock/suggest-putaway')
   @RequirePermission('inventory:read')
-  @ApiOperation({ summary: 'Suggest putaway bin for an item' })
+  @ApiOperation({ summary: 'Suggest putaway bin (legacy — no rules)' })
   suggestPutawayBin(
     @CurrentUser() user: any,
     @Body() body: { warehouseId: string; itemId: string; qty: number },
@@ -130,5 +137,107 @@ export class WmsController {
   @RequirePermission('inventory:manage')
   cancelTask(@CurrentUser() user: any, @Param('id') id: string) {
     return this.wmsService.cancelTask(user.tenantId, id);
+  }
+
+  // ─── Putaway Rules (Phase 92) ─────────────────────────────────────
+  @Get('putaway-rules')
+  @RequirePermission('inventory:read')
+  @ApiOperation({ summary: 'List putaway strategy rules' })
+  listPutawayRules(@CurrentUser() user: any, @Query('warehouseId') warehouseId?: string) {
+    return this.putawayService.listRules(user.tenantId, warehouseId);
+  }
+
+  @Post('putaway-rules')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Create a putaway strategy rule' })
+  createPutawayRule(@CurrentUser() user: any, @Body() body: any) {
+    return this.putawayService.createRule(user.tenantId, body);
+  }
+
+  @Delete('putaway-rules/:id')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Delete a putaway rule' })
+  deletePutawayRule(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.putawayService.deleteRule(user.tenantId, id);
+  }
+
+  @Post('putaway-suggest')
+  @RequirePermission('inventory:read')
+  @ApiOperation({ summary: 'Suggest putaway bins using strategy rules' })
+  suggestPutaway(
+    @CurrentUser() user: any,
+    @Body() body: { warehouseId: string; itemId: string; itemCategoryId?: string; qty: number },
+  ) {
+    return this.putawayService.suggestPutaway(
+      user.tenantId, body.warehouseId, body.itemId, body.itemCategoryId ?? null, body.qty,
+    );
+  }
+
+  // ─── Pick Suggestions (Phase 92) ─────────────────────────────────
+  @Get('pick-suggest')
+  @RequirePermission('inventory:read')
+  @ApiOperation({ summary: 'Directed pick suggestions (FIFO / FEFO / ZONE)' })
+  suggestPicks(
+    @CurrentUser() user: any,
+    @Query('warehouseId') warehouseId: string,
+    @Query('itemId') itemId: string,
+    @Query('qty') qty: string,
+    @Query('strategy') strategy: PickStrategy = PickStrategy.FEFO,
+  ) {
+    return this.pickingService.suggestPicks(user.tenantId, warehouseId, itemId, Number(qty), strategy);
+  }
+
+  // ─── Pick Waves (Phase 92) ────────────────────────────────────────
+  @Get('waves')
+  @RequirePermission('inventory:read')
+  @ApiOperation({ summary: 'List pick waves' })
+  listWaves(
+    @CurrentUser() user: any,
+    @Query('warehouseId') warehouseId?: string,
+    @Query('status') status?: WaveStatus,
+  ) {
+    return this.pickingService.listWaves(user.tenantId, { warehouseId, status });
+  }
+
+  @Post('waves')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Create a pick wave' })
+  createWave(@CurrentUser() user: any, @Body() body: any) {
+    return this.pickingService.createWave(user.tenantId, body);
+  }
+
+  @Get('waves/:id')
+  @RequirePermission('inventory:read')
+  @ApiOperation({ summary: 'Get a pick wave with its tasks' })
+  getWave(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.pickingService.getWave(user.tenantId, id);
+  }
+
+  @Post('waves/:id/tasks')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Add pick tasks to a wave' })
+  addTasksToWave(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { taskIds: string[] }) {
+    return this.pickingService.addTasksToWave(user.tenantId, id, body.taskIds);
+  }
+
+  @Post('waves/:id/release')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Release a pick wave (sets tasks to IN_PROGRESS)' })
+  releaseWave(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.pickingService.releaseWave(user.tenantId, id);
+  }
+
+  @Post('waves/:id/complete')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Complete a pick wave' })
+  completeWave(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.pickingService.completeWave(user.tenantId, id);
+  }
+
+  @Post('waves/:id/cancel')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Cancel a pick wave' })
+  cancelWave(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.pickingService.cancelWave(user.tenantId, id);
   }
 }
