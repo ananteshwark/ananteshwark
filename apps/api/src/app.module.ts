@@ -43,6 +43,7 @@ import { WebhooksModule } from './modules/platform/webhooks/webhooks.module';
 import { SsoModule } from './modules/platform/sso/sso.module';
 import { QrModule } from './modules/platform/qr/qr.module';
 import { EdiModule } from './modules/platform/edi/edi.module';
+import { PlanningModule } from './modules/planning/planning.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -101,6 +102,7 @@ import { getDatabaseConfig } from './config/database.config';
     SsoModule,
     QrModule,
     EdiModule,
+    PlanningModule,
   ],
   providers: [
     {

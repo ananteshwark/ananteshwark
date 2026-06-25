@@ -114,6 +114,7 @@ import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashbo
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
 import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage, FcsPage } from './pages/manufacturing';
+import DemandPlanningPage from './pages/planning/DemandPlanningPage';
 import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/quality';
 import { MaintenancePage, FunctionalLocationsPage, CounterReadingsPage } from './pages/maintenance';
 import { BenefitsPage } from './pages/benefits';
@@ -274,6 +275,7 @@ export default function App() {
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="manufacturing" element={<ManufacturingPage />} />
         <Route path="manufacturing/routings" element={<RoutingsPage />} />
+        <Route path="planning/demand" element={<DemandPlanningPage />} />
         <Route path="manufacturing/mrp" element={<MrpPage />} />
         <Route path="manufacturing/costing" element={<ProductionCostingPage />} />
         <Route path="manufacturing/fcs" element={<FcsPage />} />

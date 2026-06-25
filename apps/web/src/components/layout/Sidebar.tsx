@@ -183,6 +183,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Overview', path: '/manufacturing', end: true },
       { label: 'Routings', path: '/manufacturing/routings' },
+      { label: 'Demand Planning', path: '/planning/demand' },
       { label: 'MRP', path: '/manufacturing/mrp' },
       { label: 'Costing', path: '/manufacturing/costing' },
     ],

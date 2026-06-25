@@ -28,6 +28,8 @@ export const ALL_PERMISSIONS = [
   'finance:revenue:read', 'finance:revenue:write',
   // Lease accounting (Phase 88)
   'finance:lease:read', 'finance:lease:write',
+  // Demand planning / forecasting (Phase 89)
+  'planning:demand:read', 'planning:demand:write',
   // Payroll module
   'payroll:payroll_run:read', 'payroll:payroll_run:create', 'payroll:payroll_run:execute',
   'payroll:runs:read', 'payroll:runs:process', 'payroll:runs:approve',
