@@ -88,6 +88,7 @@ const navItems: NavItem[] = [
       { label: 'Intercompany', path: '/finance/intercompany' },
       { label: 'Consolidation', path: '/finance/consolidation' },
       { label: 'Parallel Ledgers', path: '/finance/parallel-ledgers' },
+      { label: 'Cash Discounts', path: '/finance/cash-discounts' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

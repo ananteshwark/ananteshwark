@@ -20,6 +20,7 @@ export const ALL_PERMISSIONS = [
   'finance:ap:read', 'finance:ap:create', 'finance:ap:post',
   'finance:bank:read', 'finance:bank:create', 'finance:bank:reconcile',
   'finance:reports:read',
+  'finance:read', 'finance:write',
   // Payroll module
   'payroll:payroll_run:read', 'payroll:payroll_run:create', 'payroll:payroll_run:execute',
   'payroll:runs:read', 'payroll:runs:process', 'payroll:runs:approve',
@@ -31,6 +32,7 @@ export const ALL_PERMISSIONS = [
   'procurement:rfq:read', 'procurement:rfq:manage',
   'procurement:po:read', 'procurement:po:create', 'procurement:po:approve',
   'procurement:grn:read', 'procurement:grn:create',
+  'procurement:read', 'procurement:write',
   // Users & RBAC
   'users:users:read', 'users:users:create', 'users:users:update', 'users:users:delete',
   'rbac:roles:read', 'rbac:roles:create', 'rbac:roles:update', 'rbac:roles:delete',

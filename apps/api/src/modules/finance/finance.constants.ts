@@ -25,4 +25,7 @@ export const DEFAULT_ACCOUNT_CODES = {
   // FX revaluation
   FX_GAIN: '7000',
   FX_LOSS: '7010',
+  // Cash discounts (Phase 85)
+  CASH_DISCOUNT_RECEIVED: '7100', // AP early-payment discount taken (other income)
+  CASH_DISCOUNT_GRANTED: '7110', // AR early-payment discount granted (expense)
 };

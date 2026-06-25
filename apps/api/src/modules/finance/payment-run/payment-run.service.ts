@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { PaymentRun, PaymentRunStatus } from './entities/payment-run.entity';
 import { PaymentRunItem } from './entities/payment-run-item.entity';
 import { Bill, BillStatus } from '../ap/entities/bill.entity';
 import { Vendor } from '../ap/entities/vendor.entity';
 import { ApService } from '../ap/ap.service';
 import { PaymentMethod } from '../ap/entities/vendor-payment.entity';
+import { CashDiscountService } from '../cash-discount/cash-discount.service';
+import { CashDiscountType } from '../cash-discount/entities/cash-discount.entity';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -28,6 +30,7 @@ export class PaymentRunService {
     @InjectRepository(Vendor)
     private readonly vendorRepo: Repository<Vendor>,
     private readonly apService: ApService,
+    private readonly cashDiscountService: CashDiscountService,
   ) {}
 
   async createProposal(
@@ -162,7 +165,7 @@ export class PaymentRunService {
     tenantId: string,
     runId: string,
     userId: string,
-  ): Promise<{ run: PaymentRun; paymentsCreated: number; totalPosted: number }> {
+  ): Promise<{ run: PaymentRun; paymentsCreated: number; totalPosted: number; totalDiscount: number }> {
     const run = await this.runRepo.findOne({ where: { id: runId, tenantId } });
     if (!run) throw new NotFoundException(`Payment run ${runId} not found`);
     if (run.status !== PaymentRunStatus.APPROVED) {
@@ -184,22 +187,78 @@ export class PaymentRunService {
       byVendor.set(item.vendorId, arr);
     }
 
+    // Load vendors + bills once for discount evaluation.
+    const vendors = await this.vendorRepo.find({ where: { tenantId } });
+    const vendorMap = new Map(vendors.map((v) => [v.id, v]));
+    const billIds = items.map((i) => i.billId);
+    const bills = billIds.length
+      ? await this.billRepo.find({ where: { tenantId, id: In(billIds) } })
+      : [];
+    const billMap = new Map(bills.map((b) => [b.id, b]));
+
     let paymentsCreated = 0;
     let totalPosted = 0;
+    let totalDiscount = 0;
     const method = this.mapMethod(run.paymentMethod);
 
     for (const [vendorId, vendorItems] of byVendor.entries()) {
-      const amount = round2(vendorItems.reduce((s, i) => s + Number(i.amount), 0));
-      if (amount <= 0) continue;
-      await this.apService.createVendorPayment(
+      const gross = round2(vendorItems.reduce((s, i) => s + Number(i.amount), 0));
+      if (gross <= 0) continue;
+
+      const vendor = vendorMap.get(vendorId);
+      const termCode = vendor?.paymentTermsCode || null;
+
+      // Per-bill discount evaluation against the run posting date.
+      const discountRecords: Array<{
+        item: PaymentRunItem;
+        billNumber: string;
+        billDate: string | null;
+        discountPercent: number;
+        discountAmount: number;
+        daysTaken: number;
+      }> = [];
+      let vendorDiscount = 0;
+
+      if (termCode) {
+        const term = await this.cashDiscountService.findByCode(tenantId, termCode);
+        if (term && (term.tiers?.length ?? 0) > 0) {
+          for (const it of vendorItems) {
+            const bill = billMap.get(it.billId);
+            if (!bill) continue;
+            const comp = this.cashDiscountService.computeForTerm(
+              term,
+              Number(it.amount),
+              bill.billDate,
+              run.postingDate,
+            );
+            if (comp.applicable && comp.discountAmount > 0) {
+              vendorDiscount = round2(vendorDiscount + comp.discountAmount);
+              discountRecords.push({
+                item: it,
+                billNumber: bill.billNumber,
+                billDate: bill.billDate,
+                discountPercent: comp.discountPercent,
+                discountAmount: comp.discountAmount,
+                daysTaken: comp.daysTaken,
+              });
+            }
+          }
+        }
+      }
+
+      const cash = round2(gross - vendorDiscount);
+      if (cash <= 0) continue;
+
+      const payment = await this.apService.createVendorPayment(
         tenantId,
         {
           vendorId,
           paymentDate: run.postingDate,
-          amount,
+          amount: cash,
           method,
           reference: `PRUN-${run.id.slice(0, 8)}`,
           bankAccountId: run.bankAccountId || undefined,
+          cashDiscountTotal: vendorDiscount > 0 ? vendorDiscount : undefined,
           allocations: vendorItems.map((i) => ({
             billId: i.billId,
             amount: Number(i.amount),
@@ -207,14 +266,36 @@ export class PaymentRunService {
         } as any,
         userId,
       );
+
+      // Log realised discounts for the utilisation report.
+      for (const dr of discountRecords) {
+        await this.cashDiscountService.recordDiscount(tenantId, {
+          type: CashDiscountType.AP,
+          partyId: vendorId,
+          partyName: vendor?.name || 'Unknown',
+          documentId: dr.item.billId,
+          documentNumber: dr.billNumber,
+          termCode,
+          baseAmount: Number(dr.item.amount),
+          discountPercent: dr.discountPercent,
+          discountAmount: dr.discountAmount,
+          documentDate: dr.billDate,
+          paymentDate: run.postingDate,
+          daysTaken: dr.daysTaken,
+          currency: vendor?.currency || 'USD',
+          journalEntryId: (payment as any)?.journalEntryId ?? null,
+        });
+      }
+
       paymentsCreated++;
-      totalPosted = round2(totalPosted + amount);
+      totalPosted = round2(totalPosted + cash);
+      totalDiscount = round2(totalDiscount + vendorDiscount);
     }
 
     run.status = PaymentRunStatus.POSTED;
     await this.runRepo.save(run);
 
-    return { run, paymentsCreated, totalPosted };
+    return { run, paymentsCreated, totalPosted, totalDiscount };
   }
 
   async generateBankFile(tenantId: string, runId: string): Promise<string> {

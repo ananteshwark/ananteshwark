@@ -17,6 +17,7 @@ import { IntercompanyModule } from './intercompany/intercompany.module';
 import { ConsolidationModule } from './consolidation/consolidation.module';
 import { TreasuryModule } from './treasury/treasury.module';
 import { LedgersModule } from './ledgers/ledgers.module';
+import { CashDiscountModule } from './cash-discount/cash-discount.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { LedgersModule } from './ledgers/ledgers.module';
     ConsolidationModule,
     TreasuryModule,
     LedgersModule,
+    CashDiscountModule,
   ],
   exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule, BudgetModule, IntercompanyModule, ConsolidationModule, TreasuryModule],
 })

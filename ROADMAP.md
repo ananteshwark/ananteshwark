@@ -566,14 +566,14 @@ _Derived from the v2 SAP-GAP-ANALYSIS.md evidence-based survey. Ordered by busin
   - Posting rules: which transaction sources post to which ledger(s) (GL only vs all ledgers)
   - Period-close cockpit: separate close checklist per ledger group
 
-- [ ] **Phase 84 — Source List + Quota Arrangement + Auto Source Determination** `P2`
+- [x] **Phase 84 — Source List + Quota Arrangement + Auto Source Determination** `P2`
   - Source list: item → preferred vendor(s) with validity dates and fixed/blocked flags
   - Quota arrangement: split demand across vendors by percentage per period
   - Auto source determination: on PR approval, auto-propose vendor from source list / quota
   - Integration: MRP-generated planned orders use source determination to pre-assign vendor on PO conversion
   - UI: source list maintenance + quota planning screen
 
-- [ ] **Phase 85 — Tiered Cash Discounts + Early-Payment GL** `P2`
+- [x] **Phase 85 — Tiered Cash Discounts + Early-Payment GL** `P2`
   - Payment term tiers: e.g. 2% if paid within 10 days, 1% within 20 days, net 30
   - Store tiers as JSONB array on `PaymentTerm` entity; compute discount on invoice due date vs payment date
   - AP payment run: auto-apply discount if within window; post discount to cash discount account

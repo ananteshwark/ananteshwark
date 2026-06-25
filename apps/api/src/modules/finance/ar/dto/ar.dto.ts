@@ -288,6 +288,17 @@ export class CreateCustomerReceiptDto {
   @ValidateNested({ each: true })
   @Type(() => ReceiptAllocationDto)
   allocations?: ReceiptAllocationDto[];
+
+  @ApiPropertyOptional({ description: 'Early-payment discount granted; invoices clear gross, bank debited net (Phase 85)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cashDiscountTotal?: number;
+
+  @ApiPropertyOptional({ description: 'GL account to debit for the discount granted; defaults to Cash Discount Granted' })
+  @IsOptional()
+  @IsUUID()
+  cashDiscountAccountId?: string;
 }
 
 export class AllocateReceiptDto {

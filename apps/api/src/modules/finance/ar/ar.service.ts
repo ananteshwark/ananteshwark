@@ -424,7 +424,22 @@ export class ArService {
         ? await this.glService.findAccount(tenantId, customer.arAccountId)
         : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.AR_CONTROL);
 
-      // JE: Dr Bank/Cash, Cr AR control
+      // Early-payment discount granted (Phase 85): AR is cleared gross, bank
+      // debited net, the difference debited to the cash-discount-granted account.
+      const discountTotal = round2(dto.cashDiscountTotal ?? 0);
+      const gross = round2(dto.amount + discountTotal);
+      const lines: Array<{ accountId: string; debit: number; credit: number }> = [
+        { accountId: debitAccountId, debit: round2(dto.amount), credit: 0 },
+      ];
+      if (discountTotal > 0) {
+        const discountAccount = dto.cashDiscountAccountId
+          ? await this.glService.findAccount(tenantId, dto.cashDiscountAccountId)
+          : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.CASH_DISCOUNT_GRANTED);
+        lines.push({ accountId: discountAccount.id, debit: discountTotal, credit: 0 });
+      }
+      lines.push({ accountId: arAccount.id, debit: 0, credit: gross });
+
+      // JE: Dr Bank/Cash (net), Dr Cash Discount Granted (discount), Cr AR control (gross)
       const je = await this.glService.postJournalEntry(
         tenantId,
         {
@@ -433,10 +448,7 @@ export class ArService {
           reference: dto.reference,
           source: JournalSource.AR,
           currency: dto.currency || customer.currency || 'USD',
-          lines: [
-            { accountId: debitAccountId, debit: round2(dto.amount), credit: 0 },
-            { accountId: arAccount.id, debit: 0, credit: round2(dto.amount) },
-          ],
+          lines,
         },
         userId,
         manager,
@@ -463,11 +475,13 @@ export class ArService {
       });
       const saved = await manager.save(receipt);
 
-      customer.balance = round2(customer.balance - dto.amount);
+      // Customer balance is reduced by the gross AR cleared (cash + discount).
+      customer.balance = round2(customer.balance - gross);
       await manager.save(customer);
 
       if (dto.allocations?.length) {
-        await this.applyAllocations(manager, tenantId, saved, dto.allocations);
+        // When a discount is granted, invoices clear at gross (cash + discount).
+        await this.applyAllocations(manager, tenantId, saved, dto.allocations, gross);
       }
       return manager.findOne(CustomerReceipt, { where: { id: saved.id, tenantId } });
     });
@@ -478,8 +492,9 @@ export class ArService {
     tenantId: string,
     receipt: CustomerReceipt,
     allocations: ReceiptAllocationDto[],
+    pool?: number,
   ): Promise<void> {
-    let remaining = receipt.unappliedAmount;
+    let remaining = pool ?? receipt.unappliedAmount;
     for (const alloc of allocations) {
       if (alloc.amount <= 0) continue;
       const invoice = await manager.findOne(Invoice, {

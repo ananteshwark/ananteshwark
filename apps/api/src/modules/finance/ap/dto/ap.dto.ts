@@ -433,6 +433,17 @@ export class CreateVendorPaymentDto {
   @ValidateNested({ each: true })
   @Type(() => PaymentAllocationDto)
   allocations?: PaymentAllocationDto[];
+
+  @ApiPropertyOptional({ description: 'Cash discount taken; allocations clear bills gross, bank credited net (Phase 85)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cashDiscountTotal?: number;
+
+  @ApiPropertyOptional({ description: 'GL account to credit for the cash discount; defaults to Cash Discount Received' })
+  @IsOptional()
+  @IsUUID()
+  cashDiscountAccountId?: string;
 }
 
 export class AllocatePaymentDto {

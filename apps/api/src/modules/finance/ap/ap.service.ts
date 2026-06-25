@@ -427,7 +427,22 @@ export class ApService {
         ? await this.glService.findAccount(tenantId, vendor.apAccountId)
         : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.AP_CONTROL);
 
-      // JE: Dr AP control, Cr Bank/Cash
+      // Cash discount taken (Phase 85): AP is cleared gross, bank credited net,
+      // the difference credited to the cash-discount-received account.
+      const discountTotal = round2(dto.cashDiscountTotal ?? 0);
+      const gross = round2(dto.amount + discountTotal);
+      const lines: Array<{ accountId: string; debit: number; credit: number }> = [
+        { accountId: apAccount.id, debit: gross, credit: 0 },
+        { accountId: creditAccountId, debit: 0, credit: round2(dto.amount) },
+      ];
+      if (discountTotal > 0) {
+        const discountAccount = dto.cashDiscountAccountId
+          ? await this.glService.findAccount(tenantId, dto.cashDiscountAccountId)
+          : await this.resolveAccountByCode(tenantId, DEFAULT_ACCOUNT_CODES.CASH_DISCOUNT_RECEIVED);
+        lines.push({ accountId: discountAccount.id, debit: 0, credit: discountTotal });
+      }
+
+      // JE: Dr AP control (gross), Cr Bank/Cash (net), Cr Cash Discount Received (discount)
       const je = await this.glService.postJournalEntry(
         tenantId,
         {
@@ -436,10 +451,7 @@ export class ApService {
           reference: dto.reference,
           source: JournalSource.AP,
           currency: dto.currency || vendor.currency || 'USD',
-          lines: [
-            { accountId: apAccount.id, debit: round2(dto.amount), credit: 0 },
-            { accountId: creditAccountId, debit: 0, credit: round2(dto.amount) },
-          ],
+          lines,
         },
         userId,
         manager,
@@ -467,7 +479,8 @@ export class ApService {
       const saved = await manager.save(payment);
 
       if (dto.allocations?.length) {
-        await this.applyAllocations(manager, tenantId, saved, dto.allocations);
+        // When a discount is taken, bills clear at gross (cash + discount).
+        await this.applyAllocations(manager, tenantId, saved, dto.allocations, gross);
       }
       return manager.findOne(VendorPayment, { where: { id: saved.id, tenantId } });
     });
@@ -478,8 +491,9 @@ export class ApService {
     tenantId: string,
     payment: VendorPayment,
     allocations: PaymentAllocationDto[],
+    pool?: number,
   ): Promise<void> {
-    let remaining = payment.unappliedAmount;
+    let remaining = pool ?? payment.unappliedAmount;
     for (const alloc of allocations) {
       if (alloc.amount <= 0) continue;
       const bill = await manager.findOne(Bill, { where: { id: alloc.billId, tenantId } });

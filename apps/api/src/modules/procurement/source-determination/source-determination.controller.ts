@@ -20,12 +20,13 @@ import {
   UpdateQuotaArrangementDto,
   DetermineSourceDto,
 } from './dto/source-determination.dto';
-import { RbacGuard } from '../../rbac/rbac.guard';
-import { RequirePermission } from '../../rbac/require-permission.decorator';
-import { CurrentUser } from '../../auth/current-user.decorator';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RbacGuard } from '../../../common/guards/rbac.guard';
+import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
 @Controller('procurement/source-determination')
-@UseGuards(RbacGuard)
+@UseGuards(JwtAuthGuard, RbacGuard)
 export class SourceDeterminationController {
   constructor(private readonly svc: SourceDeterminationService) {}
 

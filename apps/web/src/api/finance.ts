@@ -164,4 +164,15 @@ export const financeApi = {
     apiClient.get(`/finance/ledgers/groups/${groupCode}/reconciliation`, { params }),
   getLedgerGroupCloseCockpit: (groupCode: string, periodId: string) =>
     apiClient.get(`/finance/ledgers/groups/${groupCode}/close-cockpit/${periodId}`),
+
+  // Phase 85: Cash discounts / payment terms
+  getPaymentTerms: (params?: any) => apiClient.get('/finance/cash-discount/payment-terms', { params }),
+  getPaymentTerm: (id: string) => apiClient.get(`/finance/cash-discount/payment-terms/${id}`),
+  createPaymentTerm: (data: any) => apiClient.post('/finance/cash-discount/payment-terms', data),
+  updatePaymentTerm: (id: string, data: any) => apiClient.patch(`/finance/cash-discount/payment-terms/${id}`, data),
+  deletePaymentTerm: (id: string) => apiClient.delete(`/finance/cash-discount/payment-terms/${id}`),
+  seedDefaultPaymentTerms: () => apiClient.post('/finance/cash-discount/payment-terms/seed-defaults'),
+  computeCashDiscount: (data: any) => apiClient.post('/finance/cash-discount/compute', data),
+  getCashDiscountRecords: (params?: any) => apiClient.get('/finance/cash-discount/records', { params }),
+  getCashDiscountUtilization: (params?: any) => apiClient.get('/finance/cash-discount/utilization', { params }),
 };
