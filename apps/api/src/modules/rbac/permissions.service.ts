@@ -26,6 +26,8 @@ export const ALL_PERMISSIONS = [
   'finance.consolidation.read', 'finance.consolidation.write',
   // Revenue recognition (Phase 87)
   'finance:revenue:read', 'finance:revenue:write',
+  // Lease accounting (Phase 88)
+  'finance:lease:read', 'finance:lease:write',
   // Payroll module
   'payroll:payroll_run:read', 'payroll:payroll_run:create', 'payroll:payroll_run:execute',
   'payroll:runs:read', 'payroll:runs:process', 'payroll:runs:approve',

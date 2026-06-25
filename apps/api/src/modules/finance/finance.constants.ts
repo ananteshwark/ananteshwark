@@ -31,4 +31,10 @@ export const DEFAULT_ACCOUNT_CODES = {
   // Revenue recognition (Phase 87) — IFRS 15 / ASC 606
   DEFERRED_REVENUE: '2200', // contract liability: billed-but-unrecognised revenue
   CONTRACT_ASSET: '1150', // unbilled receivable: recognised-but-unbilled revenue
+  // Lease accounting (Phase 88) — IFRS 16
+  ROU_ASSET: '1600', // right-of-use asset
+  ACCUM_AMORT_ROU: '1610', // accumulated amortisation on ROU asset (contra)
+  LEASE_LIABILITY: '2300', // lease liability
+  LEASE_AMORT_EXPENSE: '6100', // ROU amortisation expense
+  INTEREST_EXPENSE: '7200', // interest on lease liability (unwinding of discount)
 };
