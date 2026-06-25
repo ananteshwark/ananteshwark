@@ -11,6 +11,7 @@ import { InfoRecordModule } from './info-record/info-record.module';
 import { ServiceEntryModule } from './service-entry/service-entry.module';
 import { ReturnsModule } from './returns/returns.module';
 import { OutlineAgreementModule } from './outline-agreement/outline-agreement.module';
+import { SourceDeterminationModule } from './source-determination/source-determination.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { OutlineAgreementModule } from './outline-agreement/outline-agreement.mo
     ServiceEntryModule,
     ReturnsModule,
     OutlineAgreementModule,
+    SourceDeterminationModule,
   ],
 })
 export class ProcurementModule {}

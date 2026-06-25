@@ -104,6 +104,22 @@ export const procurementApi = {
   activateOutlineAgreement: (id: string) => apiClient.post(`/procurement/outline-agreements/${id}/activate`),
   closeOutlineAgreement: (id: string) => apiClient.post(`/procurement/outline-agreements/${id}/close`),
   recordOutlineAgreementRelease: (id: string, data: any) => apiClient.post(`/procurement/outline-agreements/${id}/record-release`, data),
+
+  // Source Determination — Source Lists (Phase 84)
+  getSourceLists: (params?: any) => apiClient.get('/procurement/source-determination/source-lists', { params }),
+  createSourceList: (data: any) => apiClient.post('/procurement/source-determination/source-lists', data),
+  updateSourceList: (id: string, data: any) => apiClient.patch(`/procurement/source-determination/source-lists/${id}`, data),
+  deleteSourceList: (id: string) => apiClient.delete(`/procurement/source-determination/source-lists/${id}`),
+
+  // Source Determination — Quota Arrangements (Phase 84)
+  getQuotaArrangements: (params?: any) => apiClient.get('/procurement/source-determination/quota-arrangements', { params }),
+  createQuotaArrangement: (data: any) => apiClient.post('/procurement/source-determination/quota-arrangements', data),
+  updateQuotaArrangement: (id: string, data: any) => apiClient.patch(`/procurement/source-determination/quota-arrangements/${id}`, data),
+  resetQuotaAllocations: (id: string) => apiClient.post(`/procurement/source-determination/quota-arrangements/${id}/reset-allocations`),
+
+  // Source Determination — Determine (Phase 84)
+  determineSource: (data: any) => apiClient.post('/procurement/source-determination/determine', data),
+  getItemSources: (itemId: string, params?: any) => apiClient.get(`/procurement/source-determination/item/${itemId}/sources`, { params }),
 };
 
 // Vendor Portal API — isolated axios instance so the tenant auth/tenant-header
