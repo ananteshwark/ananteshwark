@@ -51,6 +51,7 @@ import {
 } from './pages/finance';
 import ConsolidationPage from './pages/finance/ConsolidationPage';
 import ActivityCostingPage from './pages/finance/ActivityCostingPage';
+import ParallelLedgersPage from './pages/finance/ParallelLedgersPage';
 import {
   EmployeesPage,
   DepartmentsPage,
@@ -214,6 +215,7 @@ export default function App() {
         <Route path="finance/intercompany" element={<IntercompanyPage />} />
         <Route path="finance/consolidation" element={<ConsolidationPage />} />
         <Route path="finance/activity-costing" element={<ActivityCostingPage />} />
+        <Route path="finance/parallel-ledgers" element={<ParallelLedgersPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
         <Route path="payroll/runs" element={<PayrollRunsPage />} />

@@ -16,6 +16,7 @@ import { BudgetModule } from './budget/budget.module';
 import { IntercompanyModule } from './intercompany/intercompany.module';
 import { ConsolidationModule } from './consolidation/consolidation.module';
 import { TreasuryModule } from './treasury/treasury.module';
+import { LedgersModule } from './ledgers/ledgers.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TreasuryModule } from './treasury/treasury.module';
     IntercompanyModule,
     ConsolidationModule,
     TreasuryModule,
+    LedgersModule,
   ],
   exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule, BudgetModule, IntercompanyModule, ConsolidationModule, TreasuryModule],
 })

@@ -767,7 +767,7 @@ export class GlService {
    */
   async getTrialBalance(
     tenantId: string,
-    opts: { periodId?: string; from?: string; to?: string; asOf?: string },
+    opts: { periodId?: string; from?: string; to?: string; asOf?: string; ledgerCode?: string },
   ): Promise<{
     rows: Array<{
       accountId: string;
@@ -799,6 +799,7 @@ export class GlService {
     if (opts.from) qb.andWhere('je.date >= :from', { from: opts.from });
     if (opts.to) qb.andWhere('je.date <= :to', { to: opts.to });
     if (opts.asOf) qb.andWhere('je.date <= :asOf', { asOf: opts.asOf });
+    if (opts.ledgerCode) qb.andWhere('je.ledger_code = :ledgerCode', { ledgerCode: opts.ledgerCode });
 
     qb.groupBy('a.id')
       .addGroupBy('a.code')

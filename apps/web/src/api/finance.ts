@@ -146,4 +146,22 @@ export const financeApi = {
   createOverheadSheet: (data: any) => apiClient.post('/finance/controlling/overhead-sheets', data),
   updateOverheadSheet: (id: string, data: any) => apiClient.patch(`/finance/controlling/overhead-sheets/${id}`, data),
   applyOverheadToOrder: (sheetId: string, data: any) => apiClient.post(`/finance/controlling/overhead-sheets/${sheetId}/apply`, data),
+
+  // Phase 83: Parallel ledgers
+  getLedgers: () => apiClient.get('/finance/ledgers'),
+  createLedger: (data: any) => apiClient.post('/finance/ledgers', data),
+  updateLedger: (id: string, data: any) => apiClient.patch(`/finance/ledgers/${id}`, data),
+  seedDefaultLedgers: () => apiClient.post('/finance/ledgers/seed-defaults'),
+  getLedgerGroups: () => apiClient.get('/finance/ledgers/groups'),
+  getLedgerGroup: (code: string) => apiClient.get(`/finance/ledgers/groups/${code}`),
+  createLedgerGroup: (data: any) => apiClient.post('/finance/ledgers/groups', data),
+  updateLedgerGroup: (id: string, data: any) => apiClient.patch(`/finance/ledgers/groups/${id}`, data),
+  getLedgerPostingRules: () => apiClient.get('/finance/ledgers/posting-rules'),
+  upsertLedgerPostingRule: (data: any) => apiClient.post('/finance/ledgers/posting-rules', data),
+  getLedgerTrialBalance: (ledgerCode: string, params?: any) =>
+    apiClient.get(`/finance/ledgers/${ledgerCode}/trial-balance`, { params }),
+  getLedgerReconciliation: (groupCode: string, params?: any) =>
+    apiClient.get(`/finance/ledgers/groups/${groupCode}/reconciliation`, { params }),
+  getLedgerGroupCloseCockpit: (groupCode: string, periodId: string) =>
+    apiClient.get(`/finance/ledgers/groups/${groupCode}/close-cockpit/${periodId}`),
 };

@@ -559,7 +559,7 @@ _Derived from the v2 SAP-GAP-ANALYSIS.md evidence-based survey. Ordered by busin
   - India: existing Form 16 — verify completeness of Part A (TDS certificate) + Part B (income detail)
   - PDF generation via existing PDF service; email dispatch to employees
 
-- [ ] **Phase 83 — Parallel Ledgers Complete** `P1`
+- [x] **Phase 83 — Parallel Ledgers Complete** `P1`
   - Ledger group entity: code, description, member ledgers (e.g. IFRS + LOCAL)
   - Ledger-group-filtered financial reports: TB, P&L, BS per ledger
   - Ledger group reconciliation matrix: cross-ledger difference report

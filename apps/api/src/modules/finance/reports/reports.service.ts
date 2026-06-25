@@ -90,14 +90,14 @@ export class ReportsService {
 
   async getTrialBalance(
     tenantId: string,
-    opts: { periodId?: string; from?: string; to?: string; asOf?: string },
+    opts: { periodId?: string; from?: string; to?: string; asOf?: string; ledgerCode?: string },
   ): Promise<TrialBalanceResult> {
     return this.glService.getTrialBalance(tenantId, opts);
   }
 
   async getProfitAndLoss(
     tenantId: string,
-    opts: { from: string; to: string; periodId?: string },
+    opts: { from: string; to: string; periodId?: string; ledgerCode?: string },
   ): Promise<ProfitAndLossResult> {
     const { from, to } = opts;
 
@@ -124,6 +124,9 @@ export class ReportsService {
 
     if (opts.periodId) {
       qb.andWhere('je.period_id = :periodId', { periodId: opts.periodId });
+    }
+    if (opts.ledgerCode) {
+      qb.andWhere('je.ledger_code = :ledgerCode', { ledgerCode: opts.ledgerCode });
     }
 
     const raw = await qb.getRawMany<{
@@ -170,7 +173,7 @@ export class ReportsService {
 
   async getBalanceSheet(
     tenantId: string,
-    opts: { asOf: string },
+    opts: { asOf: string; ledgerCode?: string },
   ): Promise<BalanceSheetResult> {
     const { asOf } = opts;
 
@@ -195,6 +198,10 @@ export class ReportsService {
       .addGroupBy('a.name')
       .addGroupBy('a.type')
       .orderBy('a.code', 'ASC');
+
+    if (opts.ledgerCode) {
+      qb.andWhere('je.ledger_code = :ledgerCode', { ledgerCode: opts.ledgerCode });
+    }
 
     const raw = await qb.getRawMany<{
       accountId: string;

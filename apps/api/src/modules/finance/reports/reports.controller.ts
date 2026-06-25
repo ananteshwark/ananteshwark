@@ -26,8 +26,9 @@ export class ReportsController {
     @Query('to') to?: string,
     @Query('periodId') periodId?: string,
     @Query('asOf') asOf?: string,
+    @Query('ledgerCode') ledgerCode?: string,
   ) {
-    return this.reportsService.getTrialBalance(user.tenantId, { from, to, periodId, asOf });
+    return this.reportsService.getTrialBalance(user.tenantId, { from, to, periodId, asOf, ledgerCode });
   }
 
   @Get('profit-loss')
@@ -41,8 +42,9 @@ export class ReportsController {
     @Query('from') from: string,
     @Query('to') to: string,
     @Query('periodId') periodId?: string,
+    @Query('ledgerCode') ledgerCode?: string,
   ) {
-    return this.reportsService.getProfitAndLoss(user.tenantId, { from, to, periodId });
+    return this.reportsService.getProfitAndLoss(user.tenantId, { from, to, periodId, ledgerCode });
   }
 
   @Get('balance-sheet')
@@ -52,8 +54,9 @@ export class ReportsController {
   getBalanceSheet(
     @CurrentUser() user: any,
     @Query('asOf') asOf: string,
+    @Query('ledgerCode') ledgerCode?: string,
   ) {
-    return this.reportsService.getBalanceSheet(user.tenantId, { asOf });
+    return this.reportsService.getBalanceSheet(user.tenantId, { asOf, ledgerCode });
   }
 
   @Get('gl-detail')

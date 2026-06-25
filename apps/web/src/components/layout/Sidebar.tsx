@@ -87,6 +87,7 @@ const navItems: NavItem[] = [
       { label: 'Budget vs Actual', path: '/finance/budget' },
       { label: 'Intercompany', path: '/finance/intercompany' },
       { label: 'Consolidation', path: '/finance/consolidation' },
+      { label: 'Parallel Ledgers', path: '/finance/parallel-ledgers' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },
