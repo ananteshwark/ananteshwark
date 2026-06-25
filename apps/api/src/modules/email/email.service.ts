@@ -26,6 +26,11 @@ export const DEFAULT_TEMPLATES: Record<string, TemplateDefinition> = {
     body:
       'Hello {{employeeName}},\n\nYour payslip for {{period}} is now available. Net pay: {{netPay}}.\n\nRegards,\n{{companyName}}',
   },
+  STATUTORY_FORM_READY: {
+    subject: 'Your {{formType}} for {{taxYear}} is ready',
+    body:
+      'Hello {{employeeName}},\n\nYour statutory form {{formType}} for tax year {{taxYear}} has been generated and is now available.\n\nRegards,\n{{companyName}}',
+  },
   PO_APPROVED: {
     subject: 'Purchase order {{poNumber}} approved',
     body:

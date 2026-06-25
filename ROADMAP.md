@@ -552,7 +552,7 @@ _Derived from the v2 SAP-GAP-ANALYSIS.md evidence-based survey. Ordered by busin
   - Bank file run entity: associates payroll run → file format → generated file (DMS attachment)
   - Re-generation endpoint; mark employees paid vs pending
 
-- [ ] **Phase 82 — Statutory Form Generation (W-2, 1099, WPS, EOSB)** `P1`
+- [x] **Phase 82 — Statutory Form Generation (W-2, 1099, WPS, EOSB)** `P1`
   - US: W-2 generation per employee (boxes 1–20 from payroll year aggregates); 1099-NEC for contractors
   - US: employer W-3 summary; SSA-format electronic submission XML
   - UAE: WPS SIF file validation rules; EOSB settlement calculation with approval workflow

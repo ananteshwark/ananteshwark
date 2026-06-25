@@ -8,3 +8,4 @@ export { default as StatutoryPage } from './StatutoryPage';
 export { default as PayrollGlMappingsPage } from './PayrollGlMappingsPage';
 export { default as RetroPayrollPage } from './RetroPayrollPage';
 export { default as BankFilesPage } from './BankFilesPage';
+export { default as StatutoryFormsPage } from './StatutoryFormsPage';
