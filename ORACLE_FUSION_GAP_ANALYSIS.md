@@ -21,8 +21,9 @@
 | Ph-112–114 | AR Lockbox — MT940/BAI2/normalized parsers, auto-application (oldest/exact/by-ref), unapplied queue | ✅ Done | 14 |
 | Ph-115 | Asset books (Corporate/Tax/IFRS) | ⏩ Pre-existing (FA depreciation areas) | — |
 | Ph-116, 119, 120 | FA lifecycle — CIP capitalization, impairment (IAS 36), revaluation (IAS 16) | ✅ Done | 9 |
+| Ph-121–124 | Tax Determination Engine (ZX) — regime/tax/status/rate hierarchy, rules, registrations, GSTR-3B/VAT reporting | ✅ Done | 16 |
 
-**Current total: 457 tests passing.** Remaining genuine gaps continue below.
+**Current total: 473 tests passing.** Remaining genuine gaps continue below.
 
 ---
 

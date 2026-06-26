@@ -96,6 +96,7 @@ const navItems: NavItem[] = [
       { label: 'Withholding Tax', path: '/finance/withholding-tax' },
       { label: 'Collections', path: '/finance/collections' },
       { label: 'AR Lockbox', path: '/finance/lockbox' },
+      { label: 'Tax Engine', path: '/finance/tax-engine' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

@@ -100,6 +100,24 @@ export const financeApi = {
   postDepreciationRun: (id: string) => apiClient.post(`/finance/fixed-assets/depreciation-runs/${id}/post`),
   getRunLines: (id: string) => apiClient.get(`/finance/fixed-assets/depreciation-runs/${id}/lines`),
 
+  // Phase 121-124: Tax Determination Engine (ZX)
+  listTaxRegimes: () => apiClient.get('/finance/tax-engine/regimes'),
+  createTaxRegime: (data: any) => apiClient.post('/finance/tax-engine/regimes', data),
+  listRegimeTaxes: (regimeId: string) => apiClient.get(`/finance/tax-engine/regimes/${regimeId}/taxes`),
+  createZxTax: (data: any) => apiClient.post('/finance/tax-engine/taxes', data),
+  listTaxStatuses: (taxId: string) => apiClient.get(`/finance/tax-engine/taxes/${taxId}/statuses`),
+  createTaxStatus: (data: any) => apiClient.post('/finance/tax-engine/statuses', data),
+  listTaxRates: (statusId: string) => apiClient.get(`/finance/tax-engine/statuses/${statusId}/rates`),
+  createTaxRate: (data: any) => apiClient.post('/finance/tax-engine/rates', data),
+  listTaxRules: (regimeId?: string) => apiClient.get('/finance/tax-engine/rules', { params: regimeId ? { regimeId } : {} }),
+  createTaxRule: (data: any) => apiClient.post('/finance/tax-engine/rules', data),
+  deleteTaxRule: (id: string) => apiClient.delete(`/finance/tax-engine/rules/${id}`),
+  listTaxRegistrations: (params?: { partyType?: string; partyId?: string }) => apiClient.get('/finance/tax-engine/registrations', { params }),
+  createTaxRegistration: (data: any) => apiClient.post('/finance/tax-engine/registrations', data),
+  determineTax: (data: { regimeCode: string; context: any }) => apiClient.post('/finance/tax-engine/determine', data),
+  taxReturnSummary: (from: string, to: string) => apiClient.get('/finance/tax-engine/reports/return-summary', { params: { from, to } }),
+  taxGstr3b: (from: string, to: string) => apiClient.get('/finance/tax-engine/reports/gstr3b', { params: { from, to } }),
+
   // Phase 116-120: FA lifecycle (CIP, impairment, revaluation)
   listCipAssets: () => apiClient.get('/finance/fixed-assets/cip'),
   createCipAsset: (data: any) => apiClient.post('/finance/fixed-assets/cip', data),

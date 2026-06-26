@@ -23,3 +23,4 @@ export { default as CoaStructurePage } from './CoaStructurePage';
 export { default as WithholdingTaxPage } from './WithholdingTaxPage';
 export { default as CollectionsPage } from './CollectionsPage';
 export { default as LockboxPage } from './LockboxPage';
+export { default as TaxEnginePage } from './TaxEnginePage';

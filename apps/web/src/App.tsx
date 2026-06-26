@@ -53,6 +53,7 @@ import {
   WithholdingTaxPage,
   CollectionsPage,
   LockboxPage,
+  TaxEnginePage,
 } from './pages/finance';
 import ConsolidationPage from './pages/finance/ConsolidationPage';
 import ActivityCostingPage from './pages/finance/ActivityCostingPage';
@@ -233,6 +234,7 @@ export default function App() {
         <Route path="finance/withholding-tax" element={<WithholdingTaxPage />} />
         <Route path="finance/collections" element={<CollectionsPage />} />
         <Route path="finance/lockbox" element={<LockboxPage />} />
+        <Route path="finance/tax-engine" element={<TaxEnginePage />} />
         <Route path="finance/leases" element={<LeasesPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />
