@@ -100,6 +100,13 @@ export const financeApi = {
   postDepreciationRun: (id: string) => apiClient.post(`/finance/fixed-assets/depreciation-runs/${id}/post`),
   getRunLines: (id: string) => apiClient.get(`/finance/fixed-assets/depreciation-runs/${id}/lines`),
 
+  // Phase 125-127: Encumbrance Accounting
+  listEncumbrances: (params?: { type?: string; status?: string; sourceId?: string }) => apiClient.get('/finance/encumbrance', { params }),
+  encumbranceFundsCheck: (data: any) => apiClient.post('/finance/encumbrance/funds-check', data),
+  createCommitment: (data: any) => apiClient.post('/finance/encumbrance/commitments', data),
+  liquidateEncumbrance: (id: string, data: any) => apiClient.post(`/finance/encumbrance/${id}/liquidate`, data),
+  encumbranceBalanceReport: (fiscalYear: number) => apiClient.get('/finance/encumbrance/reports/balance', { params: { fiscalYear } }),
+
   // Phase 121-124: Tax Determination Engine (ZX)
   listTaxRegimes: () => apiClient.get('/finance/tax-engine/regimes'),
   createTaxRegime: (data: any) => apiClient.post('/finance/tax-engine/regimes', data),

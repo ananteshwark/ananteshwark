@@ -22,8 +22,9 @@
 | Ph-115 | Asset books (Corporate/Tax/IFRS) | ⏩ Pre-existing (FA depreciation areas) | — |
 | Ph-116, 119, 120 | FA lifecycle — CIP capitalization, impairment (IAS 36), revaluation (IAS 16) | ✅ Done | 9 |
 | Ph-121–124 | Tax Determination Engine (ZX) — regime/tax/status/rate hierarchy, rules, registrations, GSTR-3B/VAT reporting | ✅ Done | 16 |
+| Ph-125–127 | Encumbrance accounting — commitment→obligation→expenditure ledger, blocking funds check, liquidation | ✅ Done | 14 |
 
-**Current total: 473 tests passing.** Remaining genuine gaps continue below.
+**Current total: 487 tests passing.** Remaining genuine gaps continue below.
 
 ---
 

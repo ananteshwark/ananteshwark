@@ -97,6 +97,7 @@ const navItems: NavItem[] = [
       { label: 'Collections', path: '/finance/collections' },
       { label: 'AR Lockbox', path: '/finance/lockbox' },
       { label: 'Tax Engine', path: '/finance/tax-engine' },
+      { label: 'Encumbrance', path: '/finance/encumbrance' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },
