@@ -26,6 +26,7 @@ describe('GlService — Phase 76 recurring & accrual', () => {
       recurringRepo,
       accrualConfigRepo,
       mockDataSource(),
+      { assertAccountsValid: jest.fn() } as any, // coaStructureService
     );
   });
 

@@ -11,8 +11,12 @@ import { RecurringJournal } from './entities/recurring-journal.entity';
 import { AccrualConfig } from './entities/accrual-config.entity';
 import { SlaRule } from './entities/sla-rule.entity';
 import { XlaAccountingEvent } from './entities/xla-accounting-event.entity';
+import { CoaSegment, CoaSegmentValue } from './entities/coa-segment.entity';
+import { AccountTree, AccountTreeNode } from './entities/account-tree.entity';
+import { CrossValidationRule } from './entities/cross-validation-rule.entity';
 import { GlService } from './gl.service';
 import { SlaService } from './sla.service';
+import { CoaStructureService } from './coa-structure.service';
 import { GlController } from './gl.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 
@@ -30,11 +34,16 @@ import { RbacModule } from '../../rbac/rbac.module';
       AccrualConfig,
       SlaRule,
       XlaAccountingEvent,
+      CoaSegment,
+      CoaSegmentValue,
+      AccountTree,
+      AccountTreeNode,
+      CrossValidationRule,
     ]),
     RbacModule,
   ],
   controllers: [GlController],
-  providers: [GlService, SlaService],
-  exports: [GlService, SlaService, TypeOrmModule],
+  providers: [GlService, SlaService, CoaStructureService],
+  exports: [GlService, SlaService, CoaStructureService, TypeOrmModule],
 })
 export class GlModule {}

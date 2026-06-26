@@ -186,4 +186,24 @@ export const financeApi = {
     apiClient.post('/finance/sla/derive-account', data),
   getSlaAuditTrail: (params?: { sourceDocumentId?: string; journalEntryId?: string; eventClass?: string; limit?: number }) =>
     apiClient.get('/finance/sla/audit-trail', { params }),
+
+  // Phase 96–98: COA Structure (segments, trees, cross-validation)
+  listSegments: () => apiClient.get('/finance/coa/segments'),
+  createSegment: (data: any) => apiClient.post('/finance/coa/segments', data),
+  updateSegment: (id: string, data: any) => apiClient.patch(`/finance/coa/segments/${id}`, data),
+  deleteSegment: (id: string) => apiClient.delete(`/finance/coa/segments/${id}`),
+  listSegmentValues: (segmentId: string) => apiClient.get(`/finance/coa/segments/${segmentId}/values`),
+  createSegmentValue: (data: any) => apiClient.post('/finance/coa/segment-values', data),
+  deleteSegmentValue: (id: string) => apiClient.delete(`/finance/coa/segment-values/${id}`),
+  validateAccountCode: (code: string) => apiClient.post('/finance/coa/validate-code', { code }),
+  listTrees: () => apiClient.get('/finance/coa/trees'),
+  createTree: (data: any) => apiClient.post('/finance/coa/trees', data),
+  deleteTree: (id: string) => apiClient.delete(`/finance/coa/trees/${id}`),
+  getTreeStructure: (id: string) => apiClient.get(`/finance/coa/trees/${id}/structure`),
+  addTreeNode: (treeId: string, data: any) => apiClient.post(`/finance/coa/trees/${treeId}/nodes`, data),
+  deleteTreeNode: (id: string) => apiClient.delete(`/finance/coa/tree-nodes/${id}`),
+  listCrossValidationRules: () => apiClient.get('/finance/coa/cross-validation-rules'),
+  createCrossValidationRule: (data: any) => apiClient.post('/finance/coa/cross-validation-rules', data),
+  deleteCrossValidationRule: (id: string) => apiClient.delete(`/finance/coa/cross-validation-rules/${id}`),
+  validateCombination: (code: string) => apiClient.post('/finance/coa/validate-combination', { code }),
 };

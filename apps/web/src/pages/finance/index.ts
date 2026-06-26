@@ -19,3 +19,4 @@ export { default as InternalOrdersPage } from './InternalOrdersPage';
 export { default as PeriodCloseCockpitPage } from './PeriodCloseCockpitPage';
 export { default as TreasuryPage } from './TreasuryPage';
 export { default as SubledgerAccountingPage } from './SubledgerAccountingPage';
+export { default as CoaStructurePage } from './CoaStructurePage';

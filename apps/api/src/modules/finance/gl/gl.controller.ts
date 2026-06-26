@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { GlService } from './gl.service';
 import { SlaService } from './sla.service';
 import { SlaEventClass, SlaLineType } from './entities/sla-rule.entity';
+import { CoaStructureService } from './coa-structure.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -41,6 +42,7 @@ export class GlController {
   constructor(
     private readonly glService: GlService,
     private readonly slaService: SlaService,
+    private readonly coaStructureService: CoaStructureService,
   ) {}
 
   // -------- Accounts --------
@@ -451,5 +453,131 @@ export class GlController {
       eventClass,
       limit: limit ? Number(limit) : 200,
     });
+  }
+
+  // ─── Ph-96: COA Segments ──────────────────────────────────────────
+
+  @Get('coa/segments')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'List COA segment definitions' })
+  listSegments(@CurrentUser() user: any) {
+    return this.coaStructureService.listSegments(user.tenantId);
+  }
+
+  @Post('coa/segments')
+  @RequirePermission('finance:journal:manage')
+  @ApiOperation({ summary: 'Define a COA segment' })
+  createSegment(@CurrentUser() user: any, @Body() body: any) {
+    return this.coaStructureService.createSegment(user.tenantId, body);
+  }
+
+  @Patch('coa/segments/:id')
+  @RequirePermission('finance:journal:manage')
+  updateSegment(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.coaStructureService.updateSegment(user.tenantId, id, body);
+  }
+
+  @Delete('coa/segments/:id')
+  @RequirePermission('finance:journal:manage')
+  deleteSegment(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.coaStructureService.deleteSegment(user.tenantId, id);
+  }
+
+  @Get('coa/segments/:id/values')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'List allowed values for a segment' })
+  listSegmentValues(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.coaStructureService.listSegmentValues(user.tenantId, id);
+  }
+
+  @Post('coa/segment-values')
+  @RequirePermission('finance:journal:manage')
+  @ApiOperation({ summary: 'Add an allowed value to a segment value set' })
+  createSegmentValue(@CurrentUser() user: any, @Body() body: any) {
+    return this.coaStructureService.createSegmentValue(user.tenantId, body);
+  }
+
+  @Delete('coa/segment-values/:id')
+  @RequirePermission('finance:journal:manage')
+  deleteSegmentValue(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.coaStructureService.deleteSegmentValue(user.tenantId, id);
+  }
+
+  @Post('coa/validate-code')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'Validate an account code against segment value sets' })
+  validateAccountCode(@CurrentUser() user: any, @Body() body: { code: string }) {
+    return this.coaStructureService.validateAccountCode(user.tenantId, body.code);
+  }
+
+  // ─── Ph-97: Account Trees ─────────────────────────────────────────
+
+  @Get('coa/trees')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'List account hierarchy trees' })
+  listTrees(@CurrentUser() user: any) {
+    return this.coaStructureService.listTrees(user.tenantId);
+  }
+
+  @Post('coa/trees')
+  @RequirePermission('finance:journal:manage')
+  @ApiOperation({ summary: 'Create an account hierarchy tree' })
+  createTree(@CurrentUser() user: any, @Body() body: any) {
+    return this.coaStructureService.createTree(user.tenantId, body);
+  }
+
+  @Delete('coa/trees/:id')
+  @RequirePermission('finance:journal:manage')
+  deleteTree(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.coaStructureService.deleteTree(user.tenantId, id);
+  }
+
+  @Get('coa/trees/:id/structure')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'Get the nested node structure of a tree' })
+  getTreeStructure(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.coaStructureService.getTreeStructure(user.tenantId, id);
+  }
+
+  @Post('coa/trees/:id/nodes')
+  @RequirePermission('finance:journal:manage')
+  @ApiOperation({ summary: 'Add a node to a tree' })
+  addTreeNode(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.coaStructureService.addNode(user.tenantId, id, body);
+  }
+
+  @Delete('coa/tree-nodes/:id')
+  @RequirePermission('finance:journal:manage')
+  deleteTreeNode(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.coaStructureService.deleteNode(user.tenantId, id);
+  }
+
+  // ─── Ph-98: Cross-Validation Rules ────────────────────────────────
+
+  @Get('coa/cross-validation-rules')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'List cross-validation rules' })
+  listCrossValidationRules(@CurrentUser() user: any) {
+    return this.coaStructureService.listCrossValidationRules(user.tenantId);
+  }
+
+  @Post('coa/cross-validation-rules')
+  @RequirePermission('finance:journal:manage')
+  @ApiOperation({ summary: 'Create a cross-validation rule' })
+  createCrossValidationRule(@CurrentUser() user: any, @Body() body: any) {
+    return this.coaStructureService.createCrossValidationRule(user.tenantId, body);
+  }
+
+  @Delete('coa/cross-validation-rules/:id')
+  @RequirePermission('finance:journal:manage')
+  deleteCrossValidationRule(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.coaStructureService.deleteCrossValidationRule(user.tenantId, id);
+  }
+
+  @Post('coa/validate-combination')
+  @RequirePermission('finance:journal:read')
+  @ApiOperation({ summary: 'Check an account code against cross-validation rules' })
+  validateCombination(@CurrentUser() user: any, @Body() body: { code: string }) {
+    return this.coaStructureService.validateCombination(user.tenantId, body.code);
   }
 }

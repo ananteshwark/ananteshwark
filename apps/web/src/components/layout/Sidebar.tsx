@@ -92,6 +92,7 @@ const navItems: NavItem[] = [
       { label: 'Revenue Recognition', path: '/finance/revenue-recognition' },
       { label: 'Lease Accounting', path: '/finance/leases' },
       { label: 'Subledger Accounting', path: '/finance/subledger-accounting' },
+      { label: 'COA Structure', path: '/finance/coa-structure' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

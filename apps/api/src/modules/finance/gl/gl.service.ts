@@ -37,6 +37,7 @@ import {
   JournalLineDto,
 } from './dto/journal-entry.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { CoaStructureService } from './coa-structure.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -72,6 +73,7 @@ export class GlService {
     @InjectRepository(AccrualConfig)
     private readonly accrualConfigRepo: Repository<AccrualConfig>,
     private readonly dataSource: DataSource,
+    private readonly coaStructureService: CoaStructureService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -433,6 +435,8 @@ export class GlService {
     if (found !== accountIds.length) {
       throw new BadRequestException('One or more accounts do not exist in this tenant');
     }
+    // Ph-98: enforce cross-validation rules (no-op when none configured)
+    await this.coaStructureService.assertAccountsValid(tenantId, accountIds);
   }
 
   /** Create a DRAFT journal entry (not posted). */
