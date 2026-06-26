@@ -15,7 +15,7 @@ const RUN_STATUS_COLORS: Record<string, string> = {
   REVERSED: 'bg-gray-100 text-gray-600',
 };
 
-type Tab = 'assets' | 'runs';
+type Tab = 'assets' | 'runs' | 'cip';
 
 function CreateAssetModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
@@ -244,15 +244,18 @@ export default function FixedAssetsPage() {
   const [showRunDep, setShowRunDep] = useState(false);
   const [disposeTarget, setDisposeTarget] = useState<any>(null);
   const [search, setSearch] = useState('');
+  const [cipAssets, setCipAssets] = useState<any[]>([]);
 
   const load = () => {
     setLoading(true);
     Promise.all([
       financeApi.getFixedAssets({ limit: 100, search: search || undefined }),
       financeApi.getDepreciationRuns({ limit: 50 }),
-    ]).then(([r1, r2]) => {
+      financeApi.listCipAssets(),
+    ]).then(([r1, r2, r3]) => {
       setAssets(r1.data?.items || []);
       setRuns(r2.data?.items || []);
+      setCipAssets(r3.data?.data ?? r3.data ?? []);
     }).finally(() => setLoading(false));
   };
 
@@ -261,6 +264,50 @@ export default function FixedAssetsPage() {
   const postRun = async (id: string) => {
     await financeApi.postDepreciationRun(id);
     load();
+  };
+
+  const handleImpair = async (a: any) => {
+    const v = window.prompt(`Impairment — recoverable amount for ${a.assetCode} (current NBV ${a.netBookValue}):`);
+    if (!v) return;
+    try {
+      await financeApi.impairAsset(a.id, { date: new Date().toISOString().slice(0, 10), recoverableAmount: Number(v) });
+      load();
+    } catch (e: any) { alert(e.response?.data?.message ?? 'Impairment failed'); }
+  };
+
+  const handleRevalue = async (a: any) => {
+    const v = window.prompt(`Revalue — fair value for ${a.assetCode} (current NBV ${a.netBookValue}):`);
+    if (!v) return;
+    try {
+      await financeApi.revalueAsset(a.id, { date: new Date().toISOString().slice(0, 10), fairValue: Number(v) });
+      load();
+    } catch (e: any) { alert(e.response?.data?.message ?? 'Revaluation failed'); }
+  };
+
+  const handleCreateCip = async () => {
+    const name = window.prompt('CIP asset name:');
+    if (!name) return;
+    const categoryId = window.prompt('Category ID:');
+    if (!categoryId) return;
+    const code = `CIP-${Date.now().toString().slice(-6)}`;
+    await financeApi.createCipAsset({ cipCode: code, name, categoryId, startDate: new Date().toISOString().slice(0, 10) });
+    load();
+  };
+
+  const handleAddCipCost = async (cip: any) => {
+    const amt = window.prompt(`Add cost to ${cip.cipCode}:`);
+    if (!amt) return;
+    await financeApi.addCipCost(cip.id, { date: new Date().toISOString().slice(0, 10), description: 'Cost', amount: Number(amt) });
+    load();
+  };
+
+  const handleCapitalize = async (cip: any) => {
+    const life = window.prompt(`Capitalize ${cip.cipCode} (accumulated ${cip.accumulatedCost}). Useful life in months:`);
+    if (!life) return;
+    try {
+      await financeApi.capitalizeCip(cip.id, { capitalizedDate: new Date().toISOString().slice(0, 10), usefulLifeMonths: Number(life) });
+      load();
+    } catch (e: any) { alert(e.response?.data?.message ?? 'Capitalize failed'); }
   };
 
   const totalNBV = assets.filter(a => a.status === 'ACTIVE').reduce((s: number, a: any) => s + (a.netBookValue || 0), 0);
@@ -307,7 +354,7 @@ export default function FixedAssetsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-        {(['assets', 'runs'] as Tab[]).map(t => (
+        {(['assets', 'runs', 'cip'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -315,7 +362,7 @@ export default function FixedAssetsPage() {
               tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'assets' ? 'Asset Register' : 'Depreciation Runs'}
+            {t === 'assets' ? 'Asset Register' : t === 'runs' ? 'Depreciation Runs' : 'CIP (Construction)'}
           </button>
         ))}
       </div>
@@ -359,15 +406,23 @@ export default function FixedAssetsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2">
-                      {a.status === 'ACTIVE' && (
-                        <button
-                          onClick={() => setDisposeTarget(a)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                          title="Dispose"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {(a.status === 'ACTIVE' || a.status === 'IMPAIRED') && (
+                          <>
+                            <button onClick={() => handleImpair(a)} className="text-xs text-orange-600 hover:underline" title="Impair (IAS 36)">Impair</button>
+                            <button onClick={() => handleRevalue(a)} className="text-xs text-indigo-600 hover:underline" title="Revalue (IAS 16)">Revalue</button>
+                          </>
+                        )}
+                        {a.status === 'ACTIVE' && (
+                          <button
+                            onClick={() => setDisposeTarget(a)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="Dispose"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -418,6 +473,52 @@ export default function FixedAssetsPage() {
                           <FileText className="h-3 w-3" /> {r.journalEntryId ? 'GL Posted' : 'Posted'}
                         </span>
                       )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === 'cip' && (
+        <div className="bg-white rounded-xl border">
+          <div className="p-4 border-b flex justify-between items-center">
+            <p className="text-sm text-gray-500">Construction-in-Progress assets accumulate cost until capitalization (transfers CIP → fixed asset).</p>
+            <button onClick={handleCreateCip} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+              <Plus className="h-4 w-4" /> New CIP
+            </button>
+          </div>
+          {cipAssets.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">No CIP assets.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  {['Code', 'Name', 'Accumulated Cost', 'Start Date', 'Status', ''].map(h => (
+                    <th key={h} className="text-left px-4 py-2 text-xs text-gray-500 font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {cipAssets.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 font-mono text-xs">{c.cipCode}</td>
+                    <td className="px-4 py-2 font-medium">{c.name}</td>
+                    <td className="px-4 py-2 text-right">{Number(c.accumulatedCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-gray-500">{c.startDate}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.status === 'CAPITALIZED' ? 'bg-green-100 text-green-700' : c.status === 'CANCELLED' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>{c.status}</span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {c.status === 'IN_PROGRESS' && (
+                        <div className="flex gap-2">
+                          <button onClick={() => handleAddCipCost(c)} className="text-xs text-blue-600 hover:underline">+ Cost</button>
+                          <button onClick={() => handleCapitalize(c)} className="text-xs text-green-600 hover:underline">Capitalize</button>
+                        </div>
+                      )}
+                      {c.status === 'CAPITALIZED' && <span className="text-xs text-gray-400">→ asset created</span>}
                     </td>
                   </tr>
                 ))}

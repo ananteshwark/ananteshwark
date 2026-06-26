@@ -45,6 +45,15 @@ export class FixedAsset {
 
   @Column({ type: 'enum', enum: AssetStatus, default: AssetStatus.ACTIVE }) status: AssetStatus;
   @Column({ nullable: true }) notes: string | null;
+
+  // Ph-119/120: impairment & revaluation (IAS 36 / IAS 16)
+  @Column({ name: 'accumulated_impairment', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  accumulatedImpairment: number;
+  @Column({ name: 'revaluation_reserve', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  revaluationReserve: number;
+  @Column({ name: 'last_revalued_date', type: 'date', nullable: true }) lastRevaluedDate: string | null;
+  @Column({ name: 'last_impaired_date', type: 'date', nullable: true }) lastImpairedDate: string | null;
+
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

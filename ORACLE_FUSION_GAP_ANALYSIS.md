@@ -19,8 +19,10 @@
 | Ph-106–107 | AR credit limits, exposure, credit hold | ⏩ Pre-existing (sales/credit.service) | — |
 | Ph-109–111 | AR Collections workbench — aging drill-down, promise-to-pay, dispute mgmt (suspends dunning) | ✅ Done | 12 |
 | Ph-112–114 | AR Lockbox — MT940/BAI2/normalized parsers, auto-application (oldest/exact/by-ref), unapplied queue | ✅ Done | 14 |
+| Ph-115 | Asset books (Corporate/Tax/IFRS) | ⏩ Pre-existing (FA depreciation areas) | — |
+| Ph-116, 119, 120 | FA lifecycle — CIP capitalization, impairment (IAS 36), revaluation (IAS 16) | ✅ Done | 9 |
 
-**Current total: 448 tests passing.** Remaining genuine gaps continue below.
+**Current total: 457 tests passing.** Remaining genuine gaps continue below.
 
 ---
 

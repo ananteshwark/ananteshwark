@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FixedAssetsService } from './fixed-assets.service';
+import { FaLifecycleService } from './fa-lifecycle.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -19,7 +20,10 @@ import {
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('finance/fixed-assets')
 export class FixedAssetsController {
-  constructor(private readonly service: FixedAssetsService) {}
+  constructor(
+    private readonly service: FixedAssetsService,
+    private readonly lifecycle: FaLifecycleService,
+  ) {}
 
   // Asset Categories
   @Get('categories')
@@ -131,5 +135,49 @@ export class FixedAssetsController {
     @Body() body: { periodDate: string },
   ) {
     return this.service.runDepreciationForArea(user.tenantId, areaId, body.periodDate, user.id);
+  }
+
+  // ─── Ph-116: CIP assets ───────────────────────────────────────────
+  @Get('cip')
+  @RequirePermission('finance:assets:read')
+  listCip(@CurrentUser() user: any) {
+    return this.lifecycle.listCip(user.tenantId);
+  }
+
+  @Get('cip/:id')
+  @RequirePermission('finance:assets:read')
+  getCip(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.lifecycle.getCip(user.tenantId, id);
+  }
+
+  @Post('cip')
+  @RequirePermission('finance:assets:manage')
+  createCip(@CurrentUser() user: any, @Body() body: any) {
+    return this.lifecycle.createCip(user.tenantId, body);
+  }
+
+  @Post('cip/:id/costs')
+  @RequirePermission('finance:assets:manage')
+  addCipCost(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.addCipCost(user.tenantId, id, body);
+  }
+
+  @Post('cip/:id/capitalize')
+  @RequirePermission('finance:assets:manage')
+  capitalizeCip(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.capitalizeCip(user.tenantId, id, body, user.id);
+  }
+
+  // ─── Ph-119/120: Impairment & Revaluation ─────────────────────────
+  @Post(':id/impair')
+  @RequirePermission('finance:assets:manage')
+  impairAsset(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.recordImpairment(user.tenantId, id, body, user.id);
+  }
+
+  @Post(':id/revalue')
+  @RequirePermission('finance:assets:manage')
+  revalueAsset(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.revalue(user.tenantId, id, body, user.id);
   }
 }

@@ -38,4 +38,9 @@ export const DEFAULT_ACCOUNT_CODES = {
   LEASE_LIABILITY: '2300', // lease liability
   LEASE_AMORT_EXPENSE: '6100', // ROU amortisation expense
   INTEREST_EXPENSE: '7200', // interest on lease liability (unwinding of discount)
+  // Fixed assets lifecycle (Phase 116-120)
+  CIP_ASSET: '1550', // construction-in-progress (asset clearing)
+  IMPAIRMENT_LOSS: '6200', // impairment loss expense (IAS 36)
+  ACCUM_IMPAIRMENT: '1560', // accumulated impairment (contra asset)
+  REVALUATION_RESERVE: '3200', // revaluation surplus in equity (IAS 16)
 };

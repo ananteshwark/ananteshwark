@@ -100,6 +100,14 @@ export const financeApi = {
   postDepreciationRun: (id: string) => apiClient.post(`/finance/fixed-assets/depreciation-runs/${id}/post`),
   getRunLines: (id: string) => apiClient.get(`/finance/fixed-assets/depreciation-runs/${id}/lines`),
 
+  // Phase 116-120: FA lifecycle (CIP, impairment, revaluation)
+  listCipAssets: () => apiClient.get('/finance/fixed-assets/cip'),
+  createCipAsset: (data: any) => apiClient.post('/finance/fixed-assets/cip', data),
+  addCipCost: (id: string, data: any) => apiClient.post(`/finance/fixed-assets/cip/${id}/costs`, data),
+  capitalizeCip: (id: string, data: any) => apiClient.post(`/finance/fixed-assets/cip/${id}/capitalize`, data),
+  impairAsset: (id: string, data: any) => apiClient.post(`/finance/fixed-assets/${id}/impair`, data),
+  revalueAsset: (id: string, data: any) => apiClient.post(`/finance/fixed-assets/${id}/revalue`, data),
+
   // Currencies & Exchange Rates
   getCurrencies: (params?: any) => apiClient.get('/finance/currencies', { params }),
   createCurrency: (data: any) => apiClient.post('/finance/currencies', data),
