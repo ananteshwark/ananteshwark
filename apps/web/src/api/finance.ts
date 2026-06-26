@@ -37,6 +37,15 @@ export const financeApi = {
   placeApHold: (data: { billId: string; holdType: string; reason: string }) => apiClient.post('/finance/ap/holds', data),
   releaseApHold: (id: string, releaseReason: string) => apiClient.post(`/finance/ap/holds/${id}/release`, { releaseReason }),
 
+  // Phase 112-114: AR Lockbox
+  listLockboxBatches: () => apiClient.get('/finance/lockbox/batches'),
+  importLockboxBatch: (data: { format: string; content: string; fileReference?: string; asOf?: string }) => apiClient.post('/finance/lockbox/batches/import', data),
+  applyLockboxBatch: (id: string, strategy: string) => apiClient.post(`/finance/lockbox/batches/${id}/apply`, { strategy }),
+  listLockboxReceipts: (params?: { batchId?: string; status?: string }) => apiClient.get('/finance/lockbox/receipts', { params }),
+  listUnappliedReceipts: () => apiClient.get('/finance/lockbox/receipts/unapplied'),
+  assignLockboxCustomer: (id: string, customerId: string) => apiClient.patch(`/finance/lockbox/receipts/${id}/assign-customer`, { customerId }),
+  applyLockboxReceipt: (id: string, strategy: string) => apiClient.post(`/finance/lockbox/receipts/${id}/apply`, { strategy }),
+
   // Phase 109-111: Collections Workbench
   getCollectionsWorkbench: (asOf?: string) => apiClient.get('/finance/collections/workbench', { params: asOf ? { asOf } : {} }),
   getCollectionsCustomer: (id: string, asOf?: string) => apiClient.get(`/finance/collections/customers/${id}`, { params: asOf ? { asOf } : {} }),

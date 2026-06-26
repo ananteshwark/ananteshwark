@@ -22,3 +22,4 @@ export { default as SubledgerAccountingPage } from './SubledgerAccountingPage';
 export { default as CoaStructurePage } from './CoaStructurePage';
 export { default as WithholdingTaxPage } from './WithholdingTaxPage';
 export { default as CollectionsPage } from './CollectionsPage';
+export { default as LockboxPage } from './LockboxPage';

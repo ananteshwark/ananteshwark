@@ -21,6 +21,7 @@ import { CashDiscountModule } from './cash-discount/cash-discount.module';
 import { RevenueRecognitionModule } from './revenue-recognition/revenue-recognition.module';
 import { LeaseModule } from './lease/lease.module';
 import { CollectionsModule } from './collections/collections.module';
+import { LockboxModule } from './lockbox/lockbox.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { CollectionsModule } from './collections/collections.module';
     RevenueRecognitionModule,
     LeaseModule,
     CollectionsModule,
+    LockboxModule,
   ],
   exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule, BudgetModule, IntercompanyModule, ConsolidationModule, TreasuryModule],
 })

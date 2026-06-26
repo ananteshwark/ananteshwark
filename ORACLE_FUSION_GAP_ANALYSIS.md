@@ -18,8 +18,9 @@
 | Ph-103–105 | AP Withholding Tax (TDS) — codes, calc engine, Form 16A certs | ✅ Done | 13 |
 | Ph-106–107 | AR credit limits, exposure, credit hold | ⏩ Pre-existing (sales/credit.service) | — |
 | Ph-109–111 | AR Collections workbench — aging drill-down, promise-to-pay, dispute mgmt (suspends dunning) | ✅ Done | 12 |
+| Ph-112–114 | AR Lockbox — MT940/BAI2/normalized parsers, auto-application (oldest/exact/by-ref), unapplied queue | ✅ Done | 14 |
 
-**Current total: 434 tests passing.** Remaining genuine gaps continue below.
+**Current total: 448 tests passing.** Remaining genuine gaps continue below.
 
 ---
 
