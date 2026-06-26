@@ -16,6 +16,7 @@ import { BankAccount } from '../bank/entities/bank-account.entity';
 import { GlService } from '../gl/gl.service';
 import { SlaService } from '../gl/sla.service';
 import { ApHoldService } from './ap-hold.service';
+import { WhtService } from './wht.service';
 import { SlaEventClass, SlaLineType } from '../gl/entities/sla-rule.entity';
 import { CurrencyService } from '../currency/currency.service';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
@@ -50,6 +51,7 @@ export class ApService {
     private readonly currencyService: CurrencyService,
     private readonly dataSource: DataSource,
     private readonly apHoldService: ApHoldService,
+    private readonly whtService: WhtService,
   ) {}
 
   private async resolveAccountByCode(tenantId: string, code: string): Promise<Account> {
@@ -200,6 +202,7 @@ export class ApService {
         currency: dto.currency || vendor.currency || 'USD',
         reference: dto.reference,
         notes: dto.notes,
+        whtCodeId: (dto as any).whtCodeId ?? null,
       });
       const saved = await manager.save(bill);
       await this.persistBillLines(manager, tenantId, saved.id, computed);
@@ -347,11 +350,33 @@ export class ApService {
           credit: 0,
         });
       }
+
+      // Ph-104: withholding tax (TDS) — vendor is credited net; WHT liability credited gross.
+      let whtAmount = 0;
+      if (bill.whtCodeId) {
+        const comp = await this.whtService.computeForBill(tenantId, bill.whtCodeId, bill.subtotal);
+        if (comp.applicable && comp.whtAmount > 0) {
+          whtAmount = comp.whtAmount;
+          const whtAccount = await this.resolveAccountByCode(
+            tenantId,
+            comp.code.liabilityAccountCode || DEFAULT_ACCOUNT_CODES.WHT_PAYABLE,
+          );
+          jeLines.push({
+            accountId: whtAccount.id,
+            description: `WHT ${comp.code.section || comp.code.code} (${comp.rate}%)`,
+            debit: 0,
+            credit: whtAmount,
+          });
+        }
+      }
+      bill.whtAmount = whtAmount;
+      bill.balanceDue = round2(bill.total - whtAmount - bill.amountPaid);
+
       jeLines.push({
         accountId: apAccount.id,
         description: `AP - ${vendor?.name || 'Vendor'} - ${bill.billNumber}`,
         debit: 0,
-        credit: bill.total,
+        credit: round2(bill.total - whtAmount),
       });
 
       const je = await this.glService.postJournalEntry(
@@ -542,7 +567,7 @@ export class ApService {
       );
 
       bill.amountPaid = round2(bill.amountPaid + applyAmount);
-      bill.balanceDue = round2(bill.total - bill.amountPaid);
+      bill.balanceDue = round2(bill.total - Number(bill.whtAmount || 0) - bill.amountPaid);
       bill.status =
         bill.balanceDue <= 0
           ? BillStatus.PAID

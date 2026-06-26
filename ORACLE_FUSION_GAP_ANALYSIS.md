@@ -7,6 +7,20 @@
 
 ---
 
+## ✅ Delivery Log (in progress)
+
+| Phase | Feature | Status | Tests |
+|-------|---------|--------|-------|
+| Ph-93–95 | Subledger Accounting Engine (SLA) — rules, runtime, XLA audit trail | ✅ Done | 25 |
+| Ph-96–98 | COA segments, account trees, cross-validation rules | ✅ Done | 25 |
+| Ph-99 | AP invoice hold framework (blocks payment runs) | ✅ Done | 14 |
+| Ph-100 | AP 3-way matching | ⏩ Pre-existing (procurement vendor-invoice module) | — |
+| Ph-103–105 | AP Withholding Tax (TDS) — codes, calc engine, Form 16A certs | ✅ Done | 13 |
+
+**Current total: 422 tests passing.** Remaining genuine gaps continue below.
+
+---
+
 ## TRACK A — FINANCE DEPTH
 
 ### A1. Subledger Accounting Engine (SLA)

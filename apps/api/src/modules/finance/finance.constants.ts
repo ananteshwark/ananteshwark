@@ -18,6 +18,7 @@ export const DEFAULT_ACCOUNT_CODES = {
   ESI_PAYABLE: '2120',
   PT_PAYABLE: '2130',
   TDS_PAYABLE: '2140',
+  WHT_PAYABLE: '2145', // AP vendor withholding tax (TDS deducted) payable
   SALARIES_PAYABLE: '2150',
   SALARY_EXPENSE: '6000',
   EMPLOYER_PF_EXPENSE: '6010',

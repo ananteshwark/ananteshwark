@@ -37,6 +37,15 @@ export const financeApi = {
   placeApHold: (data: { billId: string; holdType: string; reason: string }) => apiClient.post('/finance/ap/holds', data),
   releaseApHold: (id: string, releaseReason: string) => apiClient.post(`/finance/ap/holds/${id}/release`, { releaseReason }),
 
+  // Phase 103-105: Withholding Tax (TDS)
+  listWhtCodes: () => apiClient.get('/finance/ap/wht/codes'),
+  createWhtCode: (data: any) => apiClient.post('/finance/ap/wht/codes', data),
+  updateWhtCode: (id: string, data: any) => apiClient.patch(`/finance/ap/wht/codes/${id}`, data),
+  deleteWhtCode: (id: string) => apiClient.post(`/finance/ap/wht/codes/${id}/delete`),
+  computeWht: (data: { whtCodeId: string; grossAmount: number }) => apiClient.post('/finance/ap/wht/compute', data),
+  listWhtCertificates: (vendorId?: string) => apiClient.get('/finance/ap/wht/certificates', { params: vendorId ? { vendorId } : {} }),
+  generateWhtCertificate: (data: any) => apiClient.post('/finance/ap/wht/certificates/generate', data),
+
   // Customers
   getCustomers: (params?: any) => apiClient.get('/finance/ar/customers', { params }),
   getCustomer: (id: string) => apiClient.get(`/finance/ar/customers/${id}`),

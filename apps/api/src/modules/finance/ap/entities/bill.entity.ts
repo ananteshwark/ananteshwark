@@ -76,6 +76,13 @@ export class Bill {
   @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true })
   journalEntryId: string | null;
 
+  // Ph-104: AP withholding tax (TDS)
+  @Column({ name: 'wht_code_id', type: 'uuid', nullable: true })
+  whtCodeId: string | null;
+
+  @Column({ name: 'wht_amount', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  whtAmount: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

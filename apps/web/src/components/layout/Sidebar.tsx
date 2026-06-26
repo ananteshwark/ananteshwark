@@ -93,6 +93,7 @@ const navItems: NavItem[] = [
       { label: 'Lease Accounting', path: '/finance/leases' },
       { label: 'Subledger Accounting', path: '/finance/subledger-accounting' },
       { label: 'COA Structure', path: '/finance/coa-structure' },
+      { label: 'Withholding Tax', path: '/finance/withholding-tax' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

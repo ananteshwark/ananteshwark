@@ -20,3 +20,4 @@ export { default as PeriodCloseCockpitPage } from './PeriodCloseCockpitPage';
 export { default as TreasuryPage } from './TreasuryPage';
 export { default as SubledgerAccountingPage } from './SubledgerAccountingPage';
 export { default as CoaStructurePage } from './CoaStructurePage';
+export { default as WithholdingTaxPage } from './WithholdingTaxPage';

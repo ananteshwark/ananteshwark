@@ -13,6 +13,7 @@ import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ApService } from './ap.service';
 import { ApHoldService } from './ap-hold.service';
+import { WhtService } from './wht.service';
 import { ApHoldStatus } from './entities/ap-hold.entity';
 import { renderBillPrint } from './bill-print.template';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -38,6 +39,7 @@ export class ApController {
   constructor(
     private readonly apService: ApService,
     private readonly apHoldService: ApHoldService,
+    private readonly whtService: WhtService,
   ) {}
 
   // Vendors
@@ -234,5 +236,54 @@ export class ApController {
       releaseReason: body.releaseReason,
       releasedById: user.id,
     });
+  }
+
+  // ─── Ph-103-105: Withholding Tax (TDS) ────────────────────────────
+  @Get('wht/codes')
+  @RequirePermission('finance:ap:read')
+  @ApiOperation({ summary: 'List WHT/TDS codes' })
+  listWhtCodes(@CurrentUser() user: any) {
+    return this.whtService.listCodes(user.tenantId);
+  }
+
+  @Post('wht/codes')
+  @RequirePermission('finance:ap:manage')
+  @ApiOperation({ summary: 'Create a WHT/TDS code' })
+  createWhtCode(@CurrentUser() user: any, @Body() body: any) {
+    return this.whtService.createCode(user.tenantId, body);
+  }
+
+  @Patch('wht/codes/:id')
+  @RequirePermission('finance:ap:manage')
+  updateWhtCode(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.whtService.updateCode(user.tenantId, id, body);
+  }
+
+  @Post('wht/codes/:id/delete')
+  @RequirePermission('finance:ap:manage')
+  deleteWhtCode(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.whtService.deleteCode(user.tenantId, id);
+  }
+
+  @Post('wht/compute')
+  @RequirePermission('finance:ap:read')
+  @ApiOperation({ summary: 'Dry-run WHT computation for a code + gross amount' })
+  computeWht(@CurrentUser() user: any, @Body() body: { whtCodeId: string; grossAmount: number }) {
+    return this.whtService.computeForBill(user.tenantId, body.whtCodeId, body.grossAmount);
+  }
+
+  @Get('wht/certificates')
+  @RequirePermission('finance:ap:read')
+  @ApiOperation({ summary: 'List WHT certificates' })
+  @ApiQuery({ name: 'vendorId', required: false })
+  listWhtCertificates(@CurrentUser() user: any, @Query('vendorId') vendorId?: string) {
+    return this.whtService.listCertificates(user.tenantId, vendorId);
+  }
+
+  @Post('wht/certificates/generate')
+  @RequirePermission('finance:ap:manage')
+  @ApiOperation({ summary: 'Generate a WHT certificate (Form 16A) for a vendor + period' })
+  generateWhtCertificate(@CurrentUser() user: any, @Body() body: any) {
+    return this.whtService.generateCertificate(user.tenantId, body);
   }
 }

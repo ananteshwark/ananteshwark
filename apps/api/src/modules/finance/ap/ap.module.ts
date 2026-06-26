@@ -6,9 +6,12 @@ import { BillLine } from './entities/bill-line.entity';
 import { VendorPayment } from './entities/vendor-payment.entity';
 import { PaymentAllocation } from './entities/payment-allocation.entity';
 import { ApHold } from './entities/ap-hold.entity';
+import { ApWhtCode } from './entities/ap-wht-code.entity';
+import { WhtCertificate } from './entities/wht-certificate.entity';
 import { BankAccount } from '../bank/entities/bank-account.entity';
 import { ApService } from './ap.service';
 import { ApHoldService } from './ap-hold.service';
+import { WhtService } from './wht.service';
 import { ApController } from './ap.controller';
 import { GlModule } from '../gl/gl.module';
 import { CurrencyModule } from '../currency/currency.module';
@@ -23,6 +26,8 @@ import { RbacModule } from '../../rbac/rbac.module';
       VendorPayment,
       PaymentAllocation,
       ApHold,
+      ApWhtCode,
+      WhtCertificate,
       BankAccount,
     ]),
     GlModule,
@@ -30,7 +35,7 @@ import { RbacModule } from '../../rbac/rbac.module';
     RbacModule,
   ],
   controllers: [ApController],
-  providers: [ApService, ApHoldService],
-  exports: [ApService, ApHoldService],
+  providers: [ApService, ApHoldService, WhtService],
+  exports: [ApService, ApHoldService, WhtService],
 })
 export class ApModule {}
