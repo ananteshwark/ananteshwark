@@ -8,6 +8,7 @@ import { CreateDunningLevelDto, UpdateDunningLevelDto, RunDunningDto, CreatePaym
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 import { Invoice, InvoiceStatus } from '../ar/entities/invoice.entity';
 import { Customer } from '../ar/entities/customer.entity';
+import { CollectionsService } from '../collections/collections.service';
 
 @Injectable()
 export class DunningService {
@@ -18,6 +19,7 @@ export class DunningService {
     @InjectRepository(PaymentPlan) private readonly planRepo: Repository<PaymentPlan>,
     @InjectRepository(Invoice) private readonly invoiceRepo: Repository<Invoice>,
     @InjectRepository(Customer) private readonly customerRepo: Repository<Customer>,
+    private readonly collectionsService: CollectionsService,
   ) {}
 
   // ---- Dunning Levels ----
@@ -44,10 +46,13 @@ export class DunningService {
     const today = dto.runDate;
     // Fetch invoices that are SENT or PARTIAL (could have an outstanding balance)
     const allInvoices = await this.invoiceRepo.find({ where: { tenantId } });
+    // Ph-111: invoices under active dispute are suspended from dunning
+    const disputedIds = await this.collectionsService.getDisputedInvoiceIds(tenantId);
     const filteredOverdue = allInvoices.filter(inv =>
       [InvoiceStatus.SENT, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE].includes(inv.status) &&
       inv.dueDate < today &&
-      inv.balanceDue > 0,
+      inv.balanceDue > 0 &&
+      !disputedIds.has(inv.id),
     );
 
     const run = await this.runRepo.save(

@@ -20,6 +20,7 @@ import { LedgersModule } from './ledgers/ledgers.module';
 import { CashDiscountModule } from './cash-discount/cash-discount.module';
 import { RevenueRecognitionModule } from './revenue-recognition/revenue-recognition.module';
 import { LeaseModule } from './lease/lease.module';
+import { CollectionsModule } from './collections/collections.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { LeaseModule } from './lease/lease.module';
     CashDiscountModule,
     RevenueRecognitionModule,
     LeaseModule,
+    CollectionsModule,
   ],
   exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule, BudgetModule, IntercompanyModule, ConsolidationModule, TreasuryModule],
 })

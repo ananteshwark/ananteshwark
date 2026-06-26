@@ -16,8 +16,10 @@
 | Ph-99 | AP invoice hold framework (blocks payment runs) | ✅ Done | 14 |
 | Ph-100 | AP 3-way matching | ⏩ Pre-existing (procurement vendor-invoice module) | — |
 | Ph-103–105 | AP Withholding Tax (TDS) — codes, calc engine, Form 16A certs | ✅ Done | 13 |
+| Ph-106–107 | AR credit limits, exposure, credit hold | ⏩ Pre-existing (sales/credit.service) | — |
+| Ph-109–111 | AR Collections workbench — aging drill-down, promise-to-pay, dispute mgmt (suspends dunning) | ✅ Done | 12 |
 
-**Current total: 422 tests passing.** Remaining genuine gaps continue below.
+**Current total: 434 tests passing.** Remaining genuine gaps continue below.
 
 ---
 

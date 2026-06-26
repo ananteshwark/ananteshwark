@@ -6,12 +6,14 @@ import { PaymentPlan } from './entities/payment-plan.entity';
 import { DunningService } from './dunning.service';
 import { DunningController } from './dunning.controller';
 import { ArModule } from '../ar/ar.module';
+import { CollectionsModule } from '../collections/collections.module';
 import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([DunningLevel, DunningRun, DunningLetter, PaymentPlan]),
     ArModule,
+    CollectionsModule,
     RbacModule,
   ],
   controllers: [DunningController],

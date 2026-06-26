@@ -37,6 +37,18 @@ export const financeApi = {
   placeApHold: (data: { billId: string; holdType: string; reason: string }) => apiClient.post('/finance/ap/holds', data),
   releaseApHold: (id: string, releaseReason: string) => apiClient.post(`/finance/ap/holds/${id}/release`, { releaseReason }),
 
+  // Phase 109-111: Collections Workbench
+  getCollectionsWorkbench: (asOf?: string) => apiClient.get('/finance/collections/workbench', { params: asOf ? { asOf } : {} }),
+  getCollectionsCustomer: (id: string, asOf?: string) => apiClient.get(`/finance/collections/customers/${id}`, { params: asOf ? { asOf } : {} }),
+  addCollectionNote: (data: any) => apiClient.post('/finance/collections/notes', data),
+  listPromises: (params?: { customerId?: string; status?: string }) => apiClient.get('/finance/collections/promises', { params }),
+  createPromise: (data: any) => apiClient.post('/finance/collections/promises', data),
+  resolvePromise: (id: string, data: { status: string; amountKept?: number }) => apiClient.patch(`/finance/collections/promises/${id}/resolve`, data),
+  sweepBrokenPromises: (asOf?: string) => apiClient.post('/finance/collections/promises/sweep-broken', { asOf }),
+  listDisputes: (params?: { customerId?: string; invoiceId?: string; status?: string }) => apiClient.get('/finance/collections/disputes', { params }),
+  raiseDispute: (data: any) => apiClient.post('/finance/collections/disputes', data),
+  updateDispute: (id: string, data: any) => apiClient.patch(`/finance/collections/disputes/${id}`, data),
+
   // Phase 103-105: Withholding Tax (TDS)
   listWhtCodes: () => apiClient.get('/finance/ap/wht/codes'),
   createWhtCode: (data: any) => apiClient.post('/finance/ap/wht/codes', data),
