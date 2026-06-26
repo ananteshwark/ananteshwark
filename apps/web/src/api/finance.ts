@@ -32,6 +32,11 @@ export const financeApi = {
   postBill: (id: string) => apiClient.post(`/finance/ap/bills/${id}/post`),
   voidBill: (id: string) => apiClient.post(`/finance/ap/bills/${id}/void`),
 
+  // Phase 99: AP Invoice Holds
+  listApHolds: (params?: { billId?: string; status?: string }) => apiClient.get('/finance/ap/holds', { params }),
+  placeApHold: (data: { billId: string; holdType: string; reason: string }) => apiClient.post('/finance/ap/holds', data),
+  releaseApHold: (id: string, releaseReason: string) => apiClient.post(`/finance/ap/holds/${id}/release`, { releaseReason }),
+
   // Customers
   getCustomers: (params?: any) => apiClient.get('/finance/ar/customers', { params }),
   getCustomer: (id: string) => apiClient.get(`/finance/ar/customers/${id}`),

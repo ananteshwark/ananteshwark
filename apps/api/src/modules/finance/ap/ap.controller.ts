@@ -12,6 +12,8 @@ import {
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ApService } from './ap.service';
+import { ApHoldService } from './ap-hold.service';
+import { ApHoldStatus } from './entities/ap-hold.entity';
 import { renderBillPrint } from './bill-print.template';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
@@ -33,7 +35,10 @@ import { BillStatus } from './entities/bill.entity';
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('finance/ap')
 export class ApController {
-  constructor(private readonly apService: ApService) {}
+  constructor(
+    private readonly apService: ApService,
+    private readonly apHoldService: ApHoldService,
+  ) {}
 
   // Vendors
   @Get('vendors')
@@ -198,5 +203,36 @@ export class ApController {
   @ApiQuery({ name: 'asOf', required: false })
   ageing(@CurrentUser() user: any, @Query('asOf') asOf?: string) {
     return this.apService.getAgeing(user.tenantId, asOf);
+  }
+
+  // ─── Ph-99: Invoice Holds ─────────────────────────────────────────
+  @Get('holds')
+  @RequirePermission('finance:ap:read')
+  @ApiOperation({ summary: 'List AP invoice holds' })
+  @ApiQuery({ name: 'billId', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  listHolds(
+    @CurrentUser() user: any,
+    @Query('billId') billId?: string,
+    @Query('status') status?: ApHoldStatus,
+  ) {
+    return this.apHoldService.listHolds(user.tenantId, { billId, status });
+  }
+
+  @Post('holds')
+  @RequirePermission('finance:ap:manage')
+  @ApiOperation({ summary: 'Place a hold on a bill (blocks payment)' })
+  placeHold(@CurrentUser() user: any, @Body() body: any) {
+    return this.apHoldService.placeHold(user.tenantId, { ...body, placedById: user.id });
+  }
+
+  @Post('holds/:id/release')
+  @RequirePermission('finance:ap:manage')
+  @ApiOperation({ summary: 'Release a hold' })
+  releaseHold(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { releaseReason: string }) {
+    return this.apHoldService.releaseHold(user.tenantId, id, {
+      releaseReason: body.releaseReason,
+      releasedById: user.id,
+    });
   }
 }

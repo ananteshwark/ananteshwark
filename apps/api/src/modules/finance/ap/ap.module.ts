@@ -5,8 +5,10 @@ import { Bill } from './entities/bill.entity';
 import { BillLine } from './entities/bill-line.entity';
 import { VendorPayment } from './entities/vendor-payment.entity';
 import { PaymentAllocation } from './entities/payment-allocation.entity';
+import { ApHold } from './entities/ap-hold.entity';
 import { BankAccount } from '../bank/entities/bank-account.entity';
 import { ApService } from './ap.service';
+import { ApHoldService } from './ap-hold.service';
 import { ApController } from './ap.controller';
 import { GlModule } from '../gl/gl.module';
 import { CurrencyModule } from '../currency/currency.module';
@@ -20,6 +22,7 @@ import { RbacModule } from '../../rbac/rbac.module';
       BillLine,
       VendorPayment,
       PaymentAllocation,
+      ApHold,
       BankAccount,
     ]),
     GlModule,
@@ -27,7 +30,7 @@ import { RbacModule } from '../../rbac/rbac.module';
     RbacModule,
   ],
   controllers: [ApController],
-  providers: [ApService],
-  exports: [ApService],
+  providers: [ApService, ApHoldService],
+  exports: [ApService, ApHoldService],
 })
 export class ApModule {}

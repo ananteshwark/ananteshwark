@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle, Ban, Printer } from 'lucide-react';
+import { Plus, X, CheckCircle, Ban, Printer, Lock, Unlock } from 'lucide-react';
 import { financeApi } from '../../api/finance';
 import { printApi } from '../../api/print';
+
+const HOLD_TYPES = ['PRICE_VARIANCE', 'QTY_VARIANCE', 'QUALITY', 'MANUAL', 'AWAITING_RECEIPT', 'AWAITING_APPROVAL', 'DUPLICATE'];
 
 interface Vendor {
   id: string;
@@ -63,6 +65,9 @@ export default function BillsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [activeHolds, setActiveHolds] = useState<Record<string, any>>({});
+  const [holdModalBill, setHoldModalBill] = useState<Bill | null>(null);
+  const [holdForm, setHoldForm] = useState({ holdType: 'MANUAL', reason: '' });
 
   const fetchBills = async () => {
     setLoading(true);
@@ -71,10 +76,51 @@ export default function BillsPage() {
       const params = statusFilter !== 'All' ? { status: statusFilter } : {};
       const res = await financeApi.getBills(params);
       setBills(res.data?.data?.items ?? res.data?.data ?? res.data ?? []);
+      fetchHolds();
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load bills');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHolds = async () => {
+    try {
+      const res = await financeApi.listApHolds({ status: 'ACTIVE' });
+      const holds = res.data?.data ?? res.data ?? [];
+      const map: Record<string, any> = {};
+      for (const h of holds) map[h.billId] = h;
+      setActiveHolds(map);
+    } catch {
+      // non-critical
+    }
+  };
+
+  const handlePlaceHold = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!holdModalBill) return;
+    setActionError(null);
+    try {
+      await financeApi.placeApHold({ billId: holdModalBill.id, ...holdForm });
+      setHoldModalBill(null);
+      setHoldForm({ holdType: 'MANUAL', reason: '' });
+      fetchHolds();
+    } catch (err: any) {
+      setActionError(err?.response?.data?.message ?? 'Failed to place hold');
+    }
+  };
+
+  const handleReleaseHold = async (bill: Bill) => {
+    const hold = activeHolds[bill.id];
+    if (!hold) return;
+    const reason = window.prompt('Release reason:');
+    if (!reason) return;
+    setActionError(null);
+    try {
+      await financeApi.releaseApHold(hold.id, reason);
+      fetchHolds();
+    } catch (err: any) {
+      setActionError(err?.response?.data?.message ?? 'Failed to release hold');
     }
   };
 
@@ -235,6 +281,14 @@ export default function BillsPage() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[bill.status] ?? 'bg-gray-100 text-gray-700'}`}>
                       {bill.status}
                     </span>
+                    {activeHolds[bill.id] && (
+                      <span
+                        title={`${activeHolds[bill.id].holdType}: ${activeHolds[bill.id].reason}`}
+                        className="ml-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800"
+                      >
+                        ON HOLD
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -262,6 +316,25 @@ export default function BillsPage() {
                         >
                           <Ban className="w-4 h-4" />
                         </button>
+                      )}
+                      {bill.status !== 'DRAFT' && bill.status !== 'VOID' && (
+                        activeHolds[bill.id] ? (
+                          <button
+                            onClick={() => handleReleaseHold(bill)}
+                            title="Release hold"
+                            className="p-1 text-orange-600 hover:text-orange-800"
+                          >
+                            <Unlock className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setHoldModalBill(bill); setHoldForm({ holdType: 'MANUAL', reason: '' }); }}
+                            title="Place hold"
+                            className="p-1 text-gray-500 hover:text-orange-600"
+                          >
+                            <Lock className="w-4 h-4" />
+                          </button>
+                        )
                       )}
                     </div>
                   </td>
@@ -428,6 +501,48 @@ export default function BillsPage() {
                 >
                   {submitting ? 'Creating...' : 'Create Bill'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Hold modal */}
+      {holdModalBill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">Place Hold — {holdModalBill.billNumber}</h2>
+              <button onClick={() => setHoldModalBill(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handlePlaceHold} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hold Type</label>
+                <select
+                  value={holdForm.holdType}
+                  onChange={(e) => setHoldForm({ ...holdForm, holdType: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  {HOLD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                <textarea
+                  required
+                  value={holdForm.reason}
+                  onChange={(e) => setHoldForm({ ...holdForm, reason: e.target.value })}
+                  rows={3}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  placeholder="Why is this bill being held?"
+                />
+              </div>
+              <p className="text-xs text-gray-500">A held bill is excluded from payment runs and cannot be paid until released.</p>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setHoldModalBill(null)} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-sm text-white bg-orange-600 rounded-lg hover:bg-orange-700">Place Hold</button>
               </div>
             </form>
           </div>

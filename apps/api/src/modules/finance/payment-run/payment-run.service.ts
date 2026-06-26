@@ -6,6 +6,7 @@ import { PaymentRunItem } from './entities/payment-run-item.entity';
 import { Bill, BillStatus } from '../ap/entities/bill.entity';
 import { Vendor } from '../ap/entities/vendor.entity';
 import { ApService } from '../ap/ap.service';
+import { ApHoldService } from '../ap/ap-hold.service';
 import { PaymentMethod } from '../ap/entities/vendor-payment.entity';
 import { CashDiscountService } from '../cash-discount/cash-discount.service';
 import { CashDiscountType } from '../cash-discount/entities/cash-discount.entity';
@@ -31,6 +32,7 @@ export class PaymentRunService {
     private readonly vendorRepo: Repository<Vendor>,
     private readonly apService: ApService,
     private readonly cashDiscountService: CashDiscountService,
+    private readonly apHoldService: ApHoldService,
   ) {}
 
   async createProposal(
@@ -40,7 +42,7 @@ export class PaymentRunService {
     if (!input.dueByDate) throw new BadRequestException('dueByDate is required');
     if (!input.paymentMethod) throw new BadRequestException('paymentMethod is required');
 
-    const bills = await this.billRepo
+    const candidateBills = await this.billRepo
       .createQueryBuilder('b')
       .where('b.tenantId = :tenantId', { tenantId })
       .andWhere('b.status IN (:...statuses)', {
@@ -50,6 +52,13 @@ export class PaymentRunService {
       .andWhere('b.dueDate <= :dueBy', { dueBy: input.dueByDate })
       .orderBy('b.dueDate', 'ASC')
       .getMany();
+
+    // Ph-99: exclude bills with an active hold from the payment proposal
+    const heldIds = await this.apHoldService.getHeldBillIds(
+      tenantId,
+      candidateBills.map((b) => b.id),
+    );
+    const bills = candidateBills.filter((b) => !heldIds.has(b.id));
 
     const vendors = await this.vendorRepo.find({ where: { tenantId } });
     const vendorMap = new Map(vendors.map((v) => [v.id, v]));

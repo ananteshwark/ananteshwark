@@ -15,6 +15,7 @@ import { Account } from '../gl/entities/account.entity';
 import { BankAccount } from '../bank/entities/bank-account.entity';
 import { GlService } from '../gl/gl.service';
 import { SlaService } from '../gl/sla.service';
+import { ApHoldService } from './ap-hold.service';
 import { SlaEventClass, SlaLineType } from '../gl/entities/sla-rule.entity';
 import { CurrencyService } from '../currency/currency.service';
 import { JournalSource } from '../gl/entities/journal-entry.entity';
@@ -48,6 +49,7 @@ export class ApService {
     private readonly slaService: SlaService,
     private readonly currencyService: CurrencyService,
     private readonly dataSource: DataSource,
+    private readonly apHoldService: ApHoldService,
   ) {}
 
   private async resolveAccountByCode(tenantId: string, code: string): Promise<Account> {
@@ -525,6 +527,8 @@ export class ApService {
           `Bill ${bill.billNumber} cannot receive payment in status ${bill.status}`,
         );
       }
+      // Ph-99: an active hold blocks direct payment
+      await this.apHoldService.assertBillNotHeld(tenantId, bill.id);
       const applyAmount = round2(Math.min(alloc.amount, bill.balanceDue, remaining));
       if (applyAmount <= 0) continue;
 
