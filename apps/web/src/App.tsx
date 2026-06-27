@@ -56,6 +56,7 @@ import {
   TaxEnginePage,
   EncumbrancePage,
   CashForecastPage,
+  CloseManagementPage,
 } from './pages/finance';
 import ConsolidationPage from './pages/finance/ConsolidationPage';
 import ActivityCostingPage from './pages/finance/ActivityCostingPage';
@@ -239,6 +240,7 @@ export default function App() {
         <Route path="finance/tax-engine" element={<TaxEnginePage />} />
         <Route path="finance/encumbrance" element={<EncumbrancePage />} />
         <Route path="finance/cash-forecast" element={<CashForecastPage />} />
+        <Route path="finance/close-management" element={<CloseManagementPage />} />
         <Route path="finance/leases" element={<LeasesPage />} />
         <Route path="payroll/components" element={<PayComponentsPage />} />
         <Route path="payroll/salaries" element={<EmployeeSalaryPage />} />

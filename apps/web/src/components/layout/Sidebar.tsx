@@ -99,6 +99,7 @@ const navItems: NavItem[] = [
       { label: 'Tax Engine', path: '/finance/tax-engine' },
       { label: 'Encumbrance', path: '/finance/encumbrance' },
       { label: 'Cash Forecast', path: '/finance/cash-forecast' },
+      { label: 'Close Management', path: '/finance/close-management' },
       { label: 'Reports', path: '/finance/reports' },
     ],
   },

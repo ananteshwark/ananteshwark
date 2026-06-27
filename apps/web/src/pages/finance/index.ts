@@ -26,3 +26,4 @@ export { default as LockboxPage } from './LockboxPage';
 export { default as TaxEnginePage } from './TaxEnginePage';
 export { default as EncumbrancePage } from './EncumbrancePage';
 export { default as CashForecastPage } from './CashForecastPage';
+export { default as CloseManagementPage } from './CloseManagementPage';

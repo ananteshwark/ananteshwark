@@ -100,6 +100,17 @@ export const financeApi = {
   postDepreciationRun: (id: string) => apiClient.post(`/finance/fixed-assets/depreciation-runs/${id}/post`),
   getRunLines: (id: string) => apiClient.get(`/finance/fixed-assets/depreciation-runs/${id}/lines`),
 
+  // Phase 131-133: Financial Close Management
+  listCloseTasks: (params?: { periodId?: string; status?: string }) => apiClient.get('/finance/close/tasks', { params }),
+  createCloseTask: (data: any) => apiClient.post('/finance/close/tasks', data),
+  transitionCloseTask: (id: string, action: string, data?: any) => apiClient.post(`/finance/close/tasks/${id}/${action}`, data ?? {}),
+  listReconciliations: (periodId?: string) => apiClient.get('/finance/close/reconciliations', { params: periodId ? { periodId } : {} }),
+  createReconciliation: (data: any) => apiClient.post('/finance/close/reconciliations', data),
+  addReconScheduleItem: (id: string, item: any) => apiClient.post(`/finance/close/reconciliations/${id}/schedule-items`, item),
+  refreshReconciliation: (id: string) => apiClient.post(`/finance/close/reconciliations/${id}/refresh`),
+  reconAction: (id: string, action: string, data?: any) => apiClient.post(`/finance/close/reconciliations/${id}/${action}`, data ?? {}),
+  closeDashboard: (periodId: string) => apiClient.get(`/finance/close/dashboard/${periodId}`),
+
   // Phase 125-127: Encumbrance Accounting
   listEncumbrances: (params?: { type?: string; status?: string; sourceId?: string }) => apiClient.get('/finance/encumbrance', { params }),
   encumbranceFundsCheck: (data: any) => apiClient.post('/finance/encumbrance/funds-check', data),

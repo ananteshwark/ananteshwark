@@ -23,6 +23,7 @@ import { LeaseModule } from './lease/lease.module';
 import { CollectionsModule } from './collections/collections.module';
 import { LockboxModule } from './lockbox/lockbox.module';
 import { EncumbranceModule } from './encumbrance/encumbrance.module';
+import { CloseManagementModule } from './close/close-management.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { EncumbranceModule } from './encumbrance/encumbrance.module';
     CollectionsModule,
     LockboxModule,
     EncumbranceModule,
+    CloseManagementModule,
   ],
   exports: [TaxModule, ControllingModule, GrirModule, AdvancesModule, BudgetModule, IntercompanyModule, ConsolidationModule, TreasuryModule],
 })

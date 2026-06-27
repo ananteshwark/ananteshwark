@@ -25,8 +25,11 @@
 | Ph-125–127 | Encumbrance accounting — commitment→obligation→expenditure ledger, blocking funds check, liquidation | ✅ Done | 14 |
 | Ph-128, 129 | Cash forecasting — multi-source forecast snapshots (AR/AP/payroll/maturities), forecast-vs-actual variance | ✅ Done | 9 |
 | Ph-130 | Zero-balance sweep / cash pooling | ⏩ Pre-existing (treasury sweep rules) | — |
+| Ph-131–133 | Financial close management (ARCS) — close tasks w/ certification, balance-sheet reconciliations (variance-gated sign-off), close calendar dashboard | ✅ Done | 13 |
 
-**Current total: 496 tests passing.** Remaining genuine gaps continue below.
+**Current total: 509 tests passing. ✅ TRACK A (Finance Depth) A1–A12 COMPLETE.**
+
+Remaining genuine gaps continue below (Tracks B–G).
 
 ---
 
