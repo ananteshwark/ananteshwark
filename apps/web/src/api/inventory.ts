@@ -115,4 +115,18 @@ export const inventoryApi = {
   releaseWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/release`),
   completeWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/complete`),
   cancelWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/cancel`),
+
+  // Phase 134-136: Multi-Org Inventory
+  listOrgs: () => apiClient.get('/inventory/orgs'),
+  getOrgHierarchy: () => apiClient.get('/inventory/orgs/hierarchy'),
+  createOrg: (data: any) => apiClient.post('/inventory/orgs', data),
+  updateOrg: (id: string, data: any) => apiClient.patch(`/inventory/orgs/${id}`, data),
+  listItemOrgAssignments: (params?: { itemId?: string; organizationId?: string }) => apiClient.get('/inventory/orgs/assignments', { params }),
+  assignItemToOrg: (data: any) => apiClient.post('/inventory/orgs/assignments', data),
+  updateItemOrgAssignment: (id: string, data: any) => apiClient.patch(`/inventory/orgs/assignments/${id}`, data),
+  listInterOrgTransfers: (status?: string) => apiClient.get('/inventory/orgs/transfers', { params: status ? { status } : {} }),
+  createInterOrgTransfer: (data: any) => apiClient.post('/inventory/orgs/transfers', data),
+  shipInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/ship`),
+  receiveInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/receive`),
+  cancelInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/cancel`),
 };

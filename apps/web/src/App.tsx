@@ -115,7 +115,7 @@ import {
   SuccessionPage,
 } from './pages/talent';
 import HiringPage from './pages/hiring/HiringPage';
-import { InventoryPage, StockValuationPage, SpecialProcurementPage, WmsPage } from './pages/inventory';
+import { InventoryPage, StockValuationPage, SpecialProcurementPage, WmsPage, MultiOrgPage } from './pages/inventory';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
@@ -277,6 +277,7 @@ export default function App() {
         <Route path="inventory/valuation" element={<StockValuationPage />} />
         <Route path="inventory/special-procurement" element={<SpecialProcurementPage />} />
         <Route path="inventory/wms" element={<WmsPage />} />
+        <Route path="inventory/multi-org" element={<MultiOrgPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="crm" element={<CrmPage />} />

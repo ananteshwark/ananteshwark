@@ -156,6 +156,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Overview', path: '/inventory' },
       { label: 'Stock Valuation', path: '/inventory/valuation' },
+      { label: 'Multi-Org', path: '/inventory/multi-org' },
     ],
   },
   { label: 'Projects', icon: <FolderOpen className="h-4 w-4" />, path: '/projects', module: 'projects' },

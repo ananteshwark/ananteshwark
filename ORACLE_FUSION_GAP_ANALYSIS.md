@@ -29,6 +29,13 @@
 
 **Current total: 509 tests passing. ✅ TRACK A (Finance Depth) A1–A12 COMPLETE.**
 
+### Track B — Supply Chain
+| Phase | Feature | Status | Tests |
+|-------|---------|--------|-------|
+| Ph-134–136 | Multi-org inventory — inventory orgs + hierarchy, item-org assignments, inter-org transfers with pricing | ✅ Done | 14 |
+
+**Running total: 523 tests passing.**
+
 Remaining genuine gaps continue below (Tracks B–G).
 
 ---

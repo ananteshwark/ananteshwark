@@ -9,6 +9,8 @@ export class Warehouse {
   @Column({ length: 200 }) name: string;
   @Column({ type: 'text', nullable: true }) address: string | null;
   @Column({ name: 'manager_id', type: 'varchar', nullable: true }) managerId: string | null;
+  // Ph-134: optional link to an inventory organization (additive; null = unassigned)
+  @Column({ name: 'organization_id', type: 'uuid', nullable: true }) organizationId: string | null;
   @Column({ name: 'is_active', default: true }) isActive: boolean;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
