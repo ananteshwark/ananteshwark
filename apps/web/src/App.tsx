@@ -116,6 +116,7 @@ import {
 } from './pages/talent';
 import HiringPage from './pages/hiring/HiringPage';
 import { InventoryPage, StockValuationPage, SpecialProcurementPage, WmsPage, MultiOrgPage, CostingPage, GenealogyPage } from './pages/inventory';
+import TransportationPage from './pages/logistics/TransportationPage';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
@@ -280,6 +281,7 @@ export default function App() {
         <Route path="inventory/multi-org" element={<MultiOrgPage />} />
         <Route path="inventory/costing" element={<CostingPage />} />
         <Route path="inventory/genealogy" element={<GenealogyPage />} />
+        <Route path="logistics/transportation" element={<TransportationPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="crm" element={<CrmPage />} />

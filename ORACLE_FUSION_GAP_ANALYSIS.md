@@ -39,8 +39,9 @@
 | Ph-147, 148 | Pick-pack-ship + shipment tracking | ⏩ Pre-existing (DeliveryOrder workflow, carrier/tracking/POD) | — |
 | Ph-150 | Global Order Promising — date-based ATP/CTP with scheduled PO receipts, ranked multi-source sourcing rules | ✅ Done | 8 |
 | Ph-149 | Configure-to-Order (CTO) | ⏳ Deferred (needs variant BOM explosion — Ph-102 territory) | — |
+| Ph-151–154 | Transportation — carrier master, freight rate engine + rate shopping, shipment planning w/ utilization, freight audit | ✅ Done | 12 |
 
-**Running total: 562 tests passing.**
+**Running total: 574 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

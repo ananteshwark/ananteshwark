@@ -28,6 +28,7 @@ import { CrmModule } from './modules/crm/crm.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { FulfillmentOrchestrationModule } from './modules/sales/fulfillment/fulfillment-orchestration.module';
 import { PromisingModule } from './modules/sales/promising/promising.module';
+import { LogisticsModule } from './modules/logistics/logistics.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { ManufacturingModule } from './modules/manufacturing/manufacturing.module';
 import { QualityModule } from './modules/quality/quality.module';
@@ -91,6 +92,7 @@ import { getDatabaseConfig } from './config/database.config';
     SalesModule,
     FulfillmentOrchestrationModule,
     PromisingModule,
+    LogisticsModule,
     ContractsModule,
     ManufacturingModule,
     QualityModule,
