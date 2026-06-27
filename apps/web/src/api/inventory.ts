@@ -139,4 +139,12 @@ export const inventoryApi = {
   runCostUpdate: (data: any) => apiClient.post('/inventory/costing/cost-updates', data),
   listCostVariances: (params?: { varianceType?: string; itemId?: string }) => apiClient.get('/inventory/costing/variances', { params }),
   costVarianceDashboard: (params?: { from?: string; to?: string }) => apiClient.get('/inventory/costing/variance-dashboard', { params }),
+
+  // Phase 141-144: Lot Genealogy
+  listGenealogyEdges: (params?: { parentLotId?: string; childLotId?: string }) => apiClient.get('/inventory/genealogy/edges', { params }),
+  recordGenealogyEdge: (data: any) => apiClient.post('/inventory/genealogy/edges', data),
+  recordProductionGenealogy: (data: any) => apiClient.post('/inventory/genealogy/production', data),
+  backwardTrace: (lotId: string) => apiClient.get(`/inventory/genealogy/backward/${lotId}`),
+  forwardTrace: (lotId: string) => apiClient.get(`/inventory/genealogy/forward/${lotId}`),
+  recallImpact: (lotId: string) => apiClient.get(`/inventory/genealogy/recall/${lotId}`),
 };

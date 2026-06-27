@@ -34,8 +34,9 @@
 |-------|---------|--------|-------|
 | Ph-134–136 | Multi-org inventory — inventory orgs + hierarchy, item-org assignments, inter-org transfers with pricing | ✅ Done | 14 |
 | Ph-137–140 | Cost accounting — weighted-average cost roll, standard cost + PPV, period-end cost-update revaluation (JE), variance dashboard | ✅ Done | 11 |
+| Ph-141–144 | Lot genealogy — parent-child capture, forward/backward trace, recall impact analysis | ✅ Done | 9 |
 
-**Running total: 534 tests passing.**
+**Running total: 543 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

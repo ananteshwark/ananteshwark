@@ -4,3 +4,4 @@ export { default as SpecialProcurementPage } from './SpecialProcurementPage';
 export { default as WmsPage } from './WmsPage';
 export { default as MultiOrgPage } from './MultiOrgPage';
 export { default as CostingPage } from './CostingPage';
+export { default as GenealogyPage } from './GenealogyPage';

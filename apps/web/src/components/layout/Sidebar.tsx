@@ -158,6 +158,7 @@ const navItems: NavItem[] = [
       { label: 'Stock Valuation', path: '/inventory/valuation' },
       { label: 'Multi-Org', path: '/inventory/multi-org' },
       { label: 'Cost Accounting', path: '/inventory/costing' },
+      { label: 'Lot Genealogy', path: '/inventory/genealogy' },
     ],
   },
   { label: 'Projects', icon: <FolderOpen className="h-4 w-4" />, path: '/projects', module: 'projects' },

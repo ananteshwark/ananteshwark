@@ -21,6 +21,7 @@ import { ProcurementModule } from './modules/procurement/procurement.module';
 import { TalentModule } from './modules/talent/talent.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { CostingModule } from './modules/inventory/costing/costing.module';
+import { GenealogyModule } from './modules/inventory/genealogy/genealogy.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { CrmModule } from './modules/crm/crm.module';
@@ -81,6 +82,7 @@ import { getDatabaseConfig } from './config/database.config';
     TalentModule,
     InventoryModule,
     CostingModule,
+    GenealogyModule,
     ProjectsModule,
     ExpensesModule,
     CrmModule,
