@@ -35,8 +35,10 @@
 | Ph-134–136 | Multi-org inventory — inventory orgs + hierarchy, item-org assignments, inter-org transfers with pricing | ✅ Done | 14 |
 | Ph-137–140 | Cost accounting — weighted-average cost roll, standard cost + PPV, period-end cost-update revaluation (JE), variance dashboard | ✅ Done | 11 |
 | Ph-141–144 | Lot genealogy — parent-child capture, forward/backward trace, recall impact analysis | ✅ Done | 9 |
+| Ph-145, 146 | Order fulfillment — drop-ship + back-to-back supply linkage (drop-ship receipt relieves SO line) | ✅ Done | 11 |
+| Ph-147, 148 | Pick-pack-ship + shipment tracking | ⏩ Pre-existing (DeliveryOrder workflow, carrier/tracking/POD) | — |
 
-**Running total: 543 tests passing.**
+**Running total: 554 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

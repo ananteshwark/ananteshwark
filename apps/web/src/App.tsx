@@ -119,7 +119,7 @@ import { InventoryPage, StockValuationPage, SpecialProcurementPage, WmsPage, Mul
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
-import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage, ReturnsPage, DeliveriesPage, BillingPlansPage } from './pages/sales';
+import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage, ReturnsPage, DeliveriesPage, BillingPlansPage, FulfillmentPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
 import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage, FcsPage, CrpPage } from './pages/manufacturing';
@@ -290,6 +290,7 @@ export default function App() {
         <Route path="sales/pricing" element={<PricingConditionsPage />} />
         <Route path="sales/credit" element={<CreditManagementPage />} />
         <Route path="sales/atp" element={<ATPDashboardPage />} />
+        <Route path="sales/fulfillment" element={<FulfillmentPage />} />
         <Route path="sales/returns" element={<ReturnsPage />} />
         <Route path="sales/deliveries" element={<DeliveriesPage />} />
         <Route path="sales/billing-plans" element={<BillingPlansPage />} />

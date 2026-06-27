@@ -26,6 +26,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { FulfillmentOrchestrationModule } from './modules/sales/fulfillment/fulfillment-orchestration.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { ManufacturingModule } from './modules/manufacturing/manufacturing.module';
 import { QualityModule } from './modules/quality/quality.module';
@@ -87,6 +88,7 @@ import { getDatabaseConfig } from './config/database.config';
     ExpensesModule,
     CrmModule,
     SalesModule,
+    FulfillmentOrchestrationModule,
     ContractsModule,
     ManufacturingModule,
     QualityModule,

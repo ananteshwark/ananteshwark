@@ -38,4 +38,12 @@ export const salesApi = {
   accrueRebate: (orderId: string) => apiClient.post(`/sales/rebates/accrual/${orderId}/accrue`),
   simulateRebate: (id: string, orderValue: number) => apiClient.post(`/sales/rebates/${id}/simulate`, { orderValue }),
   settleRebate: (id: string) => apiClient.post(`/sales/rebates/${id}/settle`),
+
+  // Phase 145-146: Drop-ship / Back-to-back orchestration
+  listSupplyLinks: (params?: { salesOrderId?: string; status?: string; supplyType?: string }) => apiClient.get('/sales/fulfillment/supply-links', { params }),
+  supplyDashboard: () => apiClient.get('/sales/fulfillment/dashboard'),
+  createSupplyLink: (data: any) => apiClient.post('/sales/fulfillment/supply-links', data),
+  markSupplyOrdered: (id: string, data: any) => apiClient.post(`/sales/fulfillment/supply-links/${id}/order`, data),
+  receiveSupply: (id: string, receiptQty: number) => apiClient.post(`/sales/fulfillment/supply-links/${id}/receive`, { receiptQty }),
+  cancelSupplyLink: (id: string) => apiClient.post(`/sales/fulfillment/supply-links/${id}/cancel`),
 };

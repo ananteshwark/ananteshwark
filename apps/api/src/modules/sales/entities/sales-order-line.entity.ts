@@ -26,5 +26,7 @@ export class SalesOrderLine {
   @Column({ type: 'enum', enum: LineStatus, default: LineStatus.PENDING }) status: LineStatus;
   @Column({ name: 'inventory_item_id', type: 'uuid', nullable: true }) inventoryItemId: string | null;
   @Column({ name: 'uom', length: 20, nullable: true }) uom: string | null;
+  // Ph-145/146: fulfillment source (additive; null = stock fulfillment)
+  @Column({ name: 'fulfillment_type', length: 20, nullable: true }) fulfillmentType: string | null;
   @CreateDateColumn() createdAt: Date;
 }
