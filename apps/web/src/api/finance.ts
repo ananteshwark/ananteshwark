@@ -203,6 +203,12 @@ export const financeApi = {
   executeSweep: (id: string) => apiClient.post(`/finance/treasury/sweep-rules/${id}/execute`),
   getSweepLogs: (params?: any) => apiClient.get('/finance/treasury/sweep-logs', { params }),
 
+  // Phase 128-129: Cash Forecasting
+  listCashForecasts: () => apiClient.get('/finance/treasury/cash-forecasts'),
+  generateCashForecast: (data: any) => apiClient.post('/finance/treasury/cash-forecasts', data),
+  getCashForecast: (id: string) => apiClient.get(`/finance/treasury/cash-forecasts/${id}`),
+  getCashForecastVariance: (id: string) => apiClient.get(`/finance/treasury/cash-forecasts/${id}/variance`),
+
   // Phase 79: Activity Types + Overhead Costing
   getActivityTypes: () => apiClient.get('/finance/controlling/activity-types'),
   createActivityType: (data: any) => apiClient.post('/finance/controlling/activity-types', data),

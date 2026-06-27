@@ -25,3 +25,4 @@ export { default as CollectionsPage } from './CollectionsPage';
 export { default as LockboxPage } from './LockboxPage';
 export { default as TaxEnginePage } from './TaxEnginePage';
 export { default as EncumbrancePage } from './EncumbrancePage';
+export { default as CashForecastPage } from './CashForecastPage';

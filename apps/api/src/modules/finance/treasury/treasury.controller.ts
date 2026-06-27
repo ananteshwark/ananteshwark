@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { TreasuryService } from './treasury.service';
+import { CashForecastService } from './cash-forecast.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
@@ -13,7 +14,10 @@ import { InstrumentStatus } from './entities/financial-instrument.entity';
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('finance/treasury')
 export class TreasuryController {
-  constructor(private readonly treasuryService: TreasuryService) {}
+  constructor(
+    private readonly treasuryService: TreasuryService,
+    private readonly cashForecastService: CashForecastService,
+  ) {}
 
   // ─── Cash Position ────────────────────────────────────────────────
   @Get('cash-positions')
@@ -153,5 +157,34 @@ export class TreasuryController {
   @RequirePermission('finance.treasury.read')
   getSweepLogs(@CurrentUser() user: any, @Query('ruleId') ruleId?: string) {
     return this.treasuryService.getSweepLogs(user.tenantId, ruleId);
+  }
+
+  // ─── Ph-128/129: Cash Forecasting ─────────────────────────────────
+  @Get('cash-forecasts')
+  @RequirePermission('finance.treasury.read')
+  @ApiOperation({ summary: 'List persisted cash forecasts' })
+  listForecasts(@CurrentUser() user: any) {
+    return this.cashForecastService.listForecasts(user.tenantId);
+  }
+
+  @Post('cash-forecasts')
+  @RequirePermission('finance.treasury.manage')
+  @ApiOperation({ summary: 'Generate a cash forecast (AR/AP/payroll/instrument maturities)' })
+  generateForecast(@CurrentUser() user: any, @Body() body: any) {
+    return this.cashForecastService.generateForecast(user.tenantId, body);
+  }
+
+  @Get('cash-forecasts/:id')
+  @RequirePermission('finance.treasury.read')
+  @ApiOperation({ summary: 'Get a forecast with lines and running balance' })
+  getForecast(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.cashForecastService.getForecast(user.tenantId, id);
+  }
+
+  @Get('cash-forecasts/:id/variance')
+  @RequirePermission('finance.treasury.read')
+  @ApiOperation({ summary: 'Forecast vs actual cash variance analysis' })
+  variance(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.cashForecastService.varianceReport(user.tenantId, id);
   }
 }
