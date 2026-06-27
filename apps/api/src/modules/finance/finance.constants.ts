@@ -38,6 +38,9 @@ export const DEFAULT_ACCOUNT_CODES = {
   LEASE_LIABILITY: '2300', // lease liability
   LEASE_AMORT_EXPENSE: '6100', // ROU amortisation expense
   INTEREST_EXPENSE: '7200', // interest on lease liability (unwinding of discount)
+  // Inventory costing (Phase 137-140)
+  INVENTORY_REVALUATION: '5100', // standard-cost update revaluation gain/loss
+  PURCHASE_PRICE_VARIANCE: '5110', // PPV: PO price vs standard at receipt
   // Fixed assets lifecycle (Phase 116-120)
   CIP_ASSET: '1550', // construction-in-progress (asset clearing)
   IMPAIRMENT_LOSS: '6200', // impairment loss expense (IAS 36)

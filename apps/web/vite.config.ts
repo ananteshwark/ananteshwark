@@ -31,6 +31,8 @@ export default defineConfig({
       workbox: {
         // Cache app shell and API responses
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        // Bundle grew past the 2 MiB default as ERP modules expanded
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
             // Cache recent dashboard data for offline viewing

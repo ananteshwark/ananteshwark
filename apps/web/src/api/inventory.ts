@@ -129,4 +129,14 @@ export const inventoryApi = {
   shipInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/ship`),
   receiveInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/receive`),
   cancelInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/cancel`),
+
+  // Phase 137-140: Cost Accounting
+  wacPreview: (data: any) => apiClient.post('/inventory/costing/wac-preview', data),
+  listStandardCosts: (itemId?: string) => apiClient.get('/inventory/costing/standard-costs', { params: itemId ? { itemId } : {} }),
+  setStandardCost: (data: any) => apiClient.post('/inventory/costing/standard-costs', data),
+  recordPpv: (data: any) => apiClient.post('/inventory/costing/ppv', data),
+  listCostUpdates: (itemId?: string) => apiClient.get('/inventory/costing/cost-updates', { params: itemId ? { itemId } : {} }),
+  runCostUpdate: (data: any) => apiClient.post('/inventory/costing/cost-updates', data),
+  listCostVariances: (params?: { varianceType?: string; itemId?: string }) => apiClient.get('/inventory/costing/variances', { params }),
+  costVarianceDashboard: (params?: { from?: string; to?: string }) => apiClient.get('/inventory/costing/variance-dashboard', { params }),
 };

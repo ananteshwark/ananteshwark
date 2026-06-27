@@ -33,8 +33,9 @@
 | Phase | Feature | Status | Tests |
 |-------|---------|--------|-------|
 | Ph-134–136 | Multi-org inventory — inventory orgs + hierarchy, item-org assignments, inter-org transfers with pricing | ✅ Done | 14 |
+| Ph-137–140 | Cost accounting — weighted-average cost roll, standard cost + PPV, period-end cost-update revaluation (JE), variance dashboard | ✅ Done | 11 |
 
-**Running total: 523 tests passing.**
+**Running total: 534 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
