@@ -40,8 +40,10 @@
 | Ph-150 | Global Order Promising — date-based ATP/CTP with scheduled PO receipts, ranked multi-source sourcing rules | ✅ Done | 8 |
 | Ph-149 | Configure-to-Order (CTO) | ⏳ Deferred (needs variant BOM explosion — Ph-102 territory) | — |
 | Ph-151–154 | Transportation — carrier master, freight rate engine + rate shopping, shipment planning w/ utilization, freight audit | ✅ Done | 12 |
+| Ph-155, 156, 158 | Quality at operations — operation quality plans, in-process collection w/ move gate, first-pass yield | ✅ Done | 11 |
+| Ph-157 | Non-conformance (NCR) | ⏩ Pre-existing (quality non-conformance entity) | — |
 
-**Running total: 574 tests passing.**
+**Running total: 585 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
