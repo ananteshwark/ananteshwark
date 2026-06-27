@@ -46,4 +46,11 @@ export const salesApi = {
   markSupplyOrdered: (id: string, data: any) => apiClient.post(`/sales/fulfillment/supply-links/${id}/order`, data),
   receiveSupply: (id: string, receiptQty: number) => apiClient.post(`/sales/fulfillment/supply-links/${id}/receive`, { receiptQty }),
   cancelSupplyLink: (id: string) => apiClient.post(`/sales/fulfillment/supply-links/${id}/cancel`),
+
+  // Phase 150: Global Order Promising
+  listSourcingRules: (itemId?: string) => apiClient.get('/sales/promising/sourcing-rules', { params: itemId ? { itemId } : {} }),
+  createSourcingRule: (data: any) => apiClient.post('/sales/promising/sourcing-rules', data),
+  deleteSourcingRule: (id: string) => apiClient.delete(`/sales/promising/sourcing-rules/${id}`),
+  orderPromise: (data: any) => apiClient.post('/sales/promising/promise', data),
+  sourcingPlan: (data: { itemId: string; quantity: number }) => apiClient.post('/sales/promising/sourcing-plan', data),
 };

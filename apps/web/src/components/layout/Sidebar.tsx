@@ -186,6 +186,7 @@ const navItems: NavItem[] = [
       { label: 'Returns & Credit Notes', path: '/sales/returns' },
       { label: 'Deliveries', path: '/sales/deliveries' },
       { label: 'Fulfillment', path: '/sales/fulfillment' },
+      { label: 'Order Promising', path: '/sales/promising' },
     ],
   },
   { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts', module: 'contracts' },

@@ -6,3 +6,4 @@ export { default as ReturnsPage } from './ReturnsPage';
 export { default as DeliveriesPage } from './DeliveriesPage';
 export { default as BillingPlansPage } from './BillingPlansPage';
 export { default as FulfillmentPage } from './FulfillmentPage';
+export { default as PromisingPage } from './PromisingPage';

@@ -37,8 +37,10 @@
 | Ph-141–144 | Lot genealogy — parent-child capture, forward/backward trace, recall impact analysis | ✅ Done | 9 |
 | Ph-145, 146 | Order fulfillment — drop-ship + back-to-back supply linkage (drop-ship receipt relieves SO line) | ✅ Done | 11 |
 | Ph-147, 148 | Pick-pack-ship + shipment tracking | ⏩ Pre-existing (DeliveryOrder workflow, carrier/tracking/POD) | — |
+| Ph-150 | Global Order Promising — date-based ATP/CTP with scheduled PO receipts, ranked multi-source sourcing rules | ✅ Done | 8 |
+| Ph-149 | Configure-to-Order (CTO) | ⏳ Deferred (needs variant BOM explosion — Ph-102 territory) | — |
 
-**Running total: 554 tests passing.**
+**Running total: 562 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
