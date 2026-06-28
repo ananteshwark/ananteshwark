@@ -64,6 +64,7 @@ const navItems: NavItem[] = [
       { label: 'Exit Management', path: '/hr/exits' },
       { label: 'Dependents & Nominees', path: '/hr/dependents' },
       { label: 'Skills & Intelligence', path: '/hr/skills' },
+      { label: 'Headcount Budgeting', path: '/hr/headcount' },
     ],
   },
   {
