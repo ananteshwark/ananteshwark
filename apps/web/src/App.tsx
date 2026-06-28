@@ -133,6 +133,7 @@ import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/
 import { MaintenancePage, FunctionalLocationsPage, CounterReadingsPage } from './pages/maintenance';
 import CmmsPage from './pages/maintenance/CmmsPage';
 import { BenefitsPage } from './pages/benefits';
+import BenefitsEnrollmentPage from './pages/benefits/BenefitsEnrollmentPage';
 import { AnalyticsPage, CrossAnalyticsPage } from './pages/analytics';
 import { PlatformPage } from './pages/platform';
 import { LicensingPage } from './pages/licensing';
@@ -322,6 +323,7 @@ export default function App() {
         <Route path="maintenance/counter-readings" element={<CounterReadingsPage />} />
         <Route path="maintenance/cmms" element={<CmmsPage />} />
         <Route path="benefits" element={<BenefitsPage />} />
+        <Route path="benefits/enrollment" element={<BenefitsEnrollmentPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="analytics/cross" element={<CrossAnalyticsPage />} />
         <Route path="platform" element={<PlatformPage />} />

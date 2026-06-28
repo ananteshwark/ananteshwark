@@ -229,7 +229,13 @@ const navItems: NavItem[] = [
       { label: 'CMMS (Parts/Warranty)', path: '/maintenance/cmms' },
     ],
   },
-  { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits', module: 'benefits' },
+  {
+    label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, module: 'benefits',
+    children: [
+      { label: 'Overview', path: '/benefits' },
+      { label: 'Enrollment & Life Events', path: '/benefits/enrollment' },
+    ],
+  },
   {
     label: 'Analytics',
     icon: <BarChart2 className="h-4 w-4" />,

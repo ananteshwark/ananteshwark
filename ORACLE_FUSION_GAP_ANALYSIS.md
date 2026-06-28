@@ -55,8 +55,10 @@
 | Ph-169 | India payroll localization (TDS/PF/ESI/PT/Form 16) | ⏩ Pre-existing (statutory module: tax-slab, statutory-config, form16) | — |
 | Ph-172 | Retroactive pay | ⏩ Pre-existing (payroll retro module: detectArrears/applyArrearsToRun) | — |
 | Ph-174–176 | Payroll costing — costing rules (%/absolute split), cost distribution per element×cost-center, labor distribution report | ✅ Done | 9 |
+| Ph-178–180 | Benefits enrollment — open enrollment windows, life-event processing (30-day election), eligibility, deduction calculator | ✅ Done | 13 |
+| Ph-177 | Benefit programs & plans | ⏩ Pre-existing (benefits module: plans, enrollments) | — |
 
-**Running total: 625 tests passing.**
+**Running total: 638 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
