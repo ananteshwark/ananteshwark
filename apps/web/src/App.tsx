@@ -75,6 +75,7 @@ import {
   TimeEvaluationPage,
   ExitManagementPage,
   DependentsNomineesPage,
+  SkillsPage,
 } from './pages/hr';
 import {
   PayComponentsPage,
@@ -214,6 +215,7 @@ export default function App() {
         <Route path="hr/leave" element={<LeavePage />} />
         <Route path="hr/leave/approvals" element={<LeaveApprovalsPage />} />
         <Route path="hr/exits" element={<ExitManagementPage />} />
+        <Route path="hr/skills" element={<SkillsPage />} />
         <Route path="hr/dependents" element={<DependentsNomineesPage />} />
         <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
         <Route path="finance/journals" element={<JournalEntriesPage />} />

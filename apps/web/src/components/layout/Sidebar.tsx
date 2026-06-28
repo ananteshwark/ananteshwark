@@ -63,6 +63,7 @@ const navItems: NavItem[] = [
       { label: 'Leave Approvals', path: '/hr/leave/approvals' },
       { label: 'Exit Management', path: '/hr/exits' },
       { label: 'Dependents & Nominees', path: '/hr/dependents' },
+      { label: 'Skills & Intelligence', path: '/hr/skills' },
     ],
   },
   {
