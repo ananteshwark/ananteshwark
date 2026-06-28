@@ -30,6 +30,7 @@ import { FulfillmentOrchestrationModule } from './modules/sales/fulfillment/fulf
 import { PromisingModule } from './modules/sales/promising/promising.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 import { OpQualityModule } from './modules/manufacturing/op-quality/op-quality.module';
+import { OpmModule } from './modules/manufacturing/opm/opm.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { ManufacturingModule } from './modules/manufacturing/manufacturing.module';
 import { QualityModule } from './modules/quality/quality.module';
@@ -95,6 +96,7 @@ import { getDatabaseConfig } from './config/database.config';
     PromisingModule,
     LogisticsModule,
     OpQualityModule,
+    OpmModule,
     ContractsModule,
     ManufacturingModule,
     QualityModule,

@@ -202,6 +202,7 @@ const navItems: NavItem[] = [
       { label: 'MRP', path: '/manufacturing/mrp' },
       { label: 'Capacity Planning', path: '/manufacturing/crp' },
       { label: 'Quality at Operations', path: '/manufacturing/op-quality' },
+      { label: 'Process Manufacturing', path: '/manufacturing/process' },
       { label: 'Costing', path: '/manufacturing/costing' },
     ],
   },

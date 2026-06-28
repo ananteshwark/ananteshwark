@@ -125,6 +125,7 @@ import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage } from './pages/contracts';
 import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage, FcsPage, CrpPage } from './pages/manufacturing';
 import OpQualityPage from './pages/manufacturing/OpQualityPage';
+import ProcessMfgPage from './pages/manufacturing/ProcessMfgPage';
 import DemandPlanningPage from './pages/planning/DemandPlanningPage';
 import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/quality';
 import { MaintenancePage, FunctionalLocationsPage, CounterReadingsPage } from './pages/maintenance';
@@ -307,6 +308,7 @@ export default function App() {
         <Route path="manufacturing/fcs" element={<FcsPage />} />
         <Route path="manufacturing/crp" element={<CrpPage />} />
         <Route path="manufacturing/op-quality" element={<OpQualityPage />} />
+        <Route path="manufacturing/process" element={<ProcessMfgPage />} />
         <Route path="quality" element={<QualityPage />} />
         <Route path="quality/characteristics" element={<CharacteristicsPage />} />
         <Route path="quality/results" element={<ResultsRecordingPage />} />

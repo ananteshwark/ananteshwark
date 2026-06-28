@@ -42,8 +42,9 @@
 | Ph-151–154 | Transportation — carrier master, freight rate engine + rate shopping, shipment planning w/ utilization, freight audit | ✅ Done | 12 |
 | Ph-155, 156, 158 | Quality at operations — operation quality plans, in-process collection w/ move gate, first-pass yield | ✅ Done | 11 |
 | Ph-157 | Non-conformance (NCR) | ⏩ Pre-existing (quality non-conformance entity) | — |
+| Ph-159–162 | Process manufacturing (OPM) — formula/recipe, quantity-scaled batches (yield/scrap, co/by-products), lab-release gate | ✅ Done | 12 |
 
-**Running total: 585 tests passing.**
+**Running total: 597 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
