@@ -54,8 +54,9 @@
 | Ph-168 | Legislative Data Groups — per-country payroll framework (currency, rounding, SI rates, regime flags), IN/UK/US seed | ✅ Done | 9 |
 | Ph-169 | India payroll localization (TDS/PF/ESI/PT/Form 16) | ⏩ Pre-existing (statutory module: tax-slab, statutory-config, form16) | — |
 | Ph-172 | Retroactive pay | ⏩ Pre-existing (payroll retro module: detectArrears/applyArrearsToRun) | — |
+| Ph-174–176 | Payroll costing — costing rules (%/absolute split), cost distribution per element×cost-center, labor distribution report | ✅ Done | 9 |
 
-**Running total: 616 tests passing.**
+**Running total: 625 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
