@@ -40,6 +40,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { CmmsModule } from './modules/maintenance/cmms/cmms.module';
 import { BenefitsModule } from './modules/benefits/benefits.module';
 import { BenefitsEnrollmentModule } from './modules/benefits/enrollment/benefits-enrollment.module';
+import { CompWorkbenchModule } from './modules/benefits/comp-workbench/comp-workbench.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -110,6 +111,7 @@ import { getDatabaseConfig } from './config/database.config';
     CmmsModule,
     BenefitsModule,
     BenefitsEnrollmentModule,
+    CompWorkbenchModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,

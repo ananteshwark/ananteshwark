@@ -57,8 +57,10 @@
 | Ph-174–176 | Payroll costing — costing rules (%/absolute split), cost distribution per element×cost-center, labor distribution report | ✅ Done | 9 |
 | Ph-178–180 | Benefits enrollment — open enrollment windows, life-event processing (30-day election), eligibility, deduction calculator | ✅ Done | 13 |
 | Ph-177 | Benefit programs & plans | ⏩ Pre-existing (benefits module: plans, enrollments) | — |
+| Ph-182–186 | Compensation Workbench — budget envelopes per org unit/award type, budget-gated award worksheet, manager→HR→finance approval routing, salary-change execution, total compensation statement | ✅ Done | 14 |
+| Ph-181 | Merit cycles & allocations | ⏩ Pre-existing (benefits module: merit-cycle, merit-allocation) | — |
 
-**Running total: 638 tests passing.**
+**Running total: 652 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

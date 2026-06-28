@@ -234,6 +234,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Overview', path: '/benefits' },
       { label: 'Enrollment & Life Events', path: '/benefits/enrollment' },
+      { label: 'Compensation Workbench', path: '/benefits/comp-workbench' },
     ],
   },
   {
