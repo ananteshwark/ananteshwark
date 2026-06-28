@@ -224,6 +224,7 @@ const navItems: NavItem[] = [
       { label: 'Overview', path: '/maintenance', end: true },
       { label: 'Functional Locations', path: '/maintenance/functional-locations' },
       { label: 'Counter Readings', path: '/maintenance/counter-readings' },
+      { label: 'CMMS (Parts/Warranty)', path: '/maintenance/cmms' },
     ],
   },
   { label: 'Benefits', icon: <HeartHandshake className="h-4 w-4" />, path: '/benefits', module: 'benefits' },

@@ -129,6 +129,7 @@ import ProcessMfgPage from './pages/manufacturing/ProcessMfgPage';
 import DemandPlanningPage from './pages/planning/DemandPlanningPage';
 import { QualityPage, CharacteristicsPage, ResultsRecordingPage } from './pages/quality';
 import { MaintenancePage, FunctionalLocationsPage, CounterReadingsPage } from './pages/maintenance';
+import CmmsPage from './pages/maintenance/CmmsPage';
 import { BenefitsPage } from './pages/benefits';
 import { AnalyticsPage, CrossAnalyticsPage } from './pages/analytics';
 import { PlatformPage } from './pages/platform';
@@ -315,6 +316,7 @@ export default function App() {
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/functional-locations" element={<FunctionalLocationsPage />} />
         <Route path="maintenance/counter-readings" element={<CounterReadingsPage />} />
+        <Route path="maintenance/cmms" element={<CmmsPage />} />
         <Route path="benefits" element={<BenefitsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="analytics/cross" element={<CrossAnalyticsPage />} />

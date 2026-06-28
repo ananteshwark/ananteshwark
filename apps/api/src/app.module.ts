@@ -35,6 +35,7 @@ import { ContractsModule } from './modules/contracts/contracts.module';
 import { ManufacturingModule } from './modules/manufacturing/manufacturing.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { CmmsModule } from './modules/maintenance/cmms/cmms.module';
 import { BenefitsModule } from './modules/benefits/benefits.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
@@ -101,6 +102,7 @@ import { getDatabaseConfig } from './config/database.config';
     ManufacturingModule,
     QualityModule,
     MaintenanceModule,
+    CmmsModule,
     BenefitsModule,
     AnalyticsModule,
     PlatformModule,

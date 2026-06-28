@@ -43,8 +43,10 @@
 | Ph-155, 156, 158 | Quality at operations — operation quality plans, in-process collection w/ move gate, first-pass yield | ✅ Done | 11 |
 | Ph-157 | Non-conformance (NCR) | ⏩ Pre-existing (quality non-conformance entity) | — |
 | Ph-159–162 | Process manufacturing (OPM) — formula/recipe, quantity-scaled batches (yield/scrap, co/by-products), lab-release gate | ✅ Done | 12 |
+| Ph-164, 165, 166 | CMMS — WO parts reservation/issue, asset warranty + claims, service history w/ cost rollup | ✅ Done | 10 |
+| Ph-163, 167 | PM schedules (calendar/meter) + condition monitoring | ⏩ Pre-existing (maintenance plan trigger TIME/COUNTER + counter readings) | — |
 
-**Running total: 597 tests passing.**
+**Running total: 607 tests passing. ✅ TRACK B (Supply Chain) B1–B8 substantially complete.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
