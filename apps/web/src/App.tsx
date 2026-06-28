@@ -89,6 +89,7 @@ import {
   BankFilesPage,
   StatutoryFormsPage,
 } from './pages/payroll';
+import LdgPage from './pages/payroll/LdgPage';
 import {
   RequisitionsPage,
   RFQPage,
@@ -257,6 +258,7 @@ export default function App() {
         <Route path="payroll/statutory-forms" element={<StatutoryFormsPage />} />
         <Route path="payroll/gl-mappings" element={<PayrollGlMappingsPage />} />
         <Route path="payroll/retro" element={<RetroPayrollPage />} />
+        <Route path="payroll/ldg" element={<LdgPage />} />
         <Route path="procurement/requisitions" element={<RequisitionsPage />} />
         <Route path="procurement/rfq" element={<RFQPage />} />
         <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />

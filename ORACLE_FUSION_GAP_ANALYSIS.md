@@ -48,6 +48,15 @@
 
 **Running total: 607 tests passing. ✅ TRACK B (Supply Chain) B1–B8 substantially complete.**
 
+### Track C — HCM Depth
+| Phase | Feature | Status | Tests |
+|-------|---------|--------|-------|
+| Ph-168 | Legislative Data Groups — per-country payroll framework (currency, rounding, SI rates, regime flags), IN/UK/US seed | ✅ Done | 9 |
+| Ph-169 | India payroll localization (TDS/PF/ESI/PT/Form 16) | ⏩ Pre-existing (statutory module: tax-slab, statutory-config, form16) | — |
+| Ph-172 | Retroactive pay | ⏩ Pre-existing (payroll retro module: detectArrears/applyArrearsToRun) | — |
+
+**Running total: 616 tests passing.**
+
 Remaining genuine gaps continue below (Tracks B–G).
 
 ---

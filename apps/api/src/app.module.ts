@@ -17,6 +17,7 @@ import { HealthModule } from './modules/health/health.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HrModule } from './modules/hr/hr.module';
 import { PayrollModule } from './modules/payroll/payroll.module';
+import { LdgModule } from './modules/payroll/ldg/ldg.module';
 import { ProcurementModule } from './modules/procurement/procurement.module';
 import { TalentModule } from './modules/talent/talent.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
@@ -84,6 +85,7 @@ import { getDatabaseConfig } from './config/database.config';
     FinanceModule,
     HrModule,
     PayrollModule,
+    LdgModule,
     ProcurementModule,
     TalentModule,
     InventoryModule,

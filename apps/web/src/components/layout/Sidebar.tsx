@@ -111,6 +111,7 @@ const navItems: NavItem[] = [
       { label: 'Payroll Runs', path: '/payroll/runs' },
       { label: 'Payslips', path: '/payroll/payslips' },
       { label: 'Retro Payroll', path: '/payroll/retro' },
+      { label: 'Legislative Data Groups', path: '/payroll/ldg' },
       { label: 'Statutory Forms', path: '/payroll/statutory-forms' },
       { label: 'GL Mappings', path: '/payroll/gl-mappings' },
     ],
