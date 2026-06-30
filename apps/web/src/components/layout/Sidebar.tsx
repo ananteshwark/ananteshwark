@@ -65,6 +65,7 @@ const navItems: NavItem[] = [
       { label: 'Dependents & Nominees', path: '/hr/dependents' },
       { label: 'Skills & Intelligence', path: '/hr/skills' },
       { label: 'Headcount Budgeting', path: '/hr/headcount' },
+      { label: 'Time & Labor', path: '/hr/time-labor' },
     ],
   },
   {

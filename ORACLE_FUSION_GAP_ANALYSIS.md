@@ -61,8 +61,9 @@
 | Ph-181 | Merit cycles & allocations | ⏩ Pre-existing (benefits module: merit-cycle, merit-allocation) | — |
 | Ph-187–190 | Skills & Workforce Intelligence — skills taxonomy (categories + 1–5 catalog), employee skill profiles, job-requirement gap analysis (employee + department rollup), AI-suggested learning matched to catalog courses | ✅ Done | 10 |
 | Ph-191–193 | Position-Based Headcount Budgeting — time-phased position budgets (approved FTE, salary range, effective period), headcount-control validation on hires (OK/WARN/BLOCK + frozen-position block), non-destructive workforce planning scenarios with baseline+delta projection | ✅ Done | 11 |
+| Ph-194–197 | Time & Labor (OTL) — configurable time rules (daily/weekly OT, 7th consecutive day, shift differentials) with seedable defaults, weekly timecard processing into payroll-ready pay elements, absence reconciliation against approved leave, payroll-export aggregation by element | ✅ Done | 9 |
 
-**Running total: 673 tests passing.**
+**Running total: 682 tests passing. Track C (Payroll/HCM) complete.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

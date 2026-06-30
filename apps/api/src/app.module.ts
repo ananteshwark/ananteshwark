@@ -43,6 +43,7 @@ import { BenefitsEnrollmentModule } from './modules/benefits/enrollment/benefits
 import { CompWorkbenchModule } from './modules/benefits/comp-workbench/comp-workbench.module';
 import { SkillsModule } from './modules/hr/skills/skills.module';
 import { HeadcountModule } from './modules/hr/headcount/headcount.module';
+import { OtlModule } from './modules/hr/otl/otl.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -116,6 +117,7 @@ import { getDatabaseConfig } from './config/database.config';
     CompWorkbenchModule,
     SkillsModule,
     HeadcountModule,
+    OtlModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,
