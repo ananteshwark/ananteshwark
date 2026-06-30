@@ -48,6 +48,7 @@ import { SourcingModule } from './modules/procurement/sourcing/sourcing.module';
 import { SupplierQualificationModule } from './modules/procurement/supplier-qualification/supplier-qualification.module';
 import { SpendAnalysisModule } from './modules/procurement/spend-analysis/spend-analysis.module';
 import { ClmModule } from './modules/contracts/clm/clm.module';
+import { ForecastingModule } from './modules/crm/forecasting/forecasting.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -126,6 +127,7 @@ import { getDatabaseConfig } from './config/database.config';
     SupplierQualificationModule,
     SpendAnalysisModule,
     ClmModule,
+    ForecastingModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,

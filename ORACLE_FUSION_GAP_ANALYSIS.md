@@ -77,6 +77,14 @@
 
 **Running total: 725 tests passing. Track D (Procurement Intelligence) complete.**
 
+### Track E — CRM / CX Expansion (delivery log)
+
+| Phase | Feature | Status | Tests |
+|-------|---------|--------|-------|
+| Ph-214–216 | Sales Forecasting & Pipeline — Commit/Best-Case/Pipeline/Omitted forecast categories per opportunity (period auto-derived from close date), manager roll-up by quarter (commit/best-case/weighted-pipeline per owner) with manager commit override, forecast snapshots + accuracy (committed vs actual bookings, variance), win-rate by stage | ✅ Done | 8 |
+
+**Running total: 733 tests passing.**
+
 Remaining genuine gaps continue below (Tracks B–G).
 
 ---

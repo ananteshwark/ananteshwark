@@ -127,7 +127,7 @@ import { InventoryPage, StockValuationPage, SpecialProcurementPage, WmsPage, Mul
 import TransportationPage from './pages/logistics/TransportationPage';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
-import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
+import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page, ForecastingPage } from './pages/crm';
 import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage, ReturnsPage, DeliveriesPage, BillingPlansPage, FulfillmentPage, PromisingPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage, ClmPage } from './pages/contracts';
@@ -309,6 +309,7 @@ export default function App() {
         <Route path="crm/tickets" element={<ServiceTicketsPage />} />
         <Route path="crm/sla" element={<SlaPoliciesPage />} />
         <Route path="crm/customer-360" element={<Customer360Page />} />
+        <Route path="crm/forecasting" element={<ForecastingPage />} />
         <Route path="sales/orders" element={<SalesOrdersPage />} />
         <Route path="sales/pricing" element={<PricingConditionsPage />} />
         <Route path="sales/credit" element={<CreditManagementPage />} />

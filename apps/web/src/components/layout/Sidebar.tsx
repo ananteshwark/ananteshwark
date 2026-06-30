@@ -181,6 +181,7 @@ const navItems: NavItem[] = [
       { label: 'Customer 360', path: '/crm/customer-360' },
       { label: 'Service Tickets', path: '/crm/tickets' },
       { label: 'SLA Policies', path: '/crm/sla' },
+      { label: 'Sales Forecasting', path: '/crm/forecasting' },
     ],
   },
   {
