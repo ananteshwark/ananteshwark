@@ -198,6 +198,7 @@ const navItems: NavItem[] = [
       { label: 'Deliveries', path: '/sales/deliveries' },
       { label: 'Fulfillment', path: '/sales/fulfillment' },
       { label: 'Order Promising', path: '/sales/promising' },
+      { label: 'CPQ', path: '/sales/cpq' },
     ],
   },
   {
