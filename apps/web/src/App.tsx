@@ -128,7 +128,7 @@ import TransportationPage from './pages/logistics/TransportationPage';
 import { ProjectsPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page, ForecastingPage, TerritoriesPage } from './pages/crm';
-import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage, ReturnsPage, DeliveriesPage, BillingPlansPage, FulfillmentPage, PromisingPage, CpqPage } from './pages/sales';
+import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage, ReturnsPage, DeliveriesPage, BillingPlansPage, FulfillmentPage, PromisingPage, CpqPage, IncentivePage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
 import { ContractsPage, ClmPage } from './pages/contracts';
 import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage, FcsPage, CrpPage } from './pages/manufacturing';
@@ -321,6 +321,7 @@ export default function App() {
         <Route path="sales/deliveries" element={<DeliveriesPage />} />
         <Route path="sales/billing-plans" element={<BillingPlansPage />} />
         <Route path="sales/cpq" element={<CpqPage />} />
+        <Route path="sales/incentive" element={<IncentivePage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="contracts/clm" element={<ClmPage />} />
         <Route path="manufacturing" element={<ManufacturingPage />} />

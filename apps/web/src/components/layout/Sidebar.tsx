@@ -199,6 +199,7 @@ const navItems: NavItem[] = [
       { label: 'Fulfillment', path: '/sales/fulfillment' },
       { label: 'Order Promising', path: '/sales/promising' },
       { label: 'CPQ', path: '/sales/cpq' },
+      { label: 'Incentive Comp', path: '/sales/incentive' },
     ],
   },
   {
