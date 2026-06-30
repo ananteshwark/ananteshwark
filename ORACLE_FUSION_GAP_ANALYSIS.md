@@ -65,6 +65,14 @@
 
 **Running total: 682 tests passing. Track C (Payroll/HCM) complete.**
 
+### Track D — Procurement Intelligence (delivery log)
+
+| Phase | Feature | Status | Tests |
+|-------|---------|--------|-------|
+| Ph-198–201 | Strategic Sourcing — RFI/RFQ/reverse-auction events with multi-round sealed bidding + bid history (re-round, auction must-beat rule), weighted price/quality/delivery scoring with award recommendation, split-award by percentage, one-click award-to-PO proposals grouped by supplier | ✅ Done | 13 |
+
+**Running total: 695 tests passing.**
+
 Remaining genuine gaps continue below (Tracks B–G).
 
 ---

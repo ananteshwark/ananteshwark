@@ -127,6 +127,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Requisitions', path: '/procurement/requisitions' },
       { label: 'RFQ', path: '/procurement/rfq' },
+      { label: 'Strategic Sourcing', path: '/procurement/sourcing' },
       { label: 'Purchase Orders', path: '/procurement/purchase-orders' },
       { label: 'Goods Receipts', path: '/procurement/grn' },
       { label: 'Vendor Invoices', path: '/procurement/vendor-invoices' },

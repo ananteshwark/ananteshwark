@@ -10,3 +10,4 @@ export { default as PurchaseReturnsPage } from './PurchaseReturnsPage';
 export { default as ToleranceSettingsPage } from './ToleranceSettingsPage';
 export { default as OutlineAgreementsPage } from './OutlineAgreementsPage';
 export { default as SourceDeterminationPage } from './SourceDeterminationPage';
+export { default as SourcingPage } from './SourcingPage';
