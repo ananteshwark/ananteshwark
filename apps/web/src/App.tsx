@@ -109,6 +109,7 @@ import {
   SourceDeterminationPage,
   SourcingPage,
   SupplierQualificationPage,
+  SpendAnalysisPage,
 } from './pages/procurement';
 import VendorLoginPage from './pages/vendor/VendorLoginPage';
 import VendorPortalPage from './pages/vendor/VendorPortalPage';
@@ -285,6 +286,7 @@ export default function App() {
         <Route path="procurement/source-determination" element={<SourceDeterminationPage />} />
         <Route path="procurement/sourcing" element={<SourcingPage />} />
         <Route path="procurement/supplier-qualification" element={<SupplierQualificationPage />} />
+        <Route path="procurement/spend-analysis" element={<SpendAnalysisPage />} />
         <Route path="talent/hiring" element={<HiringPage />} />
         <Route path="talent/ats" element={<AtsPage />} />
         <Route path="talent/onboarding" element={<TalentOnboardingPage />} />

@@ -129,6 +129,7 @@ const navItems: NavItem[] = [
       { label: 'RFQ', path: '/procurement/rfq' },
       { label: 'Strategic Sourcing', path: '/procurement/sourcing' },
       { label: 'Supplier Qualification', path: '/procurement/supplier-qualification' },
+      { label: 'Spend Analysis', path: '/procurement/spend-analysis' },
       { label: 'Purchase Orders', path: '/procurement/purchase-orders' },
       { label: 'Goods Receipts', path: '/procurement/grn' },
       { label: 'Vendor Invoices', path: '/procurement/vendor-invoices' },
