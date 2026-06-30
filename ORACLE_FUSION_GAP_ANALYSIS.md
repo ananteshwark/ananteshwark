@@ -70,8 +70,9 @@
 | Phase | Feature | Status | Tests |
 |-------|---------|--------|-------|
 | Ph-198–201 | Strategic Sourcing — RFI/RFQ/reverse-auction events with multi-round sealed bidding + bid history (re-round, auction must-beat rule), weighted price/quality/delivery scoring with award recommendation, split-award by percentage, one-click award-to-PO proposals grouped by supplier | ✅ Done | 13 |
+| Ph-202–205 | Supplier Qualification & Risk — weighted qualification questionnaires (BOOLEAN/NUMERIC/CHOICE) with auto pass/fail scoring and review routing, reviewer override, certificate expiry tracking (VALID/EXPIRING/EXPIRED + expiring-soon feed), periodic supplier KPI scorecards (on-time/reject/invoice-accuracy) with weighted overall + trend deltas | ✅ Done | 11 |
 
-**Running total: 695 tests passing.**
+**Running total: 706 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

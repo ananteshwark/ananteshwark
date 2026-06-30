@@ -45,6 +45,7 @@ import { SkillsModule } from './modules/hr/skills/skills.module';
 import { HeadcountModule } from './modules/hr/headcount/headcount.module';
 import { OtlModule } from './modules/hr/otl/otl.module';
 import { SourcingModule } from './modules/procurement/sourcing/sourcing.module';
+import { SupplierQualificationModule } from './modules/procurement/supplier-qualification/supplier-qualification.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -120,6 +121,7 @@ import { getDatabaseConfig } from './config/database.config';
     HeadcountModule,
     OtlModule,
     SourcingModule,
+    SupplierQualificationModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,
