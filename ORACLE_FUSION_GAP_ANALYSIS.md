@@ -82,8 +82,9 @@
 | Phase | Feature | Status | Tests |
 |-------|---------|--------|-------|
 | Ph-214–216 | Sales Forecasting & Pipeline — Commit/Best-Case/Pipeline/Omitted forecast categories per opportunity (period auto-derived from close date), manager roll-up by quarter (commit/best-case/weighted-pipeline per owner) with manager commit override, forecast snapshots + accuracy (committed vs actual bookings, variance), win-rate by stage | ✅ Done | 8 |
+| Ph-217–219 | Sales Territory & Quota Management — coverage-rule territories (region/industry/named-account) with best-match assignment (named account > industry > region), rep × territory × product × quarter quotas, real-time attainment (closed-won vs aggregated quota with gap and team rollup) | ✅ Done | 7 |
 
-**Running total: 733 tests passing.**
+**Running total: 740 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
