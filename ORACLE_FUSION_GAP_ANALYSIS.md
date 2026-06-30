@@ -85,8 +85,9 @@
 | Ph-217–219 | Sales Territory & Quota Management — coverage-rule territories (region/industry/named-account) with best-match assignment (named account > industry > region), rep × territory × product × quarter quotas, real-time attainment (closed-won vs aggregated quota with gap and team rollup) | ✅ Done | 7 |
 | Ph-220–224 | Configure, Price, Quote (CPQ) — product configurator (option groups with min/max select, required groups, requires/excludes constraints, configured pricing), pricing waterfall (list → customer → volume → promo → net) with deal-desk approval threshold, guided-selling questionnaires (weighted model recommendation), branded quote document (PDF source), quote-to-order conversion into a sales order | ✅ Done | 13 |
 | Ph-225–228 | Incentive Compensation — ic_plans (attainment tiers, product accelerators, cap, recoverable draw), commission calculation (tier rate × booking × split credit × accelerator, capped, draw-recovered), dispute management (raise/resolve with manager adjustment), payroll export of approved commissions as elements | ✅ Done | 10 |
+| Ph-229–232 | Omni-channel Service — svc_kb_articles knowledge base (ratings, PUBLIC/INTERNAL visibility, search ranked by net-helpful), email-to-ticket with keyword routing rules (category/priority/assignee), self-service portal (customer ticket list + KB deflection suggestions), SLA escalation automation (imminent/breached candidate detection + escalate-to-manager) | ✅ Done | 9 |
 
-**Running total: 763 tests passing.**
+**Running total: 772 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

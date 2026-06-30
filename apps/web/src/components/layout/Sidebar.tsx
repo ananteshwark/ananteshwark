@@ -183,6 +183,7 @@ const navItems: NavItem[] = [
       { label: 'SLA Policies', path: '/crm/sla' },
       { label: 'Sales Forecasting', path: '/crm/forecasting' },
       { label: 'Territories & Quotas', path: '/crm/territories' },
+      { label: 'Service Desk', path: '/crm/service-desk' },
     ],
   },
   {
