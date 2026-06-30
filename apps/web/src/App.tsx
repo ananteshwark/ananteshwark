@@ -130,7 +130,7 @@ import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page } from './pages/crm';
 import { SalesOrdersPage, PricingConditionsPage, CreditManagementPage, ATPDashboardPage, ReturnsPage, DeliveriesPage, BillingPlansPage, FulfillmentPage, PromisingPage } from './pages/sales';
 import { ESSPage, MSSPage } from './pages/ess';
-import { ContractsPage } from './pages/contracts';
+import { ContractsPage, ClmPage } from './pages/contracts';
 import { ManufacturingPage, RoutingsPage, MrpPage, ProductionCostingPage, FcsPage, CrpPage } from './pages/manufacturing';
 import OpQualityPage from './pages/manufacturing/OpQualityPage';
 import ProcessMfgPage from './pages/manufacturing/ProcessMfgPage';
@@ -319,6 +319,7 @@ export default function App() {
         <Route path="sales/deliveries" element={<DeliveriesPage />} />
         <Route path="sales/billing-plans" element={<BillingPlansPage />} />
         <Route path="contracts" element={<ContractsPage />} />
+        <Route path="contracts/clm" element={<ClmPage />} />
         <Route path="manufacturing" element={<ManufacturingPage />} />
         <Route path="manufacturing/routings" element={<RoutingsPage />} />
         <Route path="planning/demand" element={<DemandPlanningPage />} />

@@ -198,7 +198,13 @@ const navItems: NavItem[] = [
       { label: 'Order Promising', path: '/sales/promising' },
     ],
   },
-  { label: 'Contracts', icon: <FileText className="h-4 w-4" />, path: '/contracts', module: 'contracts' },
+  {
+    label: 'Contracts', icon: <FileText className="h-4 w-4" />, module: 'contracts',
+    children: [
+      { label: 'Contracts', path: '/contracts' },
+      { label: 'Lifecycle (CLM)', path: '/contracts/clm' },
+    ],
+  },
   {
     label: 'Manufacturing',
     icon: <Package className="h-4 w-4" />,
