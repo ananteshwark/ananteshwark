@@ -187,6 +187,12 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'Marketing', icon: <Target className="h-4 w-4" />, module: 'crm',
+    children: [
+      { label: 'Automation', path: '/marketing' },
+    ],
+  },
+  {
     label: 'Sales',
     icon: <TrendingUp className="h-4 w-4" />,
     module: 'sales',

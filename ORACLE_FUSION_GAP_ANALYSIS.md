@@ -86,8 +86,9 @@
 | Ph-220–224 | Configure, Price, Quote (CPQ) — product configurator (option groups with min/max select, required groups, requires/excludes constraints, configured pricing), pricing waterfall (list → customer → volume → promo → net) with deal-desk approval threshold, guided-selling questionnaires (weighted model recommendation), branded quote document (PDF source), quote-to-order conversion into a sales order | ✅ Done | 13 |
 | Ph-225–228 | Incentive Compensation — ic_plans (attainment tiers, product accelerators, cap, recoverable draw), commission calculation (tier rate × booking × split credit × accelerator, capped, draw-recovered), dispute management (raise/resolve with manager adjustment), payroll export of approved commissions as elements | ✅ Done | 10 |
 | Ph-229–232 | Omni-channel Service — svc_kb_articles knowledge base (ratings, PUBLIC/INTERNAL visibility, search ranked by net-helpful), email-to-ticket with keyword routing rules (category/priority/assignee), self-service portal (customer ticket list + KB deflection suggestions), SLA escalation automation (imminent/breached candidate detection + escalate-to-manager) | ✅ Done | 9 |
+| Ph-233–236 | Marketing Automation — mkt_campaigns (email/SMS) with member management, scheduling, send, and engagement tracking (open/click/bounce rates); behavioral lead scoring (weighted behaviors → score + A–D grade, floored at 0); nurture flows (behavior-triggered multi-step sequences with due-date scheduling); marketing attribution (member conversions → campaign ROI: revenue vs cost, conversion rate) | ✅ Done | 11 |
 
-**Running total: 772 tests passing.**
+**Running total: 783 tests passing. Track E (CRM/CX) complete.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
