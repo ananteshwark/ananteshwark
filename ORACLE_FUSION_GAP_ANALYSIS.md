@@ -114,8 +114,9 @@
 | Ph-265–268 | AI / Digital Assistant — keyword-NLU intent classifier (PENDING_APPROVALS/LEAVE_BALANCE/PAYSLIP/OVERDUE_AR/CASH_POSITION/EXPENSE_STATUS/GREETING) with confidence scoring, and context-driven bot handlers: approval bot (offers approve-all action), HR bot (leave balance, payslip download action), and finance bot (overdue AR, cash position, expense status), with asst_conversation_turns logging | ✅ Done | 10 |
 | Ph-269–272 | Data Privacy & GDPR — privacy_pii_fields inventory with masking strategies (FULL/PARTIAL/EMAIL/HASH), consent management per subject×purpose (grant/withdraw + check), right-to-erasure with retention-gated anonymization, and DSAR export (records + consents) with an access audit trail | ✅ Done | 8 |
 | Ph-273–276 | Security Hardening — real RFC-6238 TOTP MFA (base32 secret + otpauth URI, verify with ±1-step skew), per-tenant IP allowlisting with IPv4 CIDR matching (empty = allow all), session monitoring with anomaly detection (NEW_IP / OFF_HOURS) and force-logout, and AES-256-CBC per-tenant field-level encryption (round-trip; cross-tenant key cannot decrypt) | ✅ Done | 9 |
+| Ph-277–280 | Integration Framework — integration_adapters generic adapter model (auth type, pagination, retry policy) with pre-built connector templates (Salesforce/Stripe/Shopify/QuickBooks/JIRA), event streaming (integration_events) with delivery attempts, retry-then-dead-letter on exhausted maxRetries, dead-letter replay, and per-adapter monitoring (success rate + dead-letter queue) | ✅ Done | 8 |
 
-**Running total: 879 tests passing.**
+**Running total: 887 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
