@@ -170,7 +170,13 @@ const navItems: NavItem[] = [
       { label: 'Transportation', path: '/logistics/transportation' },
     ],
   },
-  { label: 'Projects', icon: <FolderOpen className="h-4 w-4" />, path: '/projects', module: 'projects' },
+  {
+    label: 'Projects', icon: <FolderOpen className="h-4 w-4" />, module: 'projects',
+    children: [
+      { label: 'Projects', path: '/projects', end: true },
+      { label: 'Billing & Revenue', path: '/projects/billing' },
+    ],
+  },
   { label: 'Expenses', icon: <Receipt className="h-4 w-4" />, path: '/expenses', module: 'expenses' },
   {
     label: 'CRM',

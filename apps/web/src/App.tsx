@@ -125,7 +125,7 @@ import {
 import HiringPage from './pages/hiring/HiringPage';
 import { InventoryPage, StockValuationPage, SpecialProcurementPage, WmsPage, MultiOrgPage, CostingPage, GenealogyPage } from './pages/inventory';
 import TransportationPage from './pages/logistics/TransportationPage';
-import { ProjectsPage } from './pages/projects';
+import { ProjectsPage, ProjectBillingPage } from './pages/projects';
 import { ExpensesPage } from './pages/expenses';
 import { CrmPage, ServiceTicketsPage, SlaPoliciesPage, Customer360Page, ForecastingPage, TerritoriesPage, ServiceDeskPage } from './pages/crm';
 import { MarketingPage } from './pages/marketing';
@@ -305,6 +305,7 @@ export default function App() {
         <Route path="inventory/genealogy" element={<GenealogyPage />} />
         <Route path="logistics/transportation" element={<TransportationPage />} />
         <Route path="projects" element={<ProjectsPage />} />
+        <Route path="projects/billing" element={<ProjectBillingPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="crm" element={<CrmPage />} />
         <Route path="crm/tickets" element={<ServiceTicketsPage />} />

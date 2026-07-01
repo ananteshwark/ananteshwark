@@ -90,6 +90,14 @@
 
 **Running total: 783 tests passing. Track E (CRM/CX) complete.**
 
+### Track F — Project Portfolio Management (delivery log)
+
+| Phase | Feature | Status | Tests |
+|-------|---------|--------|-------|
+| Ph-237–241 | Project Budgeting & Revenue Recognition — pjt_budgets/pjt_budget_lines with baseline + versioned revisions (archives prior), budget-vs-actual with per-task actual cost (time × resolved rate) + expenses and EAC, T&M invoice generation (billable time × rate + approved expenses), fixed-price milestone billing schedule, and revenue recognition (POC incremental earned, completed-contract, milestone) with cumulative tracking | ✅ Done | 10 |
+
+**Running total: 793 tests passing.**
+
 Remaining genuine gaps continue below (Tracks B–G).
 
 ---
