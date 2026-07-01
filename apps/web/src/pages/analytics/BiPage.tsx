@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { biApi } from '../../api/bi';
+import { predictiveApi } from '../../api/predictive';
 
 function unwrap(res: any) {
   return res.data?.data ?? res.data ?? [];
@@ -114,7 +115,60 @@ function TilesTab() {
   );
 }
 
-const TABS = ['Report Builder', 'KPI Tiles'];
+const BAND: Record<string, string> = { LOW: 'bg-green-100 text-green-700', MEDIUM: 'bg-amber-100 text-amber-700', HIGH: 'bg-red-100 text-red-700' };
+
+function PredictiveTab() {
+  const [churn, setChurn] = useState({ customerId: 'CUST-1', daysSinceLastOrder: 200, openSupportTickets: 4, npsScore: 3, contractDaysToExpiry: 20 });
+  const [churnResult, setChurnResult] = useState<any>(null);
+  const [series, setSeries] = useState('100:120, 100:80, 100:110');
+  const [demand, setDemand] = useState<any>(null);
+
+  async function runChurn() {
+    try {
+      const r = await predictiveApi.churn(churn.customerId, { daysSinceLastOrder: churn.daysSinceLastOrder, openSupportTickets: churn.openSupportTickets, npsScore: churn.npsScore, contractDaysToExpiry: churn.contractDaysToExpiry });
+      setChurnResult(r.data?.data ?? r.data);
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+  }
+  async function runDemand() {
+    const parsed = series.split(',').map((p) => { const [forecast, actual] = p.trim().split(':').map(Number); return { forecast, actual }; });
+    try { const r = await predictiveApi.demandAccuracy(parsed); setDemand(r.data?.data ?? r.data); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+  }
+  return (
+    <div className="grid grid-cols-2 gap-6">
+      <div className="border rounded-lg p-4 space-y-2">
+        <h3 className="text-sm font-semibold">Customer Churn Risk</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-gray-500">Days since last order<input type="number" value={churn.daysSinceLastOrder} onChange={(e) => setChurn({ ...churn, daysSinceLastOrder: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></label>
+          <label className="text-xs text-gray-500">Open tickets<input type="number" value={churn.openSupportTickets} onChange={(e) => setChurn({ ...churn, openSupportTickets: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></label>
+          <label className="text-xs text-gray-500">NPS (0-10)<input type="number" value={churn.npsScore} onChange={(e) => setChurn({ ...churn, npsScore: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></label>
+          <label className="text-xs text-gray-500">Contract days to expiry<input type="number" value={churn.contractDaysToExpiry} onChange={(e) => setChurn({ ...churn, contractDaysToExpiry: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></label>
+        </div>
+        <button onClick={runChurn} className="w-full bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Score Churn</button>
+        {churnResult && (
+          <div className="text-center pt-2">
+            <p className="text-3xl font-bold">{churnResult.score}</p>
+            <span className={`text-xs px-2 py-1 rounded ${BAND[churnResult.band]}`}>{churnResult.band} RISK</span>
+            <ul className="text-xs text-gray-500 mt-2 text-left">{(churnResult.factors ?? []).map((f: any) => <li key={f.factor}>{f.factor}: +{f.contribution}</li>)}</ul>
+          </div>
+        )}
+      </div>
+      <div className="border rounded-lg p-4 space-y-2">
+        <h3 className="text-sm font-semibold">Demand Forecast Accuracy</h3>
+        <label className="text-xs text-gray-500">Series (forecast:actual, …)<input value={series} onChange={(e) => setSeries(e.target.value)} className="w-full border rounded px-2 py-1 text-sm font-mono text-xs" /></label>
+        <button onClick={runDemand} className="w-full bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Compute Accuracy</button>
+        {demand && (
+          <div className="grid grid-cols-3 gap-2 pt-2">
+            <div className="border rounded p-2 text-center"><p className="text-xs text-gray-500">MAPE</p><p className="text-lg font-bold">{demand.mape}%</p></div>
+            <div className="border rounded p-2 text-center"><p className="text-xs text-gray-500">Accuracy</p><p className="text-lg font-bold">{demand.accuracyPct}%</p></div>
+            <div className="border rounded p-2 text-center"><p className="text-xs text-gray-500">Bias</p><p className="text-sm font-bold">{demand.bias}</p><p className="text-[10px] text-gray-400">{demand.biasDirection}</p></div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const TABS = ['Report Builder', 'KPI Tiles', 'Predictive'];
 
 export default function BiPage() {
   const [tab, setTab] = useState('Report Builder');
@@ -134,6 +188,7 @@ export default function BiPage() {
       </div>
       {tab === 'Report Builder' && <BuilderTab />}
       {tab === 'KPI Tiles' && <TilesTab />}
+      {tab === 'Predictive' && <PredictiveTab />}
     </div>
   );
 }

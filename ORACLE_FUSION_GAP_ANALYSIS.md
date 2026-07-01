@@ -106,8 +106,9 @@
 | Phase | Feature | Status | Tests |
 |-------|---------|--------|-------|
 | Ph-251–254 | Embedded Analytics / BI — bi_subject_areas dimensional model per pillar (seed Finance/HCM/SCM/CRM), report builder (dimensions + aggregated measures + filters + sort, validated against the subject area, personal/shared save) with an in-memory execution engine (filter→group→aggregate→sort), scheduled report delivery (5-field cron validation, recipients), and KPI tiles computing an aggregated measure vs target with drill-through | ✅ Done | 9 |
+| Ph-255 | Predictive Analytics — anl_predictive_scores weighted heuristic models: customer churn risk (recency/tickets/NPS/renewal), invoice late-payment probability (history/exposure/urgency), and demand-forecast accuracy (MAPE, accuracy %, bias direction), with LOW/MEDIUM/HIGH banding and top-risk retrieval | ✅ Done | 8 |
 
-**Running total: 825 tests passing.**
+**Running total: 833 tests passing. G1 (Embedded Analytics/BI) complete.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
