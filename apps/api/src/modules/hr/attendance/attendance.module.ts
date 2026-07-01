@@ -8,6 +8,7 @@ import { TimeEntry } from './entities/time-entry.entity';
 import { Timesheet } from './entities/timesheet.entity';
 import { TimeEvaluationRule } from './entities/time-evaluation-rule.entity';
 import { TimeEvaluationResult } from './entities/time-evaluation-result.entity';
+import { Employee } from '../employees/entities/employee.entity';
 import { AttendanceService } from './attendance.service';
 import { AttendanceController } from './attendance.controller';
 import { TimeEvaluationService } from './time-evaluation.service';
@@ -16,7 +17,7 @@ import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Shift, ShiftAssignment, Holiday, AttendanceRecord, TimeEntry, Timesheet, TimeEvaluationRule, TimeEvaluationResult]),
+    TypeOrmModule.forFeature([Shift, ShiftAssignment, Holiday, AttendanceRecord, TimeEntry, Timesheet, TimeEvaluationRule, TimeEvaluationResult, Employee]),
     RbacModule,
   ],
   controllers: [AttendanceController, TimeEvaluationController],
