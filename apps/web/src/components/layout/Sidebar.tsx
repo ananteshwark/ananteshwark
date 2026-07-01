@@ -324,6 +324,7 @@ const navItems: NavItem[] = [
       { label: 'SSO', path: '/settings/sso' },
       { label: 'EDI Integration', path: '/settings/edi' },
       { label: 'Data Privacy & GDPR', path: '/settings/privacy' },
+      { label: 'Security Hardening', path: '/settings/security' },
       { label: 'Tax Codes', path: '/settings/tax-codes' },
       { label: 'Email Settings', path: '/settings/email' },
     ],

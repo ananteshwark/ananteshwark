@@ -64,6 +64,7 @@ import { BpmModule } from './modules/workflow/bpm/bpm.module';
 import { MobileModule } from './modules/mobile/mobile.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
+import { SecurityModule } from './modules/security/security.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -158,6 +159,7 @@ import { getDatabaseConfig } from './config/database.config';
     MobileModule,
     AssistantModule,
     PrivacyModule,
+    SecurityModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,

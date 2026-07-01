@@ -17,6 +17,7 @@ import BpmPage from './pages/workflow/BpmPage';
 import MobilePage from './pages/mobile/MobilePage';
 import AssistantPage from './pages/assistant/AssistantPage';
 import PrivacyPage from './pages/privacy/PrivacyPage';
+import SecurityPage from './pages/security/SecurityPage';
 import DelegationPage from './pages/delegation/DelegationPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import AuditPage from './pages/audit/AuditPage';
@@ -218,6 +219,7 @@ export default function App() {
         <Route path="qr/scanner" element={<QrScannerPage />} />
         <Route path="settings/edi" element={<EdiPage />} />
         <Route path="settings/privacy" element={<PrivacyPage />} />
+        <Route path="settings/security" element={<SecurityPage />} />
         <Route path="settings/tax-codes" element={<TaxCodesPage />} />
         <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />
