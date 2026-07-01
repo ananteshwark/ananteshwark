@@ -327,6 +327,7 @@ const navItems: NavItem[] = [
       { label: 'Security Hardening', path: '/settings/security' },
       { label: 'Integration Framework', path: '/settings/integration' },
       { label: 'Languages (i18n)', path: '/settings/i18n' },
+      { label: 'Audit & GRC', path: '/settings/grc' },
       { label: 'Tax Codes', path: '/settings/tax-codes' },
       { label: 'Email Settings', path: '/settings/email' },
     ],

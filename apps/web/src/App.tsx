@@ -20,6 +20,7 @@ import PrivacyPage from './pages/privacy/PrivacyPage';
 import SecurityPage from './pages/security/SecurityPage';
 import IntegrationPage from './pages/integration/IntegrationPage';
 import I18nPage from './pages/localization/I18nPage';
+import GrcPage from './pages/grc/GrcPage';
 import DelegationPage from './pages/delegation/DelegationPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import AuditPage from './pages/audit/AuditPage';
@@ -224,6 +225,7 @@ export default function App() {
         <Route path="settings/security" element={<SecurityPage />} />
         <Route path="settings/integration" element={<IntegrationPage />} />
         <Route path="settings/i18n" element={<I18nPage />} />
+        <Route path="settings/grc" element={<GrcPage />} />
         <Route path="settings/tax-codes" element={<TaxCodesPage />} />
         <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />

@@ -67,6 +67,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
 import { SecurityModule } from './modules/security/security.module';
 import { IntegrationFrameworkModule } from './modules/integration/integration.module';
 import { I18nModule } from './modules/localization/i18n/i18n.module';
+import { GrcModule } from './modules/grc/grc.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -164,6 +165,7 @@ import { getDatabaseConfig } from './config/database.config';
     SecurityModule,
     IntegrationFrameworkModule,
     I18nModule,
+    GrcModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,

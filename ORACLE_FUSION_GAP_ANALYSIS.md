@@ -116,8 +116,9 @@
 | Ph-273–276 | Security Hardening — real RFC-6238 TOTP MFA (base32 secret + otpauth URI, verify with ±1-step skew), per-tenant IP allowlisting with IPv4 CIDR matching (empty = allow all), session monitoring with anomaly detection (NEW_IP / OFF_HOURS) and force-logout, and AES-256-CBC per-tenant field-level encryption (round-trip; cross-tenant key cannot decrypt) | ✅ Done | 9 |
 | Ph-277–280 | Integration Framework — integration_adapters generic adapter model (auth type, pagination, retry policy) with pre-built connector templates (Salesforce/Stripe/Shopify/QuickBooks/JIRA), event streaming (integration_events) with delivery attempts, retry-then-dead-letter on exhausted maxRetries, dead-letter replay, and per-adapter monitoring (success rate + dead-letter queue) | ✅ Done | 8 |
 | Ph-281–284 | Multi-Language & Localization — loc_i18n_locales (incl. RTL Arabic/Hebrew) + loc_i18n_translations store, translation bundles for frontend i18n, template render with {{var}} interpolation and English fallback, and Intl-based locale-aware number/currency/date formatting | ✅ Done | 9 |
+| Ph-285–288 | Audit & GRC — grc_sod_rules conflict matrix + violation scanning (flags users holding both conflicting permissions, grouped by severity), grc_controls SOX framework with test recording (effective/deficient) and evidence trail, and grc_risks register computing likelihood×impact score/level with a 5×5 heat map | ✅ Done | 8 |
 
-**Running total: 896 tests passing.**
+**Running total: 904 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
