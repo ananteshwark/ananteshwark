@@ -38,7 +38,7 @@
 | Ph-145, 146 | Order fulfillment — drop-ship + back-to-back supply linkage (drop-ship receipt relieves SO line) | ✅ Done | 11 |
 | Ph-147, 148 | Pick-pack-ship + shipment tracking | ⏩ Pre-existing (DeliveryOrder workflow, carrier/tracking/POD) | — |
 | Ph-150 | Global Order Promising — date-based ATP/CTP with scheduled PO receipts, ranked multi-source sourcing rules | ✅ Done | 8 |
-| Ph-149 | Configure-to-Order (CTO) | ⏳ Deferred (needs variant BOM explosion — Ph-102 territory) | — |
+| Ph-149 | Configure-to-Order (CTO) — option→component BOM mappings (add/remove/substitute), variant BOM explosion engine, configuration→variant-item→work-order release | ✅ Done | 10 |
 | Ph-151–154 | Transportation — carrier master, freight rate engine + rate shopping, shipment planning w/ utilization, freight audit | ✅ Done | 12 |
 | Ph-155, 156, 158 | Quality at operations — operation quality plans, in-process collection w/ move gate, first-pass yield | ✅ Done | 11 |
 | Ph-157 | Non-conformance (NCR) | ⏩ Pre-existing (quality non-conformance entity) | — |
@@ -883,6 +883,46 @@ Phases:
 ---
 
 ## CURRENT COVERAGE vs ORACLE FUSION CLOUD
+
+> ⚠️ **Two tables below.** The first ("Baseline") is the *original* assessment taken
+> at Phase 92, before the 93–292 roadmap was built — kept for history. The second
+> ("Post-roadmap") reflects the delivered functional roadmap.
+>
+> **On "0% gap":** the functional roadmap in this document is now complete — every
+> Fusion capability we scoped (Ph-93→292) is built and test-covered, so the
+> *roadmap gap is 0%*. That is not the same as claiming literal 100% parity with the
+> entire Oracle Fusion Cloud suite: Fusion carries two decades of depth — statutory
+> payroll/tax localizations for 200+ jurisdictions, thousands of configured edge
+> cases, and continuously shipping features — which no single build can certify as
+> fully matched. The residual "breadth gap" below is that long tail, not a list of
+> missing scoped features.
+
+### Post-roadmap coverage (Ph-93→292 delivered)
+
+| Pillar | Scoped roadmap | Residual breadth gap (Fusion long tail) |
+|--------|----------------|------------------------------------------|
+| **Finance — GL / SLA** | ✅ Complete | Extra segment analytics, allocation depth |
+| **Finance — AP** | ✅ Complete | P-cards, ERS variants |
+| **Finance — AR** | ✅ Complete | Advanced revenue/receivables edge cases |
+| **Finance — FA** | ✅ Complete | Country-specific depreciation methods |
+| **Finance — Tax** | ✅ Complete | Per-jurisdiction content packs |
+| **Finance — Treasury** | ✅ Complete | Exotic hedging/MTM instruments |
+| **Finance — EPM/Close** | ✅ Complete | Driver-based planning breadth |
+| **Procurement (Sourcing/CLM/SQM)** | ✅ Complete | Deep clause libraries |
+| **Inventory / WMS** | ✅ Complete | Advanced slotting/labour mgmt |
+| **Order Management (Drop-ship/B2B/CTO/GOP)** | ✅ Complete | Multi-level CTO variant pricing |
+| **Manufacturing (Discrete/OPM/Quality)** | ✅ Complete | Advanced scheduling optimisation |
+| **Maintenance (CMMS/PM)** | ✅ Complete | IoT/condition-based analytics |
+| **HCM — Core HR** | ✅ Complete | Position hierarchy depth |
+| **HCM — Payroll** | ✅ Complete (IN/UK/US) | Additional country localizations |
+| **HCM — Benefits** | ✅ Complete | Carrier integrations |
+| **HCM — Talent** | ✅ Complete | Career-path AI depth |
+| **CRM / CX (CPQ/Territory/Incentive/Service)** | ✅ Complete | Omni-channel channel breadth |
+| **Projects (Budget/Billing/EVM/Capital)** | ✅ Complete | Grants/contracts billing variants |
+| **Platform (BI/i18n/Extensibility/GRC)** | ✅ Complete | Marketplace ecosystem scale |
+| **OVERALL — scoped roadmap** | **✅ 100% (0% roadmap gap)** | Long-tail breadth is ongoing |
+
+### Baseline snapshot (Phase 92 — historical)
 
 | Pillar | Our Coverage | Oracle Fusion Equivalent | Gap % |
 |--------|-------------|--------------------------|-------|

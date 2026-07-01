@@ -8,4 +8,5 @@ export { default as BillingPlansPage } from './BillingPlansPage';
 export { default as FulfillmentPage } from './FulfillmentPage';
 export { default as PromisingPage } from './PromisingPage';
 export { default as CpqPage } from './CpqPage';
+export { default as CtoPage } from './CtoPage';
 export { default as IncentivePage } from './IncentivePage';

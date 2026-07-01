@@ -51,6 +51,7 @@ import { ClmModule } from './modules/contracts/clm/clm.module';
 import { ForecastingModule } from './modules/crm/forecasting/forecasting.module';
 import { TerritoriesModule } from './modules/crm/territories/territories.module';
 import { CpqModule } from './modules/sales/cpq/cpq.module';
+import { CtoModule } from './modules/sales/cto/cto.module';
 import { IncentiveModule } from './modules/sales/incentive/incentive.module';
 import { ServiceDeskModule } from './modules/crm/service-desk/service-desk.module';
 import { MarketingModule } from './modules/marketing/marketing.module';
@@ -151,6 +152,7 @@ import { getDatabaseConfig } from './config/database.config';
     ForecastingModule,
     TerritoriesModule,
     CpqModule,
+    CtoModule,
     IncentiveModule,
     ServiceDeskModule,
     MarketingModule,
