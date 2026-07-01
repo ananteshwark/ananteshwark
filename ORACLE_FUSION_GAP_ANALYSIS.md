@@ -117,8 +117,9 @@
 | Ph-277–280 | Integration Framework — integration_adapters generic adapter model (auth type, pagination, retry policy) with pre-built connector templates (Salesforce/Stripe/Shopify/QuickBooks/JIRA), event streaming (integration_events) with delivery attempts, retry-then-dead-letter on exhausted maxRetries, dead-letter replay, and per-adapter monitoring (success rate + dead-letter queue) | ✅ Done | 8 |
 | Ph-281–284 | Multi-Language & Localization — loc_i18n_locales (incl. RTL Arabic/Hebrew) + loc_i18n_translations store, translation bundles for frontend i18n, template render with {{var}} interpolation and English fallback, and Intl-based locale-aware number/currency/date formatting | ✅ Done | 9 |
 | Ph-285–288 | Audit & GRC — grc_sod_rules conflict matrix + violation scanning (flags users holding both conflicting permissions, grouped by severity), grc_controls SOX framework with test recording (effective/deficient) and evidence trail, and grc_risks register computing likelihood×impact score/level with a 5×5 heat map | ✅ Done | 8 |
+| Ph-289–292 | Extensibility Platform — platform_custom_objects (typed field schema + list-view/sidebar UI metadata), dynamic platform_custom_records validated against required/type rules plus tenant platform_validation_rules (condition-as-invalid-state), and a vertical marketplace (retail/construction/healthcare/nonprofit) whose install provisions the pack's custom objects (skipping existing) | ✅ Done | 9 |
 
-**Running total: 904 tests passing.**
+**Running total: 913 tests passing. Track G (Platform & Intelligence) complete — roadmap Ph-93→292 fully delivered.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
