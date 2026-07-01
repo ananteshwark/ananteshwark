@@ -95,8 +95,9 @@
 | Phase | Feature | Status | Tests |
 |-------|---------|--------|-------|
 | Ph-237–241 | Project Budgeting & Revenue Recognition — pjt_budgets/pjt_budget_lines with baseline + versioned revisions (archives prior), budget-vs-actual with per-task actual cost (time × resolved rate) + expenses and EAC, T&M invoice generation (billable time × rate + approved expenses), fixed-price milestone billing schedule, and revenue recognition (POC incremental earned, completed-contract, milestone) with cumulative tracking | ✅ Done | 10 |
+| Ph-242–244 | Resource Management — pjt_resources pool (skills, grade, cost rate, weekly capacity) with skill/grade search, resource requests fulfilled from the pool (skill-validated, auto-allocates), and weekly utilization reporting (allocated/billable vs capacity with over/under-allocation flags + team rollup) | ✅ Done | 8 |
 
-**Running total: 793 tests passing.**
+**Running total: 801 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

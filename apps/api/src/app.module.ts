@@ -55,6 +55,7 @@ import { IncentiveModule } from './modules/sales/incentive/incentive.module';
 import { ServiceDeskModule } from './modules/crm/service-desk/service-desk.module';
 import { MarketingModule } from './modules/marketing/marketing.module';
 import { ProjectBillingModule } from './modules/projects/billing/project-billing.module';
+import { ProjectResourcesModule } from './modules/projects/resources/resources.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -140,6 +141,7 @@ import { getDatabaseConfig } from './config/database.config';
     ServiceDeskModule,
     MarketingModule,
     ProjectBillingModule,
+    ProjectResourcesModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,

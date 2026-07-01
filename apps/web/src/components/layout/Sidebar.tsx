@@ -175,6 +175,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Projects', path: '/projects', end: true },
       { label: 'Billing & Revenue', path: '/projects/billing' },
+      { label: 'Resource Management', path: '/projects/resources' },
     ],
   },
   { label: 'Expenses', icon: <Receipt className="h-4 w-4" />, path: '/expenses', module: 'expenses' },
