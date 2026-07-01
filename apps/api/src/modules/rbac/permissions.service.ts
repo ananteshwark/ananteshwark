@@ -101,6 +101,33 @@ export const ALL_PERMISSIONS = [
   'platform:read', 'platform:manage',
   // Licensing module
   'licensing:read', 'licensing:manage',
+  // Coarse module-level permissions used by feature-parity module controllers.
+  // These back the endpoints whose decorators reference module:read / module:manage
+  // shorthands rather than the granular resource-scoped strings above.
+  'hr:read', 'hr:manage',
+  'crm:read', 'crm:manage',
+  'sales:read', 'sales:manage',
+  'procurement:manage',
+  'settings:read', 'settings:manage',
+  'workflow:read', 'workflow:manage',
+  'expenses:read',
+  'payroll:read', 'payroll:manage',
+  'admin:read', 'admin:manage',
+  'dashboard:read',
+  // EDI / integration
+  'edi:read', 'edi:write',
+  // Finance — tax, budgeting, fixed assets (assets:* alias), treasury manage, AP manage
+  'finance:tax:read', 'finance:tax:manage',
+  'finance:budget:read', 'finance:budget:manage',
+  'finance:assets:read', 'finance:assets:manage',
+  'finance.treasury.manage',
+  'finance:ap:manage',
+  // RBAC role management
+  'rbac:roles:manage',
+  // Platform — custom fields, SSO, webhooks (dot-notation convention)
+  'platform.customfields.read', 'platform.customfields.write',
+  'platform.sso.read', 'platform.sso.write',
+  'platform.webhooks.read', 'platform.webhooks.write',
 ];
 
 export const SYSTEM_ROLES = {

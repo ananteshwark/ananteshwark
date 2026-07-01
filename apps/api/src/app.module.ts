@@ -75,6 +75,7 @@ import { LocalizationPacksModule } from './modules/localization/localization-pac
 import { LicensingModule } from './modules/licensing/licensing.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SettingsModule } from './modules/settings/field-config.module';
+import { PicklistModule } from './modules/settings/picklists/picklist.module';
 import { DmsModule } from './modules/dms/dms.module';
 import { EmailModule } from './modules/email/email.module';
 import { SearchModule } from './modules/search/search.module';
@@ -174,6 +175,7 @@ import { getDatabaseConfig } from './config/database.config';
     LicensingModule,
     AdminModule,
     SettingsModule,
+    PicklistModule,
     DmsModule,
     EmailModule,
     SearchModule,

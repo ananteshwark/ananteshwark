@@ -29,6 +29,7 @@ import GeneralSettingsPage from './pages/settings/GeneralSettingsPage';
 import ModulesSettingsPage from './pages/settings/ModulesSettingsPage';
 import LocalizationPage from './pages/settings/LocalizationPage';
 import FieldConfigPage from './pages/settings/FieldConfigPage';
+import PicklistsPage from './pages/settings/PicklistsPage';
 import CustomFieldsPage from './pages/settings/CustomFieldsPage';
 import WebhooksPage from './pages/settings/WebhooksPage';
 import SsoSettingsPage from './pages/settings/SsoSettingsPage';
@@ -217,6 +218,7 @@ export default function App() {
         <Route path="settings/modules" element={<ModulesSettingsPage />} />
         <Route path="settings/localization" element={<LocalizationPage />} />
         <Route path="settings/field-config" element={<FieldConfigPage />} />
+        <Route path="settings/picklists" element={<PicklistsPage />} />
         <Route path="settings/custom-fields" element={<CustomFieldsPage />} />
         <Route path="settings/webhooks" element={<WebhooksPage />} />
         <Route path="settings/sso" element={<SsoSettingsPage />} />

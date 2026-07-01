@@ -90,6 +90,10 @@ const navItems: NavItem[] = [
       { label: 'Payment Run', path: '/finance/payment-runs' },
       { label: 'Advances', path: '/finance/advances' },
       { label: 'Budget vs Actual', path: '/finance/budget' },
+      { label: 'Internal Orders', path: '/finance/internal-orders' },
+      { label: 'Activity-Based Costing', path: '/finance/activity-costing' },
+      { label: 'Period Close Cockpit', path: '/finance/period-close' },
+      { label: 'Treasury', path: '/finance/treasury' },
       { label: 'Intercompany', path: '/finance/intercompany' },
       { label: 'Consolidation', path: '/finance/consolidation' },
       { label: 'Parallel Ledgers', path: '/finance/parallel-ledgers' },
@@ -115,6 +119,9 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Payroll Runs', path: '/payroll/runs' },
       { label: 'Payslips', path: '/payroll/payslips' },
+      { label: 'Pay Components', path: '/payroll/components' },
+      { label: 'Employee Salaries', path: '/payroll/salaries' },
+      { label: 'Statutory', path: '/payroll/statutory' },
       { label: 'Retro Payroll', path: '/payroll/retro' },
       { label: 'Legislative Data Groups', path: '/payroll/ldg' },
       { label: 'Payroll Costing', path: '/payroll/costing' },
@@ -169,6 +176,8 @@ const navItems: NavItem[] = [
       { label: 'Multi-Org', path: '/inventory/multi-org' },
       { label: 'Cost Accounting', path: '/inventory/costing' },
       { label: 'Lot Genealogy', path: '/inventory/genealogy' },
+      { label: 'Special Procurement', path: '/inventory/special-procurement' },
+      { label: 'Warehouse Mgmt (WMS)', path: '/inventory/wms' },
       { label: 'Transportation', path: '/logistics/transportation' },
     ],
   },
@@ -209,6 +218,7 @@ const navItems: NavItem[] = [
     module: 'sales',
     children: [
       { label: 'Sales Orders', path: '/sales/orders' },
+      { label: 'Billing Plans', path: '/sales/billing-plans' },
       { label: 'Pricing', path: '/sales/pricing' },
       { label: 'Credit Management', path: '/sales/credit' },
       { label: 'ATP Dashboard', path: '/sales/atp' },
@@ -234,6 +244,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Overview', path: '/manufacturing', end: true },
       { label: 'Routings', path: '/manufacturing/routings' },
+      { label: 'Flow / Repetitive (FCS)', path: '/manufacturing/fcs' },
       { label: 'Demand Planning', path: '/planning/demand' },
       { label: 'MRP', path: '/manufacturing/mrp' },
       { label: 'Capacity Planning', path: '/manufacturing/crp' },
@@ -292,7 +303,13 @@ const navItems: NavItem[] = [
       { label: 'Manager Self-Service', path: '/mss' },
     ],
   },
-  { label: 'Users', icon: <Users className="h-4 w-4" />, path: '/users' },
+  {
+    label: 'Users', icon: <Users className="h-4 w-4" />,
+    children: [
+      { label: 'All Users', path: '/users', end: true },
+      { label: 'Invite User', path: '/users/invite' },
+    ],
+  },
   { label: 'Roles & Permissions', icon: <Shield className="h-4 w-4" />, path: '/roles' },
   {
     label: 'Workflows', icon: <GitBranch className="h-4 w-4" />,
@@ -317,6 +334,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'General', path: '/settings/general' },
       { label: 'Modules', path: '/settings/modules' },
+      { label: 'Dropdown Options', path: '/settings/picklists' },
       { label: 'Localization', path: '/settings/localization' },
       { label: 'Field Configuration', path: '/settings/field-config' },
       { label: 'Custom Fields', path: '/settings/custom-fields' },
