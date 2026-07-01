@@ -75,6 +75,15 @@ export const usePermissions = () => {
   });
 };
 
+// The current user's own effective permissions — used to gate navigation.
+export const useMyPermissions = () => {
+  return useQuery<string[]>({
+    queryKey: ['my-permissions'],
+    queryFn: () => apiClient.get('/rbac/me/permissions').then((r) => r.data?.data ?? r.data ?? []),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
 export const useCreateRole = () => {
   const queryClient = useQueryClient();
   return useMutation({

@@ -32,6 +32,14 @@ export class RbacController {
     return this.permissionsService.getAllPermissions();
   }
 
+  // No @RequirePermission: any authenticated user may read their OWN effective
+  // permissions. The UI uses this to decide which navigation to show.
+  @Get('me/permissions')
+  @ApiOperation({ summary: 'Get the current user\'s own effective permissions' })
+  getMyPermissions(@CurrentUser() user: any) {
+    return this.permissionsService.getUserPermissions(user.id, user.tenantId);
+  }
+
   @Post('roles')
   @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Create a new role' })
