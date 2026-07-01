@@ -62,6 +62,7 @@ import { BiModule } from './modules/analytics/bi/bi.module';
 import { PredictiveModule } from './modules/analytics/predictive/predictive.module';
 import { BpmModule } from './modules/workflow/bpm/bpm.module';
 import { MobileModule } from './modules/mobile/mobile.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -154,6 +155,7 @@ import { getDatabaseConfig } from './config/database.config';
     PredictiveModule,
     BpmModule,
     MobileModule,
+    AssistantModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,
