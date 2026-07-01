@@ -1,12 +1,4 @@
-import axios from 'axios';
-
-const api = axios.create({ baseURL: '/api' });
-
-api.interceptors.request.use((c) => {
-  const token = localStorage.getItem('token');
-  if (token) c.headers.Authorization = `Bearer ${token}`;
-  return c;
-});
+import { apiClient as api } from './client';
 
 function unwrapList(res: any) {
   const d = res.data?.data ?? res.data;
