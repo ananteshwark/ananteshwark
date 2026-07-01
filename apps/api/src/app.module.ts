@@ -57,6 +57,7 @@ import { MarketingModule } from './modules/marketing/marketing.module';
 import { ProjectBillingModule } from './modules/projects/billing/project-billing.module';
 import { ProjectResourcesModule } from './modules/projects/resources/resources.module';
 import { EvmModule } from './modules/projects/evm/evm.module';
+import { CapitalModule } from './modules/projects/capital/capital.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -144,6 +145,7 @@ import { getDatabaseConfig } from './config/database.config';
     ProjectBillingModule,
     ProjectResourcesModule,
     EvmModule,
+    CapitalModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,
