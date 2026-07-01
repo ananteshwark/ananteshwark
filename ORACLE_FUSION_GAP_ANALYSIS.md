@@ -96,8 +96,9 @@
 |-------|---------|--------|-------|
 | Ph-237–241 | Project Budgeting & Revenue Recognition — pjt_budgets/pjt_budget_lines with baseline + versioned revisions (archives prior), budget-vs-actual with per-task actual cost (time × resolved rate) + expenses and EAC, T&M invoice generation (billable time × rate + approved expenses), fixed-price milestone billing schedule, and revenue recognition (POC incremental earned, completed-contract, milestone) with cumulative tracking | ✅ Done | 10 |
 | Ph-242–244 | Resource Management — pjt_resources pool (skills, grade, cost rate, weekly capacity) with skill/grade search, resource requests fulfilled from the pool (skill-validated, auto-allocates), and weekly utilization reporting (allocated/billable vs capacity with over/under-allocation flags + team rollup) | ✅ Done | 8 |
+| Ph-245–247 | Earned Value Management — pjt_evm_baselines/lines PMB (BAC = Σ planned values, versioned with supersede), task measurements computing PV (budget×%scheduled) / EV (budget×%complete) / AC with SPI & CPI, project rollup with SV/CV and EAC/VAC/ETC forecasts, and cumulative S-curve with forecast-at-completion | ✅ Done | 7 |
 
-**Running total: 801 tests passing.**
+**Running total: 808 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
