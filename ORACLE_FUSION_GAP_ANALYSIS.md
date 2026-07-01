@@ -109,6 +109,9 @@
 | Ph-255 | Predictive Analytics — anl_predictive_scores weighted heuristic models: customer churn risk (recency/tickets/NPS/renewal), invoice late-payment probability (history/exposure/urgency), and demand-forecast accuracy (MAPE, accuracy %, bias direction), with LOW/MEDIUM/HIGH banding and top-risk retrieval | ✅ Done | 8 |
 
 **Running total: 833 tests passing. G1 (Embedded Analytics/BI) complete.**
+| Ph-256–259 | Workflow & BPM Engine — bpm_processes definitions (stages with parallel approvers + ALL/ANY mode, swimlanes, gateways) as the designer store; instances with parallel routing (ANY completes on first approve + skips the rest, ALL requires every task, reject fails fast, auto-advance through stages); time-based escalation reassigning overdue tasks to a supervisor; vacation/delegation rules proxying approvals during an absence window | ✅ Done | 9 |
+
+**Running total: 842 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 

@@ -13,6 +13,7 @@ import UsersPage from './pages/users/UsersPage';
 import InviteUserPage from './pages/users/InviteUserPage';
 import RolesPage from './pages/roles/RolesPage';
 import WorkflowPage from './pages/workflow/WorkflowPage';
+import BpmPage from './pages/workflow/BpmPage';
 import DelegationPage from './pages/delegation/DelegationPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import AuditPage from './pages/audit/AuditPage';
@@ -198,6 +199,7 @@ export default function App() {
         <Route path="users/invite" element={<InviteUserPage />} />
         <Route path="roles" element={<RolesPage />} />
         <Route path="workflows" element={<WorkflowPage />} />
+        <Route path="workflows/bpm" element={<BpmPage />} />
         <Route path="delegations" element={<DelegationPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="audit" element={<AuditPage />} />
