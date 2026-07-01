@@ -276,6 +276,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Overview', path: '/analytics', end: true },
       { label: 'Cross-Module KPIs', path: '/analytics/cross' },
+      { label: 'Report Builder (BI)', path: '/analytics/bi' },
     ],
   },
   { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform', module: 'platform' },

@@ -142,7 +142,7 @@ import CmmsPage from './pages/maintenance/CmmsPage';
 import { BenefitsPage } from './pages/benefits';
 import BenefitsEnrollmentPage from './pages/benefits/BenefitsEnrollmentPage';
 import CompWorkbenchPage from './pages/benefits/CompWorkbenchPage';
-import { AnalyticsPage, CrossAnalyticsPage } from './pages/analytics';
+import { AnalyticsPage, CrossAnalyticsPage, BiPage } from './pages/analytics';
 import { PlatformPage } from './pages/platform';
 import { LicensingPage } from './pages/licensing';
 import { TenantsPage } from './pages/admin';
@@ -352,6 +352,7 @@ export default function App() {
         <Route path="benefits/comp-workbench" element={<CompWorkbenchPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="analytics/cross" element={<CrossAnalyticsPage />} />
+        <Route path="analytics/bi" element={<BiPage />} />
         <Route path="platform" element={<PlatformPage />} />
         <Route path="licensing" element={<LicensingPage />} />
         <Route path="admin/tenants" element={<SuperAdminRoute><TenantsPage /></SuperAdminRoute>} />

@@ -58,6 +58,7 @@ import { ProjectBillingModule } from './modules/projects/billing/project-billing
 import { ProjectResourcesModule } from './modules/projects/resources/resources.module';
 import { EvmModule } from './modules/projects/evm/evm.module';
 import { CapitalModule } from './modules/projects/capital/capital.module';
+import { BiModule } from './modules/analytics/bi/bi.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
@@ -146,6 +147,7 @@ import { getDatabaseConfig } from './config/database.config';
     ProjectResourcesModule,
     EvmModule,
     CapitalModule,
+    BiModule,
     AnalyticsModule,
     PlatformModule,
     LocalizationPacksModule,
