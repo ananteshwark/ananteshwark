@@ -112,8 +112,9 @@
 | Ph-256–259 | Workflow & BPM Engine — bpm_processes definitions (stages with parallel approvers + ALL/ANY mode, swimlanes, gateways) as the designer store; instances with parallel routing (ANY completes on first approve + skips the rest, ALL requires every task, reject fails fast, auto-advance through stages); time-based escalation reassigning overdue tasks to a supervisor; vacation/delegation rules proxying approvals during an absence window | ✅ Done | 9 |
 | Ph-262–264 | Mobile First — photo-to-expense receipt parsing (OCR-text heuristic → merchant/amount/currency/date + confidence), GPS timesheet check-in/out with weekly aggregation by day and project, and RF warehouse scan confirmation (bin/item/qty match with mismatch + short-qty reporting). Ph-260 (PWA shell/service worker) pre-existing via vite-plugin-pwa; Ph-261 (approval inbox) served by the BPM task inbox | ✅ Done | 10 |
 | Ph-265–268 | AI / Digital Assistant — keyword-NLU intent classifier (PENDING_APPROVALS/LEAVE_BALANCE/PAYSLIP/OVERDUE_AR/CASH_POSITION/EXPENSE_STATUS/GREETING) with confidence scoring, and context-driven bot handlers: approval bot (offers approve-all action), HR bot (leave balance, payslip download action), and finance bot (overdue AR, cash position, expense status), with asst_conversation_turns logging | ✅ Done | 10 |
+| Ph-269–272 | Data Privacy & GDPR — privacy_pii_fields inventory with masking strategies (FULL/PARTIAL/EMAIL/HASH), consent management per subject×purpose (grant/withdraw + check), right-to-erasure with retention-gated anonymization, and DSAR export (records + consents) with an access audit trail | ✅ Done | 8 |
 
-**Running total: 862 tests passing.**
+**Running total: 870 tests passing.**
 
 Remaining genuine gaps continue below (Tracks B–G).
 
