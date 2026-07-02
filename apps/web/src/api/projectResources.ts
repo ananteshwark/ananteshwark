@@ -3,6 +3,7 @@ import { apiClient } from './client';
 export const projectResourcesApi = {
   list: () => apiClient.get('/projects/resources'),
   create: (data: any) => apiClient.post('/projects/resources', data),
+  update: (id: string, data: any) => apiClient.patch(`/projects/resources/${id}`, data),
   bySkill: (skill: string, grade?: string) => apiClient.get('/projects/resources/by-skill', { params: grade ? { skill, grade } : { skill } }),
   listRequests: (status?: string) => apiClient.get('/projects/resources/requests', { params: status ? { status } : {} }),
   createRequest: (data: any) => apiClient.post('/projects/resources/requests', data),

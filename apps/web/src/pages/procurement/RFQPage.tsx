@@ -10,13 +10,14 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-700',
 };
 
-function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewRfqDialog({ onClose, onSaved, editRfq }: { onClose: () => void; onSaved: () => void; editRfq?: any }) {
+  const isEdit = !!editRfq;
   const [form, setForm] = useState({
-    title: '',
-    description: '',
-    issueDate: new Date().toISOString().slice(0, 10),
-    dueDate: '',
-    notes: '',
+    title: editRfq?.title ?? '',
+    description: editRfq?.description ?? '',
+    issueDate: editRfq?.issueDate ?? new Date().toISOString().slice(0, 10),
+    dueDate: editRfq?.dueDate ?? '',
+    notes: editRfq?.notes ?? '',
     vendorIds: [] as string[],
     lines: [{ description: '', quantity: 1, uom: 'EA' }],
   });
@@ -47,11 +48,15 @@ function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     setLoading(true);
     setError('');
     try {
-      await procurementApi.createRfq({ ...form, lines: form.lines.map((l) => ({ ...l, quantity: Number(l.quantity) })) });
+      if (isEdit) {
+        await procurementApi.updateRfq(editRfq.id, { title: form.title, description: form.description, issueDate: form.issueDate, dueDate: form.dueDate, notes: form.notes });
+      } else {
+        await procurementApi.createRfq({ ...form, lines: form.lines.map((l) => ({ ...l, quantity: Number(l.quantity) })) });
+      }
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create RFQ');
+      setError(e.response?.data?.message || 'Failed to save RFQ');
     } finally {
       setLoading(false);
     }
@@ -60,7 +65,7 @@ function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b"><h2 className="text-lg font-semibold">New RFQ</h2></div>
+        <div className="p-6 border-b"><h2 className="text-lg font-semibold">{isEdit ? 'Edit RFQ' : 'New RFQ'}</h2></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
@@ -77,7 +82,7 @@ function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} required />
             </div>
           </div>
-          {vendors.length > 0 && (
+          {!isEdit && vendors.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Vendors *</label>
               <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
@@ -95,6 +100,7 @@ function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               </div>
             </div>
           )}
+          {!isEdit && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Lines *</label>
@@ -109,9 +115,10 @@ function NewRfqDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               </div>
             ))}
           </div>
+          )}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{loading ? 'Creating...' : 'Create'}</button>
+            <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{loading ? 'Saving...' : isEdit ? 'Save' : 'Create'}</button>
           </div>
         </form>
       </div>
@@ -123,6 +130,7 @@ export default function RFQPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [editRfq, setEditRfq] = useState<any>(null);
   const [selected, setSelected] = useState<any>(null);
   const [comparative, setComparative] = useState<any>(null);
 
@@ -207,6 +215,9 @@ export default function RFQPage() {
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
                       {rfq.status === 'DRAFT' && (
+                        <button onClick={() => setEditRfq(rfq)} className="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded hover:bg-amber-100">Edit</button>
+                      )}
+                      {rfq.status === 'DRAFT' && (
                         <button onClick={() => handleAction('issue', rfq.id)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Issue</button>
                       )}
                       {rfq.status === 'ISSUED' && (
@@ -268,6 +279,7 @@ export default function RFQPage() {
       )}
 
       {showNew && <NewRfqDialog onClose={() => setShowNew(false)} onSaved={loadData} />}
+      {editRfq && <NewRfqDialog editRfq={editRfq} onClose={() => setEditRfq(null)} onSaved={loadData} />}
     </div>
   );
 }

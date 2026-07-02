@@ -9,27 +9,42 @@ const FLAG: Record<string, string> = { OVER: 'bg-red-100 text-red-700', UNDER: '
 
 function PoolTab() {
   const [resources, setResources] = useState<any[]>([]);
-  const [form, setForm] = useState({ employeeId: '', name: '', skills: '', grade: '', weeklyCapacityHours: 40 });
+  const emptyForm = { employeeId: '', name: '', skills: '', grade: '', weeklyCapacityHours: 40 };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   useEffect(() => { load(); }, []);
   async function load() { setResources(unwrap(await projectResourcesApi.list())); }
-  async function create(e: React.FormEvent) {
+  function editResource(r: any) {
+    setEditingId(r.id);
+    setForm({ employeeId: r.employeeId ?? '', name: r.name ?? '', skills: (r.skills ?? []).join(', '), grade: r.grade ?? '', weeklyCapacityHours: Number(r.weeklyCapacityHours) || 40 });
+  }
+  function cancelEdit() { setEditingId(null); setForm(emptyForm); }
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    try { await projectResourcesApi.create({ ...form, skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean) }); setForm({ employeeId: '', name: '', skills: '', grade: '', weeklyCapacityHours: 40 }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    const payload = { ...form, skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean) };
+    try {
+      if (editingId) await projectResourcesApi.update(editingId, payload);
+      else await projectResourcesApi.create(payload);
+      cancelEdit(); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   return (
     <div className="space-y-3">
-      <form onSubmit={create} className="grid grid-cols-6 gap-2 bg-gray-50 p-3 rounded-lg items-end">
+      <form onSubmit={submit} className="grid grid-cols-6 gap-2 bg-gray-50 p-3 rounded-lg items-end">
         <input required placeholder="Employee ID" value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} className="border rounded px-2 py-1 text-sm" />
         <input required placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="border rounded px-2 py-1 text-sm" />
         <input placeholder="Skills (csv)" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} className="col-span-2 border rounded px-2 py-1 text-sm" />
         <input placeholder="Grade" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} className="border rounded px-2 py-1 text-sm" />
-        <button type="submit" className="bg-indigo-600 text-white px-2 py-1 rounded text-sm">+ Resource</button>
+        <div className="flex gap-1">
+          <button type="submit" className="bg-indigo-600 text-white px-2 py-1 rounded text-sm">{editingId ? 'Save' : '+ Resource'}</button>
+          {editingId && <button type="button" onClick={cancelEdit} className="border px-2 py-1 rounded text-sm">Cancel</button>}
+        </div>
       </form>
       <table className="w-full text-sm border rounded-lg overflow-hidden">
-        <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Skills</th><th className="px-3 py-2 text-left">Grade</th><th className="px-3 py-2 text-right">Capacity</th></tr></thead>
+        <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Skills</th><th className="px-3 py-2 text-left">Grade</th><th className="px-3 py-2 text-right">Capacity</th><th className="px-3 py-2"></th></tr></thead>
         <tbody className="divide-y">
-          {resources.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-gray-400">No resources.</td></tr> : resources.map((r) => (
-            <tr key={r.id}><td className="px-3 py-2 font-medium">{r.name}</td><td className="px-3 py-2 text-xs">{(r.skills ?? []).join(', ')}</td><td className="px-3 py-2">{r.grade ?? '—'}</td><td className="px-3 py-2 text-right">{r.weeklyCapacityHours}h</td></tr>
+          {resources.length === 0 ? <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No resources.</td></tr> : resources.map((r) => (
+            <tr key={r.id}><td className="px-3 py-2 font-medium">{r.name}</td><td className="px-3 py-2 text-xs">{(r.skills ?? []).join(', ')}</td><td className="px-3 py-2">{r.grade ?? '—'}</td><td className="px-3 py-2 text-right">{r.weeklyCapacityHours}h</td><td className="px-3 py-2 text-right"><button onClick={() => editResource(r)} className="text-xs text-indigo-600 hover:underline">Edit</button></td></tr>
           ))}
         </tbody>
       </table>

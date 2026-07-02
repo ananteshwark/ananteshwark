@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ResourcesService } from './resources.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -22,6 +22,10 @@ export class ResourcesController {
   @Post()
   @RequirePermission('projects:manage')
   create(@CurrentUser() u: any, @Body() b: any) { return this.service.createResource(u.tenantId, b); }
+
+  @Patch(':id')
+  @RequirePermission('projects:manage')
+  update(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateResource(u.tenantId, id, b); }
 
   @Get('by-skill')
   @RequirePermission('projects:read')

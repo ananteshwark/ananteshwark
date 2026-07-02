@@ -34,6 +34,15 @@ export class RfqService {
     return `RFQ-${String(next).padStart(6, '0')}`;
   }
 
+  async updateRfq(tenantId: string, id: string, dto: any): Promise<Rfq> {
+    const rfq = await this.rfqRepo.findOne({ where: { id, tenantId } });
+    if (!rfq) throw new NotFoundException(`RFQ ${id} not found`);
+    if (rfq.status !== RfqStatus.DRAFT) throw new BadRequestException('Only DRAFT RFQs can be edited');
+    const { tenantId: _t, id: _i, rfqNumber: _n, status: _s, lines: _l, ...rest } = dto ?? {};
+    Object.assign(rfq, rest);
+    return this.rfqRepo.save(rfq);
+  }
+
   async createRfq(tenantId: string, dto: CreateRfqDto): Promise<Rfq> {
     const rfqNumber = await this.nextNumber(tenantId);
     const rfq = this.rfqRepo.create({

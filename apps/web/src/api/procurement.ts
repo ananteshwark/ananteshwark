@@ -18,6 +18,7 @@ export const procurementApi = {
   getRfqs: (params?: any) => apiClient.get('/procurement/rfqs', { params }),
   getRfq: (id: string) => apiClient.get(`/procurement/rfqs/${id}`),
   createRfq: (data: any) => apiClient.post('/procurement/rfqs', data),
+  updateRfq: (id: string, data: any) => apiClient.patch(`/procurement/rfqs/${id}`, data),
   issueRfq: (id: string) => apiClient.post(`/procurement/rfqs/${id}/issue`),
   recordQuote: (id: string, data: any) => apiClient.post(`/procurement/rfqs/${id}/quotes`, data),
   getComparative: (id: string) => apiClient.get(`/procurement/rfqs/${id}/comparative`),

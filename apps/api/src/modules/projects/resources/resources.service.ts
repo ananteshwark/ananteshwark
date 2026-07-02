@@ -17,6 +17,14 @@ export class ResourcesService {
 
   // ─── Ph-242: resource pool ────────────────────────────────────────
 
+  async updateResource(tenantId: string, id: string, dto: any): Promise<ProjectResource> {
+    const r = await this.resourceRepo.findOne({ where: { id, tenantId } });
+    if (!r) throw new NotFoundException(`Resource ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(r, rest);
+    return (this.resourceRepo.save(r) as unknown) as Promise<ProjectResource>;
+  }
+
   listResources(tenantId: string): Promise<ProjectResource[]> {
     return this.resourceRepo.find({ where: { tenantId }, order: { name: 'ASC' } });
   }

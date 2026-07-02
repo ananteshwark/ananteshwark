@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -42,6 +43,13 @@ export class RfqController {
   @ApiOperation({ summary: 'Create an RFQ' })
   create(@CurrentUser() user: any, @Body() dto: CreateRfqDto) {
     return this.service.createRfq(user.tenantId, dto);
+  }
+
+  @Patch(':id')
+  @RequirePermission('procurement:rfq:manage')
+  @ApiOperation({ summary: 'Update a DRAFT RFQ header' })
+  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+    return this.service.updateRfq(user.tenantId, id, dto);
   }
 
   @Post(':id/issue')
