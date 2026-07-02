@@ -8,30 +8,48 @@ const money = (n: any) => Number(n || 0).toLocaleString(undefined, { minimumFrac
 
 function TerritoriesTab() {
   const [items, setItems] = useState<any[]>([]);
-  const [form, setForm] = useState({ code: '', name: '', ownerId: '', regions: '', industries: '', accountIds: '' });
+  const emptyForm = { code: '', name: '', ownerId: '', regions: '', industries: '', accountIds: '' };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   useEffect(() => { load(); }, []);
   async function load() { setItems(unwrap(await territoriesApi.list())); }
-  async function create(e: React.FormEvent) {
+  function startEdit(t: any) {
+    setEditingId(t.id);
+    setForm({
+      code: t.code ?? '', name: t.name ?? '', ownerId: t.ownerId ?? '',
+      regions: (t.regions ?? []).join(', '), industries: (t.industries ?? []).join(', '), accountIds: (t.accountIds ?? []).join(', '),
+    });
+  }
+  function cancelEdit() { setEditingId(null); setForm(emptyForm); }
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const split = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
-    try { await territoriesApi.create({ code: form.code, name: form.name, ownerId: form.ownerId || undefined, regions: split(form.regions), industries: split(form.industries), accountIds: split(form.accountIds) }); setForm({ code: '', name: '', ownerId: '', regions: '', industries: '', accountIds: '' }); load(); }
+    const payload = { code: form.code, name: form.name, ownerId: form.ownerId || undefined, regions: split(form.regions), industries: split(form.industries), accountIds: split(form.accountIds) };
+    try {
+      if (editingId) await territoriesApi.update(editingId, payload);
+      else await territoriesApi.create(payload);
+      cancelEdit(); load();
+    }
     catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   return (
     <div className="space-y-3">
-      <form onSubmit={create} className="grid grid-cols-6 gap-2 bg-gray-50 p-3 rounded-lg items-end">
+      <form onSubmit={submit} className="grid grid-cols-6 gap-2 bg-gray-50 p-3 rounded-lg items-end">
         <input required placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="border rounded px-2 py-1 text-sm" />
         <input required placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="border rounded px-2 py-1 text-sm" />
         <input placeholder="Owner ID" value={form.ownerId} onChange={(e) => setForm({ ...form, ownerId: e.target.value })} className="border rounded px-2 py-1 text-sm" />
         <input placeholder="Regions (csv)" value={form.regions} onChange={(e) => setForm({ ...form, regions: e.target.value })} className="border rounded px-2 py-1 text-sm" />
         <input placeholder="Industries (csv)" value={form.industries} onChange={(e) => setForm({ ...form, industries: e.target.value })} className="border rounded px-2 py-1 text-sm" />
-        <button type="submit" className="bg-indigo-600 text-white px-2 py-1 rounded text-sm">+ Territory</button>
+        <div className="flex gap-1">
+          <button type="submit" className="bg-indigo-600 text-white px-2 py-1 rounded text-sm">{editingId ? 'Save' : '+ Territory'}</button>
+          {editingId && <button type="button" onClick={cancelEdit} className="border px-2 py-1 rounded text-sm">Cancel</button>}
+        </div>
       </form>
       <table className="w-full text-sm border rounded-lg overflow-hidden">
-        <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Owner</th><th className="px-3 py-2 text-left">Coverage</th></tr></thead>
+        <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Owner</th><th className="px-3 py-2 text-left">Coverage</th><th className="px-3 py-2"></th></tr></thead>
         <tbody className="divide-y">
-          {items.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-gray-400">No territories.</td></tr> : items.map((t) => (
-            <tr key={t.id}><td className="px-3 py-2 font-mono text-xs">{t.code}</td><td className="px-3 py-2">{t.name}</td><td className="px-3 py-2 font-mono text-xs">{t.ownerId ?? '—'}</td><td className="px-3 py-2 text-xs">{[...(t.regions ?? []), ...(t.industries ?? []), ...(t.accountIds ?? [])].join(', ') || '—'}</td></tr>
+          {items.length === 0 ? <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No territories.</td></tr> : items.map((t) => (
+            <tr key={t.id}><td className="px-3 py-2 font-mono text-xs">{t.code}</td><td className="px-3 py-2">{t.name}</td><td className="px-3 py-2 font-mono text-xs">{t.ownerId ?? '—'}</td><td className="px-3 py-2 text-xs">{[...(t.regions ?? []), ...(t.industries ?? []), ...(t.accountIds ?? [])].join(', ') || '—'}</td><td className="px-3 py-2 text-right"><button onClick={() => startEdit(t)} className="text-xs text-indigo-600 hover:underline">Edit</button></td></tr>
           ))}
         </tbody>
       </table>

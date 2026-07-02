@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { TerritoriesService } from './territories.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -21,6 +21,10 @@ export class TerritoriesController {
   @Post()
   @RequirePermission('crm:manage')
   create(@CurrentUser() u: any, @Body() b: any) { return this.service.createTerritory(u.tenantId, b); }
+
+  @Patch(':id')
+  @RequirePermission('crm:manage')
+  update(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateTerritory(u.tenantId, id, b); }
 
   @Get('match')
   @RequirePermission('crm:read')

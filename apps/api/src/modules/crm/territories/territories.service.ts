@@ -33,6 +33,14 @@ export class TerritoriesService {
     return (this.terrRepo.save(t) as unknown) as Promise<Territory>;
   }
 
+  async updateTerritory(tenantId: string, id: string, dto: any): Promise<Territory> {
+    const t = await this.terrRepo.findOne({ where: { id, tenantId } });
+    if (!t) throw new NotFoundException('Territory not found');
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(t, rest);
+    return (this.terrRepo.save(t) as unknown) as Promise<Territory>;
+  }
+
   /**
    * Find the best-matching active territory for an account: a named-account
    * match outranks an industry match, which outranks a region match.
