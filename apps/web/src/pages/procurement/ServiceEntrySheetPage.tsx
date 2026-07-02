@@ -39,6 +39,7 @@ export default function ServiceEntrySheetPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -79,7 +80,7 @@ export default function ServiceEntrySheetPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      await procurementApi.createServiceEntry({
+      const payload = {
         poId: form.poId,
         periodFrom: form.periodFrom,
         periodTo: form.periodTo,
@@ -87,15 +88,25 @@ export default function ServiceEntrySheetPage() {
         quantity: Number(form.quantity),
         uom: form.uom,
         rate: Number(form.rate),
-      });
+      };
+      if (editingId) await procurementApi.updateServiceEntry(editingId, payload);
+      else await procurementApi.createServiceEntry(payload);
       setShowModal(false);
+      setEditingId(null);
       setForm(defaultForm);
       fetchEntries();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create service entry sheet');
+      setFormError(err?.response?.data?.message ?? 'Failed to save service entry sheet');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const editEntry = (e: any) => {
+    setEditingId(e.id);
+    setForm({ poId: e.poId ?? '', periodFrom: e.periodFrom ?? '', periodTo: e.periodTo ?? '', description: e.description ?? '', quantity: String(e.quantity ?? ''), uom: e.uom ?? '', rate: String(e.rate ?? '') });
+    setFormError(null);
+    setShowModal(true);
   };
 
   const doAction = async (fn: () => Promise<any>) => {
@@ -112,7 +123,7 @@ export default function ServiceEntrySheetPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Service Entry Sheets</h1>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => { setEditingId(null); setForm(defaultForm); setFormError(null); setShowModal(true); }}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -156,6 +167,14 @@ export default function ServiceEntrySheetPage() {
                   <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
                     {e.status === 'DRAFT' && (
                       <button
+                        onClick={() => editEntry(e)}
+                        className="inline-flex items-center gap-1 text-xs px-2 py-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {e.status === 'DRAFT' && (
+                      <button
                         onClick={() => doAction(() => procurementApi.submitServiceEntry(e.id))}
                         className="inline-flex items-center gap-1 text-xs px-2 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
                       >
@@ -193,8 +212,8 @@ export default function ServiceEntrySheetPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">New Service Entry Sheet</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Service Entry Sheet' : 'New Service Entry Sheet'}</h2>
+              <button onClick={() => { setShowModal(false); setEditingId(null); setForm(defaultForm); }} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -295,7 +314,7 @@ export default function ServiceEntrySheetPage() {
                   disabled={submitting}
                   className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {submitting ? 'Creating...' : 'Create'}
+                  {submitting ? 'Saving...' : editingId ? 'Save' : 'Create'}
                 </button>
               </div>
             </form>

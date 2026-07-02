@@ -27,6 +27,14 @@ export class AtsService {
     return this.jobRepo.save(job);
   }
 
+  async updateJobPosting(tenantId: string, id: string, dto: any): Promise<JobPosting> {
+    const job = await this.jobRepo.findOne({ where: { id, tenantId } });
+    if (!job) throw new NotFoundException(`Job posting ${id} not found`);
+    const { tenantId: _t, id: _i, status: _s, createdById: _c, ...rest } = dto ?? {};
+    Object.assign(job, rest);
+    return this.jobRepo.save(job);
+  }
+
   async publishJob(tenantId: string, id: string): Promise<JobPosting> {
     const job = await this.jobRepo.findOne({ where: { id, tenantId } });
     if (!job) throw new NotFoundException('Job posting not found');

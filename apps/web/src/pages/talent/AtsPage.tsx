@@ -23,8 +23,11 @@ const APP_STATUS_COLORS: Record<string, string> = {
   WITHDRAWN: 'bg-gray-100 text-gray-500',
 };
 
-function NewJobDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ title: '', description: '', type: 'FULL_TIME', vacancies: 1, location: '', requirements: '' });
+function NewJobDialog({ onClose, onSaved, editJob }: { onClose: () => void; onSaved: () => void; editJob?: any }) {
+  const [form, setForm] = useState({
+    title: editJob?.title ?? '', description: editJob?.description ?? '', type: editJob?.type ?? 'FULL_TIME',
+    vacancies: editJob?.vacancies ?? 1, location: editJob?.location ?? '', requirements: editJob?.requirements ?? '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,11 +36,12 @@ function NewJobDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     setLoading(true);
     setError('');
     try {
-      await talentApi.createJobPosting(form);
+      if (editJob) await talentApi.updateJobPosting(editJob.id, form);
+      else await talentApi.createJobPosting(form);
       onSaved();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create job posting');
+      setError(err.response?.data?.message || 'Failed to save job posting');
     } finally {
       setLoading(false);
     }
@@ -47,7 +51,7 @@ function NewJobDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold">New Job Posting</h2>
+          <h2 className="text-lg font-semibold">{editJob ? 'Edit Job Posting' : 'New Job Posting'}</h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
@@ -85,7 +89,7 @@ function NewJobDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={loading} className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? 'Saving...' : editJob ? 'Save' : 'Create'}
             </button>
           </div>
         </form>
@@ -121,6 +125,7 @@ export default function AtsPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [applicants, setApplicants] = useState<any[]>([]);
   const [showNew, setShowNew] = useState(false);
+  const [editJob, setEditJob] = useState<any>(null);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   const [filterJobId, setFilterJobId] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -197,6 +202,9 @@ export default function AtsPage() {
                 </div>
                 <div className="flex gap-2 ml-4">
                   {job.status === 'DRAFT' && (
+                    <button onClick={() => setEditJob(job)} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-lg hover:bg-amber-100">Edit</button>
+                  )}
+                  {job.status === 'DRAFT' && (
                     <button onClick={() => handlePublish(job.id)} className="text-xs bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-lg hover:bg-green-100">Publish</button>
                   )}
                   {job.status === 'PUBLISHED' && (
@@ -269,6 +277,7 @@ export default function AtsPage() {
       )}
 
       {showNew && <NewJobDialog onClose={() => setShowNew(false)} onSaved={() => { loadJobs(); }} />}
+      {editJob && <NewJobDialog editJob={editJob} onClose={() => setEditJob(null)} onSaved={() => { loadJobs(); }} />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AtsService } from './ats.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -35,6 +35,13 @@ export class AtsController {
   @ApiOperation({ summary: 'Create job posting' })
   createJob(@CurrentUser() user: any, @Body() dto: CreateJobPostingDto) {
     return this.service.createJobPosting(user.tenantId, user.id, dto);
+  }
+
+  @Patch('jobs/:id')
+  @RequirePermission('talent:ats:manage')
+  @ApiOperation({ summary: 'Update a job posting' })
+  updateJob(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+    return this.service.updateJobPosting(user.tenantId, id, dto);
   }
 
   @Post('jobs/:id/publish')

@@ -5,6 +5,7 @@ export const talentApi = {
   getJobPostings: (params?: any) => apiClient.get('/talent/ats/jobs', { params }),
   getJobPosting: (id: string) => apiClient.get(`/talent/ats/jobs/${id}`),
   createJobPosting: (data: any) => apiClient.post('/talent/ats/jobs', data),
+  updateJobPosting: (id: string, data: any) => apiClient.patch(`/talent/ats/jobs/${id}`, data),
   publishJob: (id: string) => apiClient.post(`/talent/ats/jobs/${id}/publish`),
   closeJob: (id: string) => apiClient.post(`/talent/ats/jobs/${id}/close`),
   getHiringFunnel: (id: string) => apiClient.get(`/talent/ats/jobs/${id}/funnel`),
