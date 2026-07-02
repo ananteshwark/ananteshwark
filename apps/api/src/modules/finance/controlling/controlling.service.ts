@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { ProfitCenter } from './entities/profit-center.entity';
 import { CostAllocationCycle, AllocationCycleStatus } from './entities/cost-allocation-cycle.entity';
 import { CostAllocationEntry } from './entities/cost-allocation-entry.entity';
@@ -33,6 +34,7 @@ export class ControllingService {
     private readonly overheadSheetRepo: Repository<OverheadCostingSheet>,
     private readonly glService: GlService,
     private readonly dataSource: DataSource,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Profit Centers ────────────────────────────────────────────────────────
@@ -224,8 +226,7 @@ export class ControllingService {
   // ─── Internal Orders ──────────────────────────────────────────────────────
 
   private async nextOrderNumber(tenantId: string): Promise<string> {
-    const count = await this.internalOrderRepo.count({ where: { tenantId } });
-    return `IO-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'internal-order', 'IO-', 6);
   }
 
   async createInternalOrder(tenantId: string, dto: any): Promise<InternalOrder> {

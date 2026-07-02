@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { SourcingEvent, SourcingEventType, SourcingEventStatus, BidVisibility } from './entities/sourcing-event.entity';
 import { SourcingEventLine } from './entities/sourcing-event-line.entity';
 import { SourcingBid } from './entities/sourcing-bid.entity';
@@ -15,6 +16,7 @@ export class SourcingService {
     @InjectRepository(SourcingEventLine) private readonly lineRepo: Repository<SourcingEventLine>,
     @InjectRepository(SourcingBid) private readonly bidRepo: Repository<SourcingBid>,
     @InjectRepository(SourcingAward) private readonly awardRepo: Repository<SourcingAward>,
+    private readonly sequence: SequenceService,
   ) {}
 
   async updateEvent(tenantId: string, id: string, dto: any): Promise<SourcingEvent> {
@@ -40,8 +42,7 @@ export class SourcingService {
     const wP = data.weightPrice ?? 0.6, wQ = data.weightQuality ?? 0.2, wD = data.weightDelivery ?? 0.2;
     const sum = round2(wP + wQ + wD);
     if (sum <= 0) throw new BadRequestException('weights must sum to a positive value');
-    const count = await this.eventRepo.count({ where: { tenantId } });
-    const eventNumber = `SRC-${String(count + 1).padStart(5, '0')}`;
+    const eventNumber = await this.sequence.formatted(tenantId, 'sourcing-event', 'SRC-', 5);
     const e = this.eventRepo.create({
       tenantId, eventNumber, eventType: data.eventType ?? SourcingEventType.RFQ, title: data.title,
       description: data.description ?? null, status: SourcingEventStatus.DRAFT,

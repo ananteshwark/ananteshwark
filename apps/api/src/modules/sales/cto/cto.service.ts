@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import {
   CtoOptionMapping,
   CtoAction,
@@ -14,6 +15,7 @@ export class CtoService {
   constructor(
     @InjectRepository(CtoOptionMapping) private readonly mappings: Repository<CtoOptionMapping>,
     @InjectRepository(CtoConfiguration) private readonly configs: Repository<CtoConfiguration>,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ---- Option → component mappings ----------------------------------------
@@ -113,8 +115,7 @@ export class CtoService {
     const selectedOptions = dto.selectedOptions ?? [];
     const variantBom = await this.explode(tenantId, dto.modelCode, selectedOptions);
 
-    const count = await this.configs.count({ where: { tenantId } });
-    const configNumber = `CTO-${String(count + 1).padStart(6, '0')}`;
+    const configNumber = await this.sequence.formatted(tenantId, 'cto-config', 'CTO-', 6);
 
     const cfg = this.configs.create({
       tenantId,
@@ -152,8 +153,7 @@ export class CtoService {
     if (cfg.status === CtoStatus.RELEASED) return cfg;
     if (cfg.status === CtoStatus.CANCELLED) throw new BadRequestException('Cannot release a cancelled configuration');
     if (!cfg.variantBom || cfg.variantBom.length === 0) throw new BadRequestException('Variant BOM is empty; nothing to release');
-    const released = await this.configs.count({ where: { tenantId, status: CtoStatus.RELEASED } });
-    cfg.workOrderNumber = `CTO-WO-${String(released + 1).padStart(6, '0')}`;
+    cfg.workOrderNumber = await this.sequence.formatted(tenantId, 'cto-work-order', 'CTO-WO-', 6);
     cfg.status = CtoStatus.RELEASED;
     return this.configs.save(cfg);
   }

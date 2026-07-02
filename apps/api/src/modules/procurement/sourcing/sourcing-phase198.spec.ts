@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { SourcingService } from './sourcing.service';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { SourcingEvent, SourcingEventType, SourcingEventStatus, BidVisibility } from './entities/sourcing-event.entity';
 import { SourcingEventLine } from './entities/sourcing-event-line.entity';
 import { SourcingBid } from './entities/sourcing-bid.entity';
@@ -18,10 +19,11 @@ const mockRepo = () => ({
 
 describe('SourcingService — Phase 198-201', () => {
   let service: SourcingService;
-  let eventRepo: any, lineRepo: any, bidRepo: any, awardRepo: any;
+  let eventRepo: any, lineRepo: any, bidRepo: any, awardRepo: any, sequence: any;
 
   beforeEach(async () => {
     eventRepo = mockRepo(); lineRepo = mockRepo(); bidRepo = mockRepo(); awardRepo = mockRepo();
+    sequence = { next: jest.fn().mockResolvedValue(1), formatted: jest.fn().mockResolvedValue('SRC-00001') };
     const module = await Test.createTestingModule({
       providers: [
         SourcingService,
@@ -29,6 +31,7 @@ describe('SourcingService — Phase 198-201', () => {
         { provide: getRepositoryToken(SourcingEventLine), useValue: lineRepo },
         { provide: getRepositoryToken(SourcingBid), useValue: bidRepo },
         { provide: getRepositoryToken(SourcingAward), useValue: awardRepo },
+        { provide: SequenceService, useValue: sequence },
       ],
     }).compile();
     service = module.get(SourcingService);
@@ -36,9 +39,10 @@ describe('SourcingService — Phase 198-201', () => {
 
   // ─── Ph-198: events ───────────────────────────────────────────────
 
-  it('createEvent — generates sequential event number', async () => {
-    eventRepo.count.mockResolvedValue(4);
+  it('createEvent — generates event number from the atomic sequence', async () => {
+    sequence.formatted.mockResolvedValue('SRC-00005');
     const e = await service.createEvent('t1', { title: 'Steel RFQ' });
+    expect(sequence.formatted).toHaveBeenCalledWith('t1', 'sourcing-event', 'SRC-', 5);
     expect(eventRepo.create).toHaveBeenCalledWith(expect.objectContaining({ eventNumber: 'SRC-00005', status: SourcingEventStatus.DRAFT }));
     expect(e).toBeDefined();
   });

@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { CtoService } from './cto.service';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { CtoOptionMapping, CtoConfiguration, CtoAction, CtoStatus } from './entities/cto.entity';
 
 const mockRepo = () => ({
@@ -32,11 +33,18 @@ describe('CtoService — Phase 149 (Configure-to-Order)', () => {
   beforeEach(async () => {
     mapRepo = mockRepo();
     cfgRepo = mockRepo();
+    const sequence = {
+      next: jest.fn().mockResolvedValue(1),
+      formatted: jest.fn((_t: string, key: string) =>
+        Promise.resolve(key === 'cto-work-order' ? 'CTO-WO-000001' : 'CTO-000001'),
+      ),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         CtoService,
         { provide: getRepositoryToken(CtoOptionMapping), useValue: mapRepo },
         { provide: getRepositoryToken(CtoConfiguration), useValue: cfgRepo },
+        { provide: SequenceService, useValue: sequence },
       ],
     }).compile();
     service = moduleRef.get(CtoService);

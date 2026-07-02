@@ -7,6 +7,12 @@ function makeService(overrides: Partial<Record<string, any>> = {}): ControllingS
     postJournalEntry: jest.fn(async () => ({ id: 'je-1' })),
   } as any;
 
+  const sequence = overrides.sequence ?? {
+    next: jest.fn().mockResolvedValue(1),
+    formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) =>
+      Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`),
+    ),
+  };
   return new ControllingService(
     overrides.profitCenterRepo ?? mockRepo(),
     overrides.cycleRepo ?? mockRepo(),
@@ -18,6 +24,7 @@ function makeService(overrides: Partial<Record<string, any>> = {}): ControllingS
     overrides.overheadSheetRepo ?? mockRepo(),
     overrides.glService ?? glService,
     overrides.dataSource ?? mockDataSource(),
+    sequence,
   );
 }
 
