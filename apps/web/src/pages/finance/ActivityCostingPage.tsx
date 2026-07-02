@@ -6,8 +6,15 @@ type Tab = 'activityTypes' | 'activityPrices' | 'overheadSheets';
 
 // ─── New Activity Type Dialog ─────────────────────────────────────────────────
 
-function NewActivityTypeDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ code: '', name: '', unit: 'HOURS', costCenterId: '', wipAccountId: '', creditAccountId: '' });
+function NewActivityTypeDialog({ onClose, onSaved, editing }: { onClose: () => void; onSaved: () => void; editing?: any }) {
+  const [form, setForm] = useState({
+    code: editing?.code ?? '',
+    name: editing?.name ?? '',
+    unit: editing?.unit ?? 'HOURS',
+    costCenterId: editing?.costCenterId ?? '',
+    wipAccountId: editing?.wipAccountId ?? '',
+    creditAccountId: editing?.creditAccountId ?? '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,23 +22,25 @@ function NewActivityTypeDialog({ onClose, onSaved }: { onClose: () => void; onSa
     e.preventDefault();
     setLoading(true);
     try {
-      await financeApi.createActivityType({
+      const payload = {
         ...form,
         costCenterId: form.costCenterId || null,
         wipAccountId: form.wipAccountId || null,
         creditAccountId: form.creditAccountId || null,
-      });
+      };
+      if (editing) await financeApi.updateActivityType(editing.id, payload);
+      else await financeApi.createActivityType(payload);
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create activity type');
+      setError(e.response?.data?.message || (editing ? 'Failed to update activity type' : 'Failed to create activity type'));
     } finally { setLoading(false); }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-        <div className="p-6 border-b"><h2 className="text-lg font-semibold">New Activity Type</h2></div>
+        <div className="p-6 border-b"><h2 className="text-lg font-semibold">{editing ? 'Edit Activity Type' : 'New Activity Type'}</h2></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
@@ -69,7 +78,7 @@ function NewActivityTypeDialog({ onClose, onSaved }: { onClose: () => void; onSa
           <div className="flex gap-3 justify-end pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? (editing ? 'Saving...' : 'Creating...') : (editing ? 'Save' : 'Create')}
             </button>
           </div>
         </form>
@@ -84,6 +93,7 @@ function ActivityTypesTab() {
   const [types, setTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
+  const [editingType, setEditingType] = useState<any>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,13 +111,13 @@ function ActivityTypesTab() {
         <p className="text-sm text-gray-600">Define activities (machine hours, labor hours, etc.) and their GL accounts.</p>
         <div className="flex gap-2">
           <button onClick={load} className="p-2 border rounded-lg hover:bg-gray-50"><RefreshCw className="w-4 h-4" /></button>
-          <button onClick={() => setShowDialog(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          <button onClick={() => { setEditingType(null); setShowDialog(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             <Plus className="w-4 h-4" /> New Activity Type
           </button>
         </div>
       </div>
 
-      {showDialog && <NewActivityTypeDialog onClose={() => setShowDialog(false)} onSaved={load} />}
+      {showDialog && <NewActivityTypeDialog editing={editingType} onClose={() => { setShowDialog(false); setEditingType(null); }} onSaved={load} />}
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>
@@ -125,6 +135,7 @@ function ActivityTypesTab() {
                 <th className="px-4 py-3 text-left">WIP Account</th>
                 <th className="px-4 py-3 text-left">Credit Account</th>
                 <th className="px-4 py-3 text-center">Active</th>
+                <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -138,6 +149,9 @@ function ActivityTypesTab() {
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{t.creditAccountId ? `${t.creditAccountId.slice(0, 8)}…` : '—'}</td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-block w-2 h-2 rounded-full ${t.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button onClick={() => { setEditingType(t); setShowDialog(true); }} className="text-blue-600 text-xs hover:underline">Edit</button>
                   </td>
                 </tr>
               ))}
@@ -275,8 +289,14 @@ function ActivityPricesTab() {
 
 // ─── Overhead Sheets Tab ──────────────────────────────────────────────────────
 
-function NewOverheadSheetDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ code: '', name: '', lines: [{ sequence: 1, name: '', base: 'MATERIAL_COST', rate: '', debitAccountId: '', creditAccountId: '' }] });
+function NewOverheadSheetDialog({ onClose, onSaved, editing }: { onClose: () => void; onSaved: () => void; editing?: any }) {
+  const [form, setForm] = useState({
+    code: editing?.code ?? '',
+    name: editing?.name ?? '',
+    lines: editing?.lines?.length
+      ? editing.lines.map((l: any) => ({ sequence: l.sequence, name: l.name ?? '', base: l.base ?? 'MATERIAL_COST', rate: l.rate != null ? String(l.rate) : '', debitAccountId: l.debitAccountId ?? '', creditAccountId: l.creditAccountId ?? '' }))
+      : [{ sequence: 1, name: '', base: 'MATERIAL_COST', rate: '', debitAccountId: '', creditAccountId: '' }],
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -287,28 +307,30 @@ function NewOverheadSheetDialog({ onClose, onSaved }: { onClose: () => void; onS
 
   const updateLine = (i: number, field: string, value: string) => setForm(f => ({
     ...f,
-    lines: f.lines.map((l, idx) => idx === i ? { ...l, [field]: value } : l),
+    lines: f.lines.map((l: any, idx: number) => idx === i ? { ...l, [field]: value } : l),
   }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await financeApi.createOverheadSheet({
+      const payload = {
         ...form,
-        lines: form.lines.map(l => ({ ...l, rate: Number(l.rate), sequence: Number(l.sequence) })),
-      });
+        lines: form.lines.map((l: any) => ({ ...l, rate: Number(l.rate), sequence: Number(l.sequence) })),
+      };
+      if (editing) await financeApi.updateOverheadSheet(editing.id, payload);
+      else await financeApi.createOverheadSheet(payload);
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create overhead sheet');
+      setError(e.response?.data?.message || (editing ? 'Failed to update overhead sheet' : 'Failed to create overhead sheet'));
     } finally { setLoading(false); }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-4">
-        <div className="p-6 border-b"><h2 className="text-lg font-semibold">New Overhead Costing Sheet</h2></div>
+        <div className="p-6 border-b"><h2 className="text-lg font-semibold">{editing ? 'Edit Overhead Costing Sheet' : 'New Overhead Costing Sheet'}</h2></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
@@ -330,7 +352,7 @@ function NewOverheadSheetDialog({ onClose, onSaved }: { onClose: () => void; onS
               <button type="button" onClick={addLine} className="text-xs text-blue-600 hover:underline">+ Add Line</button>
             </div>
             <div className="space-y-2">
-              {form.lines.map((line, i) => (
+              {form.lines.map((line: any, i: number) => (
                 <div key={i} className="grid grid-cols-6 gap-2 text-xs">
                   <div>
                     <label className="block text-gray-500 mb-0.5">Name</label>
@@ -369,7 +391,7 @@ function NewOverheadSheetDialog({ onClose, onSaved }: { onClose: () => void; onS
           <div className="flex gap-3 justify-end pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? (editing ? 'Saving...' : 'Creating...') : (editing ? 'Save' : 'Create')}
             </button>
           </div>
         </form>
@@ -382,6 +404,7 @@ function OverheadSheetsTab() {
   const [sheets, setSheets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
+  const [editingSheet, setEditingSheet] = useState<any>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -399,13 +422,13 @@ function OverheadSheetsTab() {
         <p className="text-sm text-gray-600">Define overhead rates applied to production orders based on material / labor / total cost.</p>
         <div className="flex gap-2">
           <button onClick={load} className="p-2 border rounded-lg hover:bg-gray-50"><RefreshCw className="w-4 h-4" /></button>
-          <button onClick={() => setShowDialog(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          <button onClick={() => { setEditingSheet(null); setShowDialog(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             <Plus className="w-4 h-4" /> New Sheet
           </button>
         </div>
       </div>
 
-      {showDialog && <NewOverheadSheetDialog onClose={() => setShowDialog(false)} onSaved={load} />}
+      {showDialog && <NewOverheadSheetDialog editing={editingSheet} onClose={() => { setShowDialog(false); setEditingSheet(null); }} onSaved={load} />}
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>
@@ -420,9 +443,12 @@ function OverheadSheetsTab() {
                   <span className="font-mono font-semibold">{s.code}</span>
                   <span className="ml-3 text-gray-700">{s.name}</span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${s.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {s.isActive ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => { setEditingSheet(s); setShowDialog(true); }} className="text-blue-600 text-xs hover:underline">Edit</button>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${s.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {s.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
               </div>
               {s.lines?.length > 0 && (
                 <table className="w-full text-sm">

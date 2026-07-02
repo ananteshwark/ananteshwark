@@ -51,15 +51,31 @@ export default function ParallelLedgersPage() {
 function LedgersTab() {
   const [ledgers, setLedgers] = useState<any[]>([]);
   const [form, setForm] = useState({ code: '', name: '', accountingPrinciple: 'LOCAL_GAAP', currency: 'USD', isLeading: false });
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     setLedgers(unwrap(await financeApi.getLedgers()));
   }, []);
   useEffect(() => { refetch(); }, [refetch]);
 
+  const reset = () => {
+    setEditingId(null);
+    setForm({ code: '', name: '', accountingPrinciple: 'LOCAL_GAAP', currency: 'USD', isLeading: false });
+  };
+
+  const startEdit = (l: any) => {
+    setEditingId(l.id);
+    setForm({ code: l.code ?? '', name: l.name ?? '', accountingPrinciple: l.accountingPrinciple ?? 'LOCAL_GAAP', currency: l.currency ?? 'USD', isLeading: !!l.isLeading });
+  };
+
   const create = async () => {
-    try { await financeApi.createLedger(form); setForm({ code: '', name: '', accountingPrinciple: 'LOCAL_GAAP', currency: 'USD', isLeading: false }); await refetch(); }
-    catch (e: any) { alert(e?.response?.data?.message ?? 'Failed to create ledger'); }
+    try {
+      if (editingId) await financeApi.updateLedger(editingId, form);
+      else await financeApi.createLedger(form);
+      reset();
+      await refetch();
+    }
+    catch (e: any) { alert(e?.response?.data?.message ?? (editingId ? 'Failed to update ledger' : 'Failed to create ledger')); }
   };
   const seed = async () => {
     try { await financeApi.seedDefaultLedgers(); await refetch(); }
@@ -75,7 +91,7 @@ function LedgersTab() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
-        <h3 className="text-base font-medium text-gray-800 mb-3">New Ledger</h3>
+        <h3 className="text-base font-medium text-gray-800 mb-3">{editingId ? 'Edit Ledger' : 'New Ledger'}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-3">
           <input value={form.code} placeholder="Code (e.g. IFRS)" onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
@@ -93,10 +109,15 @@ function LedgersTab() {
           <input type="checkbox" checked={form.isLeading} onChange={(e) => setForm({ ...form, isLeading: e.target.checked })} />
           Leading ledger
         </label>
-        <button disabled={!form.code || !form.name} onClick={create}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-          <Plus className="w-4 h-4" /> Create Ledger
-        </button>
+        <div className="flex items-center gap-2">
+          <button disabled={!form.code || !form.name} onClick={create}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            <Plus className="w-4 h-4" /> {editingId ? 'Update Ledger' : 'Create Ledger'}
+          </button>
+          {editingId && (
+            <button onClick={reset} className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -108,11 +129,12 @@ function LedgersTab() {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Principle</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Currency</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Leading</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {ledgers.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No ledgers yet. Seed the defaults to start.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No ledgers yet. Seed the defaults to start.</td></tr>
             )}
             {ledgers.map((l) => (
               <tr key={l.id} className="hover:bg-gray-50">
@@ -121,6 +143,9 @@ function LedgersTab() {
                 <td className="px-4 py-3 text-sm text-gray-600">{l.accountingPrinciple}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{l.currency}</td>
                 <td className="px-4 py-3 text-sm">{l.isLeading ? <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">Leading</span> : '—'}</td>
+                <td className="px-4 py-3 text-sm">
+                  <button onClick={() => startEdit(l)} className="text-indigo-600 text-xs hover:underline">Edit</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -136,6 +161,7 @@ function GroupsTab() {
   const [groups, setGroups] = useState<any[]>([]);
   const [ledgers, setLedgers] = useState<any[]>([]);
   const [form, setForm] = useState<{ code: string; description: string; memberLedgers: string[] }>({ code: '', description: '', memberLedgers: [] });
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [recon, setRecon] = useState<any>(null);
   const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10));
   const [activeGroup, setActiveGroup] = useState<string>('');
@@ -149,9 +175,24 @@ function GroupsTab() {
   const toggleMember = (code: string) =>
     setForm((f) => ({ ...f, memberLedgers: f.memberLedgers.includes(code) ? f.memberLedgers.filter((c) => c !== code) : [...f.memberLedgers, code] }));
 
+  const reset = () => {
+    setEditingId(null);
+    setForm({ code: '', description: '', memberLedgers: [] });
+  };
+
+  const startEdit = (g: any) => {
+    setEditingId(g.id);
+    setForm({ code: g.code ?? '', description: g.description ?? '', memberLedgers: [...(g.memberLedgers ?? [])] });
+  };
+
   const create = async () => {
-    try { await financeApi.createLedgerGroup(form); setForm({ code: '', description: '', memberLedgers: [] }); await refetch(); }
-    catch (e: any) { alert(e?.response?.data?.message ?? 'Failed to create group'); }
+    try {
+      if (editingId) await financeApi.updateLedgerGroup(editingId, form);
+      else await financeApi.createLedgerGroup(form);
+      reset();
+      await refetch();
+    }
+    catch (e: any) { alert(e?.response?.data?.message ?? (editingId ? 'Failed to update group' : 'Failed to create group')); }
   };
 
   const reconcile = async (code: string) => {
@@ -168,7 +209,7 @@ function GroupsTab() {
   return (
     <div>
       <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
-        <h3 className="text-base font-medium text-gray-800 mb-3">New Ledger Group</h3>
+        <h3 className="text-base font-medium text-gray-800 mb-3">{editingId ? 'Edit Ledger Group' : 'New Ledger Group'}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <input value={form.code} placeholder="Group code" onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
@@ -188,10 +229,15 @@ function GroupsTab() {
             ))}
           </div>
         </div>
-        <button disabled={!form.code || form.memberLedgers.length === 0} onClick={create}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-          <Plus className="w-4 h-4" /> Create Group
-        </button>
+        <div className="flex items-center gap-2">
+          <button disabled={!form.code || form.memberLedgers.length === 0} onClick={create}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            <Plus className="w-4 h-4" /> {editingId ? 'Update Group' : 'Create Group'}
+          </button>
+          {editingId && (
+            <button onClick={reset} className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-3 mb-4">
@@ -220,9 +266,12 @@ function GroupsTab() {
                 <td className="px-4 py-3 text-sm text-gray-600">{(g.memberLedgers ?? []).join(', ')}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{g.leadingLedger ?? '—'}</td>
                 <td className="px-4 py-3 text-sm">
-                  <button onClick={() => reconcile(g.code)} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800">
-                    <GitCompare className="w-4 h-4" /> Reconcile
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => startEdit(g)} className="text-indigo-600 text-xs hover:underline">Edit</button>
+                    <button onClick={() => reconcile(g.code)} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800">
+                      <GitCompare className="w-4 h-4" /> Reconcile
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

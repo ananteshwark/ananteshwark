@@ -47,6 +47,7 @@ export default function ConsolidationPage() {
 
   // Group form
   const [showGroupForm, setShowGroupForm] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [groupForm, setGroupForm] = useState({
     code: '',
     name: '',
@@ -79,11 +80,28 @@ export default function ConsolidationPage() {
 
   useEffect(() => { load(); }, []);
 
+  const resetGroupForm = () => {
+    setEditingGroupId(null);
+    setGroupForm({ code: '', name: '', reportingCurrency: 'USD', memberEntityIds: [] });
+  };
+
+  const startEditGroup = (g: any) => {
+    setEditingGroupId(g.id);
+    setGroupForm({
+      code: g.code ?? '',
+      name: g.name ?? '',
+      reportingCurrency: g.reportingCurrency ?? 'USD',
+      memberEntityIds: [...(g.memberEntityIds ?? [])],
+    });
+    setShowGroupForm(true);
+  };
+
   const createGroup = async () => {
     if (!groupForm.code || !groupForm.name || !groupForm.memberEntityIds.length) return;
-    await consolidationApi.createGroup(groupForm);
+    if (editingGroupId) await consolidationApi.updateGroup(editingGroupId, groupForm);
+    else await consolidationApi.createGroup(groupForm);
     setShowGroupForm(false);
-    setGroupForm({ code: '', name: '', reportingCurrency: 'USD', memberEntityIds: [] });
+    resetGroupForm();
     load();
   };
 
@@ -156,7 +174,7 @@ export default function ConsolidationPage() {
         <div className="space-y-4">
           <div className="flex justify-end">
             <button
-              onClick={() => setShowGroupForm(true)}
+              onClick={() => { resetGroupForm(); setShowGroupForm(true); }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
             >
               <Plus className="w-4 h-4" /> New Group
@@ -165,7 +183,7 @@ export default function ConsolidationPage() {
 
           {showGroupForm && (
             <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
-              <h3 className="font-semibold text-gray-800">Create Consolidation Group</h3>
+              <h3 className="font-semibold text-gray-800">{editingGroupId ? 'Edit Consolidation Group' : 'Create Consolidation Group'}</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Code *</label>
@@ -218,7 +236,7 @@ export default function ConsolidationPage() {
               </div>
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => setShowGroupForm(false)}
+                  onClick={() => { setShowGroupForm(false); resetGroupForm(); }}
                   className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-gray-50"
                 >
                   Cancel
@@ -227,7 +245,7 @@ export default function ConsolidationPage() {
                   onClick={createGroup}
                   className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                 >
-                  Create Group
+                  {editingGroupId ? 'Update Group' : 'Create Group'}
                 </button>
               </div>
             </div>
@@ -251,15 +269,23 @@ export default function ConsolidationPage() {
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">Currency: {g.reportingCurrency}</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setRunForm({ ...runForm, groupId: g.id });
-                      setTab('run');
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                  >
-                    <Play className="w-3 h-3" /> Run
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => startEditGroup(g)}
+                      className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRunForm({ ...runForm, groupId: g.id });
+                        setTab('run');
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                      <Play className="w-3 h-3" /> Run
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {(g.memberEntityIds ?? []).map((eid: string) => (
