@@ -13,6 +13,7 @@ export default function CrmPage() {
   const [quotes, setQuotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showNewContact, setShowNewContact] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({ firstName: '', lastName: '', email: '', source: 'WEBSITE', status: 'LEAD' });
   const [search, setSearch] = useState('');
 
@@ -34,13 +35,34 @@ export default function CrmPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const handleCreateContact = async () => {
+  const resetContactForm = () => {
+    setShowNewContact(false);
+    setEditingId(null);
+    setContactForm({ firstName: '', lastName: '', email: '', source: 'WEBSITE', status: 'LEAD' });
+  };
+
+  const handleSubmitContact = async () => {
     try {
-      await crmApi.createContact(contactForm);
-      setShowNewContact(false);
-      setContactForm({ firstName: '', lastName: '', email: '', source: 'WEBSITE', status: 'LEAD' });
+      if (editingId) {
+        await crmApi.updateContact(editingId, contactForm);
+      } else {
+        await crmApi.createContact(contactForm);
+      }
+      resetContactForm();
       fetchAll();
-    } catch { alert('Failed to create contact'); }
+    } catch { alert(editingId ? 'Failed to update contact' : 'Failed to create contact'); }
+  };
+
+  const handleEditContact = (c: any) => {
+    setEditingId(c.id);
+    setContactForm({
+      firstName: c.firstName ?? '',
+      lastName: c.lastName ?? '',
+      email: c.email ?? '',
+      source: c.source ?? 'WEBSITE',
+      status: c.status ?? 'LEAD',
+    });
+    setShowNewContact(true);
   };
 
   const statusColor = (s: string) => {
@@ -72,7 +94,7 @@ export default function CrmPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">CRM</h1>
         {activeTab === 'contacts' && (
-          <button onClick={() => setShowNewContact(true)} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          <button onClick={() => { setEditingId(null); setContactForm({ firstName: '', lastName: '', email: '', source: 'WEBSITE', status: 'LEAD' }); setShowNewContact(true); }} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             + New Contact
           </button>
         )}
@@ -99,7 +121,7 @@ export default function CrmPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Name', 'Email', 'Company', 'Source', 'Status'].map((h) => (
+                  {['Name', 'Email', 'Company', 'Source', 'Status', ''].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -114,10 +136,13 @@ export default function CrmPage() {
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(c.status)}`}>{c.status}</span>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => handleEditContact(c)} className="text-blue-600 text-xs hover:underline">Edit</button>
+                    </td>
                   </tr>
                 ))}
                 {filteredContacts.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No contacts found.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No contacts found.</td></tr>
                 )}
               </tbody>
             </table>
@@ -217,7 +242,7 @@ export default function CrmPage() {
       {showNewContact && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">New Contact</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">{editingId ? 'Edit Contact' : 'New Contact'}</h2>
             <div className="space-y-4">
               {[
                 { label: 'First Name', key: 'firstName' },
@@ -241,8 +266,8 @@ export default function CrmPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={handleCreateContact} className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Create</button>
-              <button onClick={() => setShowNewContact(false)} className="flex-1 px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSubmitContact} className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">{editingId ? 'Save' : 'Create'}</button>
+              <button onClick={resetContactForm} className="flex-1 px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">Cancel</button>
             </div>
           </div>
         </div>

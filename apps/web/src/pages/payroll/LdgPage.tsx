@@ -7,15 +7,49 @@ function unwrap(res: any) {
 
 export default function LdgPage() {
   const [ldgs, setLdgs] = useState<any[]>([]);
-  const [form, setForm] = useState({ code: '', name: '', countryCode: '', currency: 'USD', roundingRule: 'NEAREST', roundingPrecision: 2 });
+  const emptyForm = { code: '', name: '', countryCode: '', currency: 'USD', roundingRule: 'NEAREST', roundingPrecision: 2 };
+  const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
   async function load() { setLdgs(unwrap(await ldgApi.list())); }
   async function seed() { await ldgApi.seedDefaults(); load(); }
+
+  function openCreate() {
+    if (showForm && editingId === null) { cancelForm(); return; }
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  }
+
+  function openEdit(l: any) {
+    setEditingId(l.id);
+    setForm({
+      code: l.code ?? '',
+      name: l.name ?? '',
+      countryCode: l.countryCode ?? '',
+      currency: l.currency ?? 'USD',
+      roundingRule: l.roundingRule ?? 'NEAREST',
+      roundingPrecision: l.roundingPrecision ?? 2,
+    });
+    setShowForm(true);
+  }
+
+  function cancelForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    try { await ldgApi.create(form); setShowForm(false); setForm({ code: '', name: '', countryCode: '', currency: 'USD', roundingRule: 'NEAREST', roundingPrecision: 2 }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingId) await ldgApi.update(editingId, form);
+      else await ldgApi.create(form);
+      cancelForm();
+      load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
 
   return (
@@ -30,7 +64,7 @@ export default function LdgPage() {
         </div>
         <div className="flex gap-2">
           <button onClick={seed} className="bg-gray-200 px-3 py-1.5 rounded text-sm hover:bg-gray-300">Seed IN/UK/US</button>
-          <button onClick={() => setShowForm(!showForm)} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">+ LDG</button>
+          <button onClick={openCreate} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">+ LDG</button>
         </div>
       </div>
 
@@ -41,15 +75,18 @@ export default function LdgPage() {
           <div><label className="text-xs text-gray-500">Country (ISO-2)</label><input required value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value.toUpperCase() })} maxLength={2} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Currency</label><input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Rounding</label><select value={form.roundingRule} onChange={(e) => setForm({ ...form, roundingRule: e.target.value })} className="w-full border rounded px-2 py-1 text-sm"><option>NEAREST</option><option>UP</option><option>DOWN</option></select></div>
-          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Create</button>
+          <div className="flex gap-2">
+            <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save' : 'Create'}</button>
+            <button type="button" onClick={cancelForm} className="border px-3 py-1.5 rounded text-sm hover:bg-gray-100">Cancel</button>
+          </div>
         </form>
       )}
 
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Country</th><th className="px-3 py-2 text-left">Currency</th><th className="px-3 py-2 text-left">Rounding</th><th className="px-3 py-2 text-left">Config keys</th></tr></thead>
+          <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Country</th><th className="px-3 py-2 text-left">Currency</th><th className="px-3 py-2 text-left">Rounding</th><th className="px-3 py-2 text-left">Config keys</th><th className="px-3 py-2 text-right">Actions</th></tr></thead>
           <tbody className="divide-y">
-            {ldgs.length === 0 ? <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-400">No LDGs. Click "Seed IN/UK/US" for reference legislations.</td></tr> : ldgs.map((l) => (
+            {ldgs.length === 0 ? <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">No LDGs. Click "Seed IN/UK/US" for reference legislations.</td></tr> : ldgs.map((l) => (
               <tr key={l.id} className="hover:bg-gray-50">
                 <td className="px-3 py-2 font-mono text-xs">{l.code}</td>
                 <td className="px-3 py-2 font-medium">{l.name}</td>
@@ -57,6 +94,7 @@ export default function LdgPage() {
                 <td className="px-3 py-2">{l.currency}</td>
                 <td className="px-3 py-2 text-xs">{l.roundingRule} ({l.roundingPrecision}dp)</td>
                 <td className="px-3 py-2 text-xs text-gray-400" title={JSON.stringify(l.config)}>{Object.keys(l.config ?? {}).slice(0, 4).join(', ')}{Object.keys(l.config ?? {}).length > 4 ? '…' : ''}</td>
+                <td className="px-3 py-2 text-right"><button onClick={() => openEdit(l)} className="text-indigo-600 text-xs hover:underline">Edit</button></td>
               </tr>
             ))}
           </tbody>

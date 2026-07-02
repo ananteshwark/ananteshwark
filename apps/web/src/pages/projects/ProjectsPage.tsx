@@ -24,16 +24,17 @@ const TASK_COLUMNS = [
   { key: 'DONE', label: 'Done' },
 ];
 
-function NewProjectDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewProjectDialog({ project, onClose, onSaved }: { project?: any; onClose: () => void; onSaved: () => void }) {
+  const editingId = project?.id ?? null;
   const [form, setForm] = useState({
-    code: '',
-    name: '',
-    clientName: '',
-    managerId: '',
-    startDate: '',
-    endDate: '',
-    budget: '',
-    status: 'PLANNING',
+    code: project?.code ?? '',
+    name: project?.name ?? '',
+    clientName: project?.clientName ?? '',
+    managerId: project?.managerId ?? '',
+    startDate: project?.startDate?.split('T')[0] ?? '',
+    endDate: project?.endDate?.split('T')[0] ?? '',
+    budget: project?.budget != null ? String(project.budget) : '',
+    status: project?.status ?? 'PLANNING',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,16 +43,21 @@ function NewProjectDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
     e.preventDefault();
     setLoading(true);
     try {
-      await projectsApi.createProject({
+      const payload = {
         ...form,
         budget: form.budget ? Number(form.budget) : undefined,
         endDate: form.endDate || undefined,
         managerId: form.managerId || undefined,
-      });
+      };
+      if (editingId) {
+        await projectsApi.updateProject(editingId, payload);
+      } else {
+        await projectsApi.createProject(payload);
+      }
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create project');
+      setError(e.response?.data?.message || `Failed to ${editingId ? 'update' : 'create'} project`);
     } finally {
       setLoading(false);
     }
@@ -61,7 +67,7 @@ function NewProjectDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold">New Project</h2>
+          <h2 className="text-lg font-semibold">{editingId ? 'Edit Project' : 'New Project'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
@@ -161,7 +167,7 @@ function NewProjectDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Project'}
+              {loading ? 'Saving...' : editingId ? 'Save Changes' : 'Create Project'}
             </button>
           </div>
         </form>
@@ -297,7 +303,7 @@ function LogTimeDialog({
   );
 }
 
-function ProjectCard({ project }: { project: any }) {
+function ProjectCard({ project, onEdit }: { project: any; onEdit: (project: any) => void }) {
   const completion = Number(project.completionPercent || 0);
   const budget = Number(project.budget || 0);
   const spent = Number(project.estimatedSpent || project.actualCost || 0);
@@ -312,11 +318,19 @@ function ProjectCard({ project }: { project: any }) {
             <p className="text-xs text-gray-500 mt-0.5">{project.clientName}</p>
           )}
         </div>
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${PROJECT_STATUS_COLORS[project.status] || 'bg-gray-100 text-gray-700'}`}
-        >
-          {project.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-medium ${PROJECT_STATUS_COLORS[project.status] || 'bg-gray-100 text-gray-700'}`}
+          >
+            {project.status}
+          </span>
+          <button
+            onClick={() => onEdit(project)}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            Edit
+          </button>
+        </div>
       </div>
 
       {/* Progress */}
@@ -537,6 +551,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [editingProject, setEditingProject] = useState<any>(null);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -561,8 +576,12 @@ export default function ProjectsPage() {
 
   return (
     <div className="p-6">
-      {showNewProject && (
-        <NewProjectDialog onClose={() => setShowNewProject(false)} onSaved={fetchProjects} />
+      {(showNewProject || editingProject) && (
+        <NewProjectDialog
+          project={editingProject}
+          onClose={() => { setShowNewProject(false); setEditingProject(null); }}
+          onSaved={fetchProjects}
+        />
       )}
 
       <div className="flex items-center justify-between mb-6">
@@ -614,7 +633,7 @@ export default function ProjectsPage() {
               <p>No projects found. Create your first project.</p>
             </div>
           ) : (
-            projects.map(project => <ProjectCard key={project.id} project={project} />)
+            projects.map(project => <ProjectCard key={project.id} project={project} onEdit={setEditingProject} />)
           )}
         </div>
       )}

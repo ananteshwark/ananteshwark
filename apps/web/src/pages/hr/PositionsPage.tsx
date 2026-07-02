@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Plus, X, Users } from 'lucide-react';
+import { Briefcase, Plus, X, Users, Pencil } from 'lucide-react';
 import { positionsApi } from '../../api/positions';
 import { hrApi } from '../../api/hr';
 
@@ -19,6 +19,7 @@ export default function PositionsPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [assignFor, setAssignFor] = useState<any | null>(null);
   const [assignEmp, setAssignEmp] = useState('');
   const [form, setForm] = useState({ positionCode: '', title: '', departmentId: '', gradeId: '', designationId: '', budgetedHeadcount: 1, description: '' });
@@ -50,18 +51,42 @@ export default function PositionsPage() {
   const deptName = (id: string) => departments.find(d => d.id === id)?.name ?? '-';
   const gradeName = (id: string) => grades.find(g => g.id === id)?.name ?? '-';
 
+  const openCreate = () => {
+    setError(null);
+    setEditingId(null);
+    setForm({ positionCode: '', title: '', departmentId: '', gradeId: '', designationId: '', budgetedHeadcount: 1, description: '' });
+    setShowModal(true);
+  };
+
+  const openEdit = (p: any) => {
+    setError(null);
+    setEditingId(p.id);
+    setForm({
+      positionCode: p.positionCode ?? '',
+      title: p.title ?? '',
+      departmentId: p.departmentId ?? '',
+      gradeId: p.gradeId ?? '',
+      designationId: p.designationId ?? '',
+      budgetedHeadcount: p.budgetedHeadcount ?? 1,
+      description: p.description ?? '',
+    });
+    setShowModal(true);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
       const payload: any = { ...form, budgetedHeadcount: Number(form.budgetedHeadcount) };
       ['departmentId', 'gradeId', 'designationId'].forEach(k => { if (!payload[k]) delete payload[k]; });
-      await positionsApi.create(payload);
+      if (editingId) await positionsApi.update(editingId, payload);
+      else await positionsApi.create(payload);
       setShowModal(false);
+      setEditingId(null);
       setForm({ positionCode: '', title: '', departmentId: '', gradeId: '', designationId: '', budgetedHeadcount: 1, description: '' });
       load();
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to create position');
+      setError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} position`);
     }
   };
 
@@ -88,7 +113,7 @@ export default function PositionsPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">Headcount planning &amp; budgeted positions</p>
         </div>
-        <button onClick={() => { setError(null); setShowModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="h-4 w-4" /> New Position
         </button>
       </div>
@@ -143,11 +168,16 @@ export default function PositionsPage() {
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] ?? 'bg-gray-100'}`}>{p.status}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {vacant > 0 && (
-                        <button onClick={() => { setAssignFor(p); setAssignEmp(''); }} className="inline-flex items-center gap-1 text-blue-600 hover:underline text-xs">
-                          <Users className="h-3.5 w-3.5" /> Assign
+                      <div className="inline-flex items-center gap-3 justify-end">
+                        <button onClick={() => openEdit(p)} className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-800 hover:underline text-xs">
+                          <Pencil className="h-3.5 w-3.5" /> Edit
                         </button>
-                      )}
+                        {vacant > 0 && (
+                          <button onClick={() => { setAssignFor(p); setAssignEmp(''); }} className="inline-flex items-center gap-1 text-blue-600 hover:underline text-xs">
+                            <Users className="h-3.5 w-3.5" /> Assign
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -161,7 +191,7 @@ export default function PositionsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
             <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-semibold">New Position</h2>
+              <h2 className="text-lg font-semibold">{editingId ? 'Edit Position' : 'New Position'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={submit} className="p-5 space-y-4">
@@ -205,7 +235,7 @@ export default function PositionsPage() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700">Create</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700">{editingId ? 'Save' : 'Create'}</button>
               </div>
             </form>
           </div>

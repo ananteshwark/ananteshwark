@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { Plus, X, Trash2, Pencil } from 'lucide-react';
 import { procurementApi } from '../../api/procurement';
 import { financeApi } from '../../api/finance';
 import { inventoryApi } from '../../api/inventory';
@@ -36,6 +36,7 @@ export default function InfoRecordsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -72,12 +73,41 @@ export default function InfoRecordsPage() {
     return it ? `${it.code ?? ''} ${it.name ?? ''}`.trim() : id;
   };
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(defaultForm);
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (r: InfoRecord) => {
+    setEditingId(r.id);
+    setForm({
+      vendorId: r.vendorId,
+      itemId: r.itemId,
+      price: String(r.price ?? ''),
+      currency: r.currency ?? 'INR',
+      leadTimeDays: r.leadTimeDays ?? 0,
+      minOrderQty: r.minOrderQty == null ? '' : String(r.minOrderQty),
+      validFrom: r.validFrom ? r.validFrom.slice(0, 10) : '',
+      validTo: r.validTo ? r.validTo.slice(0, 10) : '',
+    });
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setForm(defaultForm);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
     try {
-      await procurementApi.createInfoRecord({
+      const payload = {
         vendorId: form.vendorId,
         itemId: form.itemId,
         price: Number(form.price),
@@ -86,12 +116,13 @@ export default function InfoRecordsPage() {
         minOrderQty: form.minOrderQty === '' ? undefined : Number(form.minOrderQty),
         validFrom: form.validFrom || undefined,
         validTo: form.validTo || undefined,
-      });
-      setShowModal(false);
-      setForm(defaultForm);
+      };
+      if (editingId) await procurementApi.updateInfoRecord(editingId, payload);
+      else await procurementApi.createInfoRecord(payload);
+      closeModal();
       fetchRecords();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create info record');
+      setFormError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} info record`);
     } finally {
       setSubmitting(false);
     }
@@ -112,7 +143,7 @@ export default function InfoRecordsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Purchasing Info Records</h1>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openCreate}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -159,7 +190,13 @@ export default function InfoRecordsPage() {
                       {r.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                    <button
+                      onClick={() => openEdit(r)}
+                      className="inline-flex items-center gap-1 text-xs px-2 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Edit
+                    </button>
                     <button
                       onClick={() => handleDelete(r.id)}
                       className="inline-flex items-center gap-1 text-xs px-2 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100"
@@ -178,8 +215,8 @@ export default function InfoRecordsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">New Info Record</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Info Record' : 'New Info Record'}</h2>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -282,7 +319,7 @@ export default function InfoRecordsPage() {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={closeModal}
                   className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
@@ -292,7 +329,7 @@ export default function InfoRecordsPage() {
                   disabled={submitting}
                   className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {submitting ? 'Creating...' : 'Create'}
+                  {submitting ? 'Saving...' : editingId ? 'Save' : 'Create'}
                 </button>
               </div>
             </form>

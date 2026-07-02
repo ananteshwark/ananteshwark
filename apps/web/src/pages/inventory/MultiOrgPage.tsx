@@ -16,14 +16,29 @@ function OrgsTab() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [form, setForm] = useState({ code: '', name: '', costMethod: 'MOVING_AVERAGE', parentOrgId: '' });
   const [show, setShow] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
   async function load() { setOrgs(unwrap(await inventoryApi.listOrgs())); }
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
-    await inventoryApi.createOrg({ ...form, parentOrgId: form.parentOrgId || undefined });
+
+  function reset() {
     setForm({ code: '', name: '', costMethod: 'MOVING_AVERAGE', parentOrgId: '' });
     setShow(false);
+    setEditingId(null);
+  }
+
+  function startEdit(o: any) {
+    setForm({ code: o.code ?? '', name: o.name ?? '', costMethod: o.costMethod ?? 'MOVING_AVERAGE', parentOrgId: o.parentOrgId ?? '' });
+    setEditingId(o.id);
+    setShow(true);
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = { ...form, parentOrgId: form.parentOrgId || undefined };
+    if (editingId) await inventoryApi.updateOrg(editingId, payload);
+    else await inventoryApi.createOrg(payload);
+    reset();
     load();
   }
 
@@ -31,27 +46,32 @@ function OrgsTab() {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Inventory Organizations</h2>
-        <button onClick={() => setShow(!show)} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Org</button>
+        <button onClick={() => { if (show) reset(); else setShow(true); }} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Org</button>
       </div>
       {show && (
-        <form onSubmit={create} className="grid grid-cols-4 gap-2 bg-gray-50 p-3 rounded-lg items-end">
+        <form onSubmit={submit} className="grid grid-cols-4 gap-2 bg-gray-50 p-3 rounded-lg items-end">
+          <div className="col-span-4 text-sm font-medium text-gray-700">{editingId ? 'Edit Organization' : 'New Organization'}</div>
           <div><label className="text-xs text-gray-500">Code</label><input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Name</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Cost Method</label><select value={form.costMethod} onChange={(e) => setForm({ ...form, costMethod: e.target.value })} className="w-full border rounded px-2 py-1 text-sm">{COST_METHODS.map((m) => <option key={m}>{m}</option>)}</select></div>
-          <div><label className="text-xs text-gray-500">Parent</label><select value={form.parentOrgId} onChange={(e) => setForm({ ...form, parentOrgId: e.target.value })} className="w-full border rounded px-2 py-1 text-sm"><option value="">(root)</option>{orgs.map((o) => <option key={o.id} value={o.id}>{o.code}</option>)}</select></div>
-          <button type="submit" className="bg-indigo-600 text-white px-3 py-1 rounded text-sm col-span-4 w-fit">Create</button>
+          <div><label className="text-xs text-gray-500">Parent</label><select value={form.parentOrgId} onChange={(e) => setForm({ ...form, parentOrgId: e.target.value })} className="w-full border rounded px-2 py-1 text-sm"><option value="">(root)</option>{orgs.filter((o) => o.id !== editingId).map((o) => <option key={o.id} value={o.id}>{o.code}</option>)}</select></div>
+          <div className="col-span-4 flex gap-2">
+            <button type="submit" className="bg-indigo-600 text-white px-3 py-1 rounded text-sm w-fit">{editingId ? 'Save' : 'Create'}</button>
+            <button type="button" onClick={reset} className="border px-3 py-1 rounded text-sm w-fit">Cancel</button>
+          </div>
         </form>
       )}
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Cost Method</th><th className="px-3 py-2 text-left">Currency</th></tr></thead>
+          <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Cost Method</th><th className="px-3 py-2 text-left">Currency</th><th className="px-3 py-2" /></tr></thead>
           <tbody className="divide-y">
-            {orgs.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-gray-400">No organizations.</td></tr> : orgs.map((o) => (
+            {orgs.length === 0 ? <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No organizations.</td></tr> : orgs.map((o) => (
               <tr key={o.id} className="hover:bg-gray-50">
                 <td className="px-3 py-2 font-mono text-xs">{o.code}</td>
                 <td className="px-3 py-2 font-medium">{o.name}</td>
                 <td className="px-3 py-2"><span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">{o.costMethod}</span></td>
                 <td className="px-3 py-2">{o.currency}</td>
+                <td className="px-3 py-2 text-right"><button onClick={() => startEdit(o)} className="text-indigo-600 text-xs hover:underline">Edit</button></td>
               </tr>
             ))}
           </tbody>

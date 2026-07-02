@@ -18,14 +18,22 @@ const STATUS_COLORS: Record<string, string> = {
   CONVERTED: 'bg-purple-100 text-purple-700',
 };
 
-function NewRequisitionDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewRequisitionDialog({ onClose, onSaved, editing }: { onClose: () => void; onSaved: () => void; editing?: any }) {
   const [form, setForm] = useState({
-    title: '',
-    description: '',
-    priority: 'MEDIUM',
-    requiredBy: '',
-    notes: '',
-    lines: [{ description: '', quantity: 1, unitPrice: '', uom: 'EA' }],
+    title: editing?.title || '',
+    description: editing?.description || '',
+    priority: editing?.priority || 'MEDIUM',
+    requiredBy: editing?.requiredBy || '',
+    notes: editing?.notes || '',
+    lines:
+      editing?.lines?.length
+        ? editing.lines.map((l: any) => ({
+            description: l.description || '',
+            quantity: l.quantity ?? 1,
+            unitPrice: l.unitPrice ?? '',
+            uom: l.uom || 'EA',
+          }))
+        : [{ description: '', quantity: 1, unitPrice: '', uom: 'EA' }],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,9 +41,9 @@ function NewRequisitionDialog({ onClose, onSaved }: { onClose: () => void; onSav
   const addLine = () =>
     setForm((f) => ({ ...f, lines: [...f.lines, { description: '', quantity: 1, unitPrice: '', uom: 'EA' }] }));
   const removeLine = (i: number) =>
-    setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }));
+    setForm((f) => ({ ...f, lines: f.lines.filter((_: any, idx: number) => idx !== i) }));
   const updateLine = (i: number, field: string, value: any) =>
-    setForm((f) => ({ ...f, lines: f.lines.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)) }));
+    setForm((f) => ({ ...f, lines: f.lines.map((l: any, idx: number) => (idx === i ? { ...l, [field]: value } : l)) }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,17 +52,18 @@ function NewRequisitionDialog({ onClose, onSaved }: { onClose: () => void; onSav
     try {
       const payload = {
         ...form,
-        lines: form.lines.map((l) => ({
+        lines: form.lines.map((l: any) => ({
           ...l,
           quantity: Number(l.quantity),
           unitPrice: l.unitPrice ? Number(l.unitPrice) : undefined,
         })),
       };
-      await procurementApi.createRequisition(payload);
+      if (editing) await procurementApi.updateRequisition(editing.id, payload);
+      else await procurementApi.createRequisition(payload);
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create requisition');
+      setError(e.response?.data?.message || `Failed to ${editing ? 'update' : 'create'} requisition`);
     } finally {
       setLoading(false);
     }
@@ -64,7 +73,7 @@ function NewRequisitionDialog({ onClose, onSaved }: { onClose: () => void; onSav
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold">New Purchase Requisition</h2>
+          <h2 className="text-lg font-semibold">{editing ? 'Edit Purchase Requisition' : 'New Purchase Requisition'}</h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -116,7 +125,7 @@ function NewRequisitionDialog({ onClose, onSaved }: { onClose: () => void; onSav
               <button type="button" onClick={addLine} className="text-sm text-blue-600 hover:underline">+ Add Line</button>
             </div>
             <div className="space-y-2">
-              {form.lines.map((line, i) => (
+              {form.lines.map((line: any, i: number) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-center">
                   <input
                     className="col-span-5 border rounded-lg px-2 py-1.5 text-sm"
@@ -170,7 +179,7 @@ function NewRequisitionDialog({ onClose, onSaved }: { onClose: () => void; onSav
               disabled={loading}
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? 'Saving...' : editing ? 'Save' : 'Create'}
             </button>
           </div>
         </form>
@@ -183,6 +192,7 @@ export default function RequisitionsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [lineDetails, setLineDetails] = useState<Record<string, any[]>>({});
   const [statusFilter, setStatusFilter] = useState('');
@@ -215,6 +225,15 @@ export default function RequisitionsPage() {
       }
     }
     setExpandedRows(next);
+  };
+
+  const handleEdit = async (id: string) => {
+    try {
+      const res = await procurementApi.getRequisition(id);
+      setEditing(res.data?.data ?? res.data);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Failed to load requisition');
+    }
   };
 
   const handleAction = async (action: string, id: string, extra?: any) => {
@@ -306,7 +325,10 @@ export default function RequisitionsPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         {req.status === 'DRAFT' && (
-                          <button onClick={() => handleAction('submit', req.id)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Submit</button>
+                          <>
+                            <button onClick={() => handleEdit(req.id)} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100">Edit</button>
+                            <button onClick={() => handleAction('submit', req.id)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Submit</button>
+                          </>
                         )}
                         {req.status === 'SUBMITTED' && (
                           <>
@@ -360,6 +382,7 @@ export default function RequisitionsPage() {
       )}
 
       {showNew && <NewRequisitionDialog onClose={() => setShowNew(false)} onSaved={loadData} />}
+      {editing && <NewRequisitionDialog editing={editing} onClose={() => setEditing(null)} onSaved={loadData} />}
     </div>
   );
 }

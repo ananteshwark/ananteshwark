@@ -36,6 +36,7 @@ export default function ChartOfAccountsPage() {
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -64,15 +65,37 @@ export default function ChartOfAccountsPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      await financeApi.createAccount(form);
+      if (editingId) await financeApi.updateAccount(editingId, form);
+      else await financeApi.createAccount(form);
       setShowModal(false);
+      setEditingId(null);
       setForm(defaultForm);
       fetchAccounts();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create account');
+      setFormError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} account`);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openEdit = (account: Account) => {
+    setEditingId(account.id);
+    setForm({
+      code: account.code,
+      name: account.name,
+      type: account.type,
+      normalBalance: account.normalBalance,
+      description: account.description ?? '',
+    });
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setForm(defaultForm);
+    setFormError(null);
   };
 
   const filtered = typeFilter === 'All'
@@ -122,12 +145,13 @@ export default function ChartOfAccountsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Normal Balance</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">No accounts found</td>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">No accounts found</td>
                 </tr>
               )}
               {filtered.map((account) => (
@@ -145,6 +169,14 @@ export default function ChartOfAccountsPage() {
                       {account.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => openEdit(account)}
+                      className="text-sm text-indigo-600 hover:text-indigo-800"
+                    >
+                      Edit
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -157,8 +189,8 @@ export default function ChartOfAccountsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">New Account</h2>
-              <button onClick={() => { setShowModal(false); setForm(defaultForm); setFormError(null); }} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Account' : 'New Account'}</h2>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -222,7 +254,7 @@ export default function ChartOfAccountsPage() {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); setForm(defaultForm); setFormError(null); }}
+                  onClick={closeModal}
                   className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
@@ -232,7 +264,7 @@ export default function ChartOfAccountsPage() {
                   disabled={submitting}
                   className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {submitting ? 'Creating...' : 'Create Account'}
+                  {submitting ? (editingId ? 'Saving...' : 'Creating...') : editingId ? 'Save Changes' : 'Create Account'}
                 </button>
               </div>
             </form>

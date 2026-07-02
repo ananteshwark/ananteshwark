@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle, XCircle, PlusCircle } from 'lucide-react';
+import { Plus, X, CheckCircle, XCircle, PlusCircle, Pencil } from 'lucide-react';
 import { procurementApi } from '../../api/procurement';
 import { financeApi } from '../../api/finance';
 import { inventoryApi } from '../../api/inventory';
@@ -55,6 +55,7 @@ export default function OutlineAgreementsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
 
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -98,13 +99,44 @@ export default function OutlineAgreementsPage() {
   const vendorName = (a: OutlineAgreement) =>
     a.vendorName || vendors.find((v) => v.id === a.vendorId)?.name || a.vendorId;
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(defaultForm);
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (a: OutlineAgreement) => {
+    setEditingId(a.id);
+    setForm({
+      vendorId: a.vendorId,
+      type: a.type,
+      description: a.description ?? '',
+      targetValue: a.targetValue == null ? '' : String(a.targetValue),
+      targetQuantity: a.targetQuantity == null ? '' : String(a.targetQuantity),
+      itemId: a.itemId ?? '',
+      itemDescription: a.itemDescription ?? '',
+      currency: a.currency ?? 'INR',
+      validFrom: a.validFrom ? a.validFrom.slice(0, 10) : '',
+      validTo: a.validTo ? a.validTo.slice(0, 10) : '',
+    });
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setForm(defaultForm);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
     try {
       const vendor = vendors.find((v) => v.id === form.vendorId);
-      await procurementApi.createOutlineAgreement({
+      const payload = {
         vendorId: form.vendorId,
         vendorName: vendor?.name,
         type: form.type,
@@ -125,12 +157,13 @@ export default function OutlineAgreementsPage() {
         currency: form.currency,
         validFrom: form.validFrom,
         validTo: form.validTo,
-      });
-      setShowModal(false);
-      setForm(defaultForm);
+      };
+      if (editingId) await procurementApi.updateOutlineAgreement(editingId, payload);
+      else await procurementApi.createOutlineAgreement(payload);
+      closeModal();
       fetchAgreements();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create agreement');
+      setFormError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} agreement`);
     } finally {
       setSubmitting(false);
     }

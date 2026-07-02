@@ -44,6 +44,7 @@ export default function VendorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [showBanking, setShowBanking] = useState(false);
   const [showTax, setShowTax] = useState(false);
@@ -75,7 +76,7 @@ export default function VendorsPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      await financeApi.createVendor({
+      const payload = {
         ...form,
         email: form.email || undefined,
         phone: form.phone || undefined,
@@ -93,19 +94,51 @@ export default function VendorsPage() {
         vendorType: form.vendorType || undefined,
         panNumber: form.panNumber || undefined,
         gstNumber: form.gstNumber || undefined,
-      });
+      };
+      if (editingId) await financeApi.updateVendor(editingId, payload);
+      else await financeApi.createVendor(payload);
       setShowModal(false);
+      setEditingId(null);
       setForm(defaultForm);
       fetchVendors();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create vendor');
+      setFormError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} vendor`);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const openEdit = (vendor: Vendor) => {
+    const v = vendor as any;
+    setEditingId(vendor.id);
+    setForm({
+      code: vendor.code,
+      name: vendor.name,
+      email: vendor.email ?? '',
+      phone: vendor.phone ?? '',
+      currency: vendor.currency,
+      paymentTerms: vendor.paymentTerms,
+      paymentTermsCode: v.paymentTermsCode ?? '',
+      bankName: v.bankName ?? '',
+      bankAccountNumber: v.bankAccountNumber ?? '',
+      bankIfsc: v.bankIfsc ?? '',
+      iban: v.iban ?? '',
+      swift: v.swift ?? '',
+      creditLimit: v.creditLimit != null ? String(v.creditLimit) : '',
+      paymentBlock: !!v.paymentBlock,
+      orderBlock: !!v.orderBlock,
+      blockReason: v.blockReason ?? '',
+      vendorType: v.vendorType ?? '',
+      panNumber: v.panNumber ?? '',
+      gstNumber: v.gstNumber ?? '',
+    });
+    setFormError(null);
+    setShowModal(true);
+  };
+
   const closeModal = () => {
     setShowModal(false);
+    setEditingId(null);
     setForm(defaultForm);
     setFormError(null);
     setShowBanking(false);
@@ -182,12 +215,20 @@ export default function VendorsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => openPortal(vendor)}
-                      className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100"
-                    >
-                      <KeyRound className="w-3.5 h-3.5" /> Portal Access
-                    </button>
+                    <div className="inline-flex items-center gap-2">
+                      <button
+                        onClick={() => openEdit(vendor)}
+                        className="text-xs px-2.5 py-1.5 text-indigo-600 hover:text-indigo-800"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => openPortal(vendor)}
+                        className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" /> Portal Access
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -201,7 +242,7 @@ export default function VendorsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">New Vendor</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Vendor' : 'New Vendor'}</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
@@ -452,7 +493,7 @@ export default function VendorsPage() {
                   disabled={submitting}
                   className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {submitting ? 'Creating...' : 'Create Vendor'}
+                  {submitting ? (editingId ? 'Saving...' : 'Creating...') : editingId ? 'Save Changes' : 'Create Vendor'}
                 </button>
               </div>
             </form>

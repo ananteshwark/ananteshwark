@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle, Ban, Printer, Lock, Unlock } from 'lucide-react';
+import { Plus, X, CheckCircle, Ban, Printer, Lock, Unlock, Pencil } from 'lucide-react';
 import { financeApi } from '../../api/finance';
 import { printApi } from '../../api/print';
 
@@ -60,6 +60,7 @@ export default function BillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [lines, setLines] = useState<BillLine[]>([emptyLine()]);
   const [submitting, setSubmitting] = useState(false);
@@ -158,29 +159,69 @@ export default function BillsPage() {
     setLines(updated);
   };
 
+  const openEdit = async (bill: Bill) => {
+    setActionError(null);
+    try {
+      const res = await financeApi.getBill(bill.id);
+      const full = res.data?.data ?? res.data;
+      setEditingId(bill.id);
+      setForm({
+        billNumber: full.billNumber ?? '',
+        vendorId: full.vendorId ?? '',
+        billDate: full.billDate?.split('T')[0] ?? new Date().toISOString().split('T')[0],
+        dueDate: full.dueDate?.split('T')[0] ?? '',
+      });
+      const fullLines = full.lines ?? [];
+      setLines(
+        fullLines.length
+          ? fullLines.map((l: any) => ({
+              description: l.description ?? '',
+              accountId: l.accountId ?? '',
+              quantity: String(l.quantity ?? '1'),
+              unitPrice: String(l.unitPrice ?? '0'),
+            }))
+          : [emptyLine()],
+      );
+      setFormError(null);
+      setShowModal(true);
+    } catch (err: any) {
+      setActionError(err?.response?.data?.message ?? 'Failed to load bill');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
     try {
-      await financeApi.createBill({
-        ...form,
-        dueDate: form.dueDate || undefined,
-        lines: lines
-          .filter((l) => l.description || l.accountId)
-          .map((l) => ({
-            description: l.description,
-            accountId: l.accountId,
-            quantity: parseFloat(l.quantity) || 1,
-            unitPrice: parseFloat(l.unitPrice) || 0,
-          })),
-      });
+      const mappedLines = lines
+        .filter((l) => l.description || l.accountId)
+        .map((l) => ({
+          description: l.description,
+          accountId: l.accountId,
+          quantity: parseFloat(l.quantity) || 1,
+          unitPrice: parseFloat(l.unitPrice) || 0,
+        }));
+      if (editingId) {
+        await financeApi.updateBill(editingId, {
+          billDate: form.billDate,
+          dueDate: form.dueDate || undefined,
+          lines: mappedLines,
+        });
+      } else {
+        await financeApi.createBill({
+          ...form,
+          dueDate: form.dueDate || undefined,
+          lines: mappedLines,
+        });
+      }
       setShowModal(false);
+      setEditingId(null);
       setForm(defaultForm);
       setLines([emptyLine()]);
       fetchBills();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create bill');
+      setFormError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} bill`);
     } finally {
       setSubmitting(false);
     }
@@ -209,6 +250,7 @@ export default function BillsPage() {
 
   const closeModal = () => {
     setShowModal(false);
+    setEditingId(null);
     setForm(defaultForm);
     setLines([emptyLine()]);
     setFormError(null);
@@ -219,7 +261,7 @@ export default function BillsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Bills</h1>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => { setEditingId(null); setForm(defaultForm); setLines([emptyLine()]); setFormError(null); setShowModal(true); }}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -301,6 +343,15 @@ export default function BillsPage() {
                       </button>
                       {bill.status === 'DRAFT' && (
                         <button
+                          onClick={() => openEdit(bill)}
+                          title="Edit"
+                          className="p-1 text-gray-500 hover:text-indigo-600"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                      {bill.status === 'DRAFT' && (
+                        <button
                           onClick={() => handlePost(bill.id)}
                           title="Post"
                           className="p-1 text-green-600 hover:text-green-800"
@@ -350,7 +401,7 @@ export default function BillsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white">
-              <h2 className="text-lg font-semibold text-gray-900">New Bill</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Bill' : 'New Bill'}</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>

@@ -44,6 +44,7 @@ export default function PayComponentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -70,20 +71,52 @@ export default function PayComponentsPage() {
     fetchData();
   }, []);
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(defaultForm);
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (c: PayComponent) => {
+    setEditingId(c.id);
+    setForm({
+      code: c.code,
+      name: c.name,
+      type: c.type,
+      calculationType: c.calculationType,
+      isTaxable: c.isTaxable,
+      isStatutory: c.isStatutory,
+      glAccountCode: c.glAccountCode ?? '',
+    });
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setForm(defaultForm);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
     try {
-      await payrollApi.createComponent({
+      const payload = {
         ...form,
         glAccountCode: form.glAccountCode || undefined,
-      });
-      setShowModal(false);
-      setForm(defaultForm);
+      };
+      if (editingId) {
+        await payrollApi.updateComponent(editingId, payload);
+      } else {
+        await payrollApi.createComponent(payload);
+      }
+      closeModal();
       fetchData();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create component');
+      setFormError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} component`);
     } finally {
       setSubmitting(false);
     }
@@ -94,7 +127,7 @@ export default function PayComponentsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Pay Components</h1>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openCreate}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -117,11 +150,12 @@ export default function PayComponentsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Calc</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statutory</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">GL</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {components.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No components found</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No components found</td></tr>
                 )}
                 {components.map((c) => (
                   <tr key={c.id} className="hover:bg-gray-50">
@@ -135,6 +169,9 @@ export default function PayComponentsPage() {
                     <td className="px-4 py-3 text-sm text-gray-500">{c.calculationType}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{c.isStatutory ? 'Yes' : 'No'}</td>
                     <td className="px-4 py-3 text-sm font-mono text-gray-500">{c.glAccountCode ?? '—'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => openEdit(c)} className="text-xs text-indigo-600 hover:underline">Edit</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -176,8 +213,8 @@ export default function PayComponentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">New Pay Component</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Pay Component' : 'New Pay Component'}</h2>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -229,9 +266,9 @@ export default function PayComponentsPage() {
                 </label>
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                  {submitting ? 'Creating...' : 'Create'}
+                  {submitting ? (editingId ? 'Saving...' : 'Creating...') : (editingId ? 'Save' : 'Create')}
                 </button>
               </div>
             </form>

@@ -21,6 +21,7 @@ const equipmentStatusColor = (s: string) => ({
 export default function MaintenancePage() {
   const [tab, setTab] = useState<'orders' | 'equipment' | 'plans' | 'breakdowns'>('orders');
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<any>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showBreakdownModal, setShowBreakdownModal] = useState(false);
   const [completeId, setCompleteId] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export default function MaintenancePage() {
   const breakdowns = breakdownsData?.data?.items ?? [];
 
   const createEquipment = useMutation({ mutationFn: (d: any) => maintenanceApi.createEquipment(d), onSuccess: () => { qc.invalidateQueries({ queryKey: ['maint-equipment'] }); setShowEquipmentModal(false); } });
+  const updateEquipment = useMutation({ mutationFn: ({ id, data }: any) => maintenanceApi.updateEquipment(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['maint-equipment'] }); setEditingEquipment(null); } });
   const createOrder = useMutation({ mutationFn: (d: any) => maintenanceApi.createOrder(d), onSuccess: () => { qc.invalidateQueries({ queryKey: ['maint-orders'] }); setShowOrderModal(false); } });
   const startOrder = useMutation({ mutationFn: (id: string) => maintenanceApi.startOrder(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['maint-orders'] }) });
   const completeOrder = useMutation({ mutationFn: ({ id, data }: any) => maintenanceApi.completeOrder(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['maint-orders'] }); setCompleteId(null); } });
@@ -117,7 +119,10 @@ export default function MaintenancePage() {
                     {eq.location && <div className="text-xs text-gray-600 mt-0.5">📍 {eq.location}</div>}
                     {eq.manufacturer && <div className="text-xs text-gray-600">Manufacturer: {eq.manufacturer} {eq.model ? `| ${eq.model}` : ''}</div>}
                   </div>
-                  <span className={clsx('text-xs px-2 py-0.5 rounded-full', equipmentStatusColor(eq.status))}>{eq.status.replace('_', ' ')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={clsx('text-xs px-2 py-0.5 rounded-full', equipmentStatusColor(eq.status))}>{eq.status.replace('_', ' ')}</span>
+                    <button onClick={() => setEditingEquipment(eq)} className="text-xs text-blue-600 hover:underline">Edit</button>
+                  </div>
                 </div>
               </div>
             ))}

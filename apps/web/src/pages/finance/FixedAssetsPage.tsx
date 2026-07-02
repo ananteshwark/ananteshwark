@@ -17,11 +17,14 @@ const RUN_STATUS_COLORS: Record<string, string> = {
 
 type Tab = 'assets' | 'runs' | 'cip';
 
-function CreateAssetModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateAssetModal({ asset, onClose, onCreated }: { asset?: any; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
-    assetCode: '', name: '', categoryId: '', acquisitionDate: '', acquisitionCost: '',
-    usefulLifeMonths: '60', residualValue: '0', depreciationMethod: 'SLM',
-    location: '', serialNumber: '', notes: '',
+    assetCode: asset?.assetCode ?? '', name: asset?.name ?? '', categoryId: asset?.categoryId ?? '',
+    acquisitionDate: asset?.acquisitionDate ?? '', acquisitionCost: asset?.acquisitionCost != null ? String(asset.acquisitionCost) : '',
+    usefulLifeMonths: asset?.usefulLifeMonths != null ? String(asset.usefulLifeMonths) : '60',
+    residualValue: asset?.residualValue != null ? String(asset.residualValue) : '0',
+    depreciationMethod: asset?.depreciationMethod ?? 'SLM',
+    location: asset?.location ?? '', serialNumber: asset?.serialNumber ?? '', notes: asset?.notes ?? '',
   });
   const [categories, setCategories] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -33,12 +36,14 @@ function CreateAssetModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const save = async () => {
     setSaving(true);
     try {
-      await financeApi.createFixedAsset({
+      const payload = {
         ...form,
         acquisitionCost: parseFloat(form.acquisitionCost),
         residualValue: parseFloat(form.residualValue),
         usefulLifeMonths: parseInt(form.usefulLifeMonths),
-      });
+      };
+      if (asset) await financeApi.updateFixedAsset(asset.id, payload);
+      else await financeApi.createFixedAsset(payload);
       onCreated();
     } finally {
       setSaving(false);
@@ -48,7 +53,7 @@ function CreateAssetModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Add Fixed Asset</h2>
+        <h2 className="text-lg font-semibold mb-4">{asset ? 'Edit Fixed Asset' : 'Add Fixed Asset'}</h2>
         <div className="grid grid-cols-2 gap-4">
           {[
             { label: 'Asset Code', key: 'assetCode', type: 'text' },
@@ -112,7 +117,7 @@ function CreateAssetModal({ onClose, onCreated }: { onClose: () => void; onCreat
             disabled={saving || !form.assetCode || !form.name || !form.acquisitionDate || !form.acquisitionCost}
             className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Add Asset'}
+            {saving ? 'Saving...' : asset ? 'Save Changes' : 'Add Asset'}
           </button>
         </div>
       </div>
@@ -241,6 +246,7 @@ export default function FixedAssetsPage() {
   const [runs, setRuns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateAsset, setShowCreateAsset] = useState(false);
+  const [editTarget, setEditTarget] = useState<any>(null);
   const [showRunDep, setShowRunDep] = useState(false);
   const [disposeTarget, setDisposeTarget] = useState<any>(null);
   const [search, setSearch] = useState('');

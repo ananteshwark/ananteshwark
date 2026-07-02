@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Trash2, Calculator } from 'lucide-react';
+import { Plus, X, Trash2, Pencil, Calculator } from 'lucide-react';
 import { pricingApi } from '../../api/pricing';
 
 const unwrap = (res: any) => res.data?.data ?? res.data;
@@ -17,18 +17,27 @@ const TYPE_COLORS: Record<string, string> = {
   SURCHARGE_AMOUNT: 'bg-orange-100 text-orange-700',
 };
 
-function CreateConditionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateConditionModal({ editing, onClose, onCreated }: { editing?: any; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
-    conditionType: 'BASE_PRICE', keyType: 'ALL',
-    customerId: '', itemId: '', rate: '0', currency: 'USD',
-    minQty: '', maxQty: '', validFrom: '', validTo: '', priority: '10', description: '',
+    conditionType: editing?.conditionType ?? 'BASE_PRICE',
+    keyType: editing?.keyType ?? 'ALL',
+    customerId: editing?.customerId ?? '',
+    itemId: editing?.itemId ?? '',
+    rate: editing?.rate != null ? String(editing.rate) : '0',
+    currency: editing?.currency ?? 'USD',
+    minQty: editing?.minQty != null ? String(editing.minQty) : '',
+    maxQty: editing?.maxQty != null ? String(editing.maxQty) : '',
+    validFrom: editing?.validFrom ?? '',
+    validTo: editing?.validTo ?? '',
+    priority: editing?.priority != null ? String(editing.priority) : '10',
+    description: editing?.description ?? '',
   });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
     try {
-      await pricingApi.create({
+      const payload = {
         conditionType: form.conditionType,
         keyType: form.keyType,
         customerId: form.customerId || null,
@@ -41,7 +50,12 @@ function CreateConditionModal({ onClose, onCreated }: { onClose: () => void; onC
         validTo: form.validTo || null,
         priority: parseInt(form.priority, 10) || 10,
         description: form.description || null,
-      });
+      };
+      if (editing) {
+        await pricingApi.update(editing.id, payload);
+      } else {
+        await pricingApi.create(payload);
+      }
       onCreated();
     } finally {
       setSaving(false);
@@ -53,7 +67,7 @@ function CreateConditionModal({ onClose, onCreated }: { onClose: () => void; onC
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">New Pricing Condition</h2>
+        <h2 className="text-lg font-semibold mb-4">{editing ? 'Edit Pricing Condition' : 'New Pricing Condition'}</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Condition Type</label>
@@ -124,7 +138,7 @@ function CreateConditionModal({ onClose, onCreated }: { onClose: () => void; onC
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border rounded-lg">Cancel</button>
           <button onClick={save} disabled={saving}
             className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50">
-            {saving ? 'Saving...' : 'Create'}
+            {saving ? 'Saving...' : editing ? 'Save Changes' : 'Create'}
           </button>
         </div>
       </div>
@@ -198,6 +212,7 @@ export default function PricingConditionsPage() {
   const [conditions, setConditions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
 
   const load = () => {
     setLoading(true);
@@ -257,7 +272,10 @@ export default function PricingConditionsPage() {
                   </td>
                   <td className="px-4 py-2">
                     {c.isActive && (
-                      <button onClick={() => del(c.id)} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditing(c)} className="text-gray-400 hover:text-blue-600"><Pencil className="h-4 w-4" /></button>
+                        <button onClick={() => del(c.id)} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -269,6 +287,9 @@ export default function PricingConditionsPage() {
 
       {showCreate && (
         <CreateConditionModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />
+      )}
+      {editing && (
+        <CreateConditionModal editing={editing} onClose={() => setEditing(null)} onCreated={() => { setEditing(null); load(); }} />
       )}
     </div>
   );

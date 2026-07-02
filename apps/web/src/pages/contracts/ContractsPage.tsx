@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle, XCircle, RefreshCw, Pencil } from 'lucide-react';
 import { contractsApi } from '../../api/contracts';
 import CurrencySelect from '../../components/ui/CurrencySelect';
 
@@ -15,20 +15,27 @@ const TYPE_LABELS: Record<string, string> = {
   PURCHASE: 'Purchase', SALES: 'Sales', SERVICE: 'Service', LEASE: 'Lease', OTHER: 'Other',
 };
 
-function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateContractModal({ editing, onClose, onCreated }: { editing?: any; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
-    title: '', type: 'SERVICE', counterpartyName: '', startDate: '', endDate: '',
-    contractValue: '', currency: 'INR', terms: '', notes: '',
+    title: editing?.title ?? '', type: editing?.type ?? 'SERVICE', counterpartyName: editing?.counterpartyName ?? '',
+    startDate: editing?.startDate ?? '', endDate: editing?.endDate ?? '',
+    contractValue: editing?.contractValue != null ? String(editing.contractValue) : '',
+    currency: editing?.currency ?? 'INR', terms: editing?.terms ?? '', notes: editing?.notes ?? '',
   });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
     try {
-      await contractsApi.createContract({
+      const payload = {
         ...form,
         contractValue: form.contractValue ? parseFloat(form.contractValue) : undefined,
-      });
+      };
+      if (editing) {
+        await contractsApi.updateContract(editing.id, payload);
+      } else {
+        await contractsApi.createContract(payload);
+      }
       onCreated();
     } finally {
       setSaving(false);
@@ -38,7 +45,7 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">New Contract</h2>
+        <h2 className="text-lg font-semibold mb-4">{editing ? 'Edit Contract' : 'New Contract'}</h2>
         <div className="space-y-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Title</label>
@@ -89,7 +96,7 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border rounded-lg">Cancel</button>
           <button onClick={save} disabled={saving || !form.title || !form.startDate}
             className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50">
-            {saving ? 'Saving...' : 'Create Contract'}
+            {saving ? 'Saving...' : editing ? 'Save Contract' : 'Create Contract'}
           </button>
         </div>
       </div>
@@ -102,6 +109,7 @@ export default function ContractsPage() {
   const [expiring, setExpiring] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [acting, setActing] = useState<string | null>(null);

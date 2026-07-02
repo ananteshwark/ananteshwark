@@ -8,8 +8,12 @@ const ITEM_TYPE_COLORS: Record<string, string> = {
   SERVICE: 'bg-purple-100 text-purple-700',
 };
 
-function NewWarehouseDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ code: '', name: '', address: '' });
+function NewWarehouseDialog({ editing, onClose, onSaved }: { editing?: any; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    code: editing?.code || '',
+    name: editing?.name || '',
+    address: editing?.address || '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -17,11 +21,15 @@ function NewWarehouseDialog({ onClose, onSaved }: { onClose: () => void; onSaved
     e.preventDefault();
     setLoading(true);
     try {
-      await inventoryApi.createWarehouse(form);
+      if (editing) {
+        await inventoryApi.updateWarehouse(editing.id, form);
+      } else {
+        await inventoryApi.createWarehouse(form);
+      }
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create warehouse');
+      setError(e.response?.data?.message || `Failed to ${editing ? 'update' : 'create'} warehouse`);
     } finally {
       setLoading(false);
     }
@@ -31,7 +39,7 @@ function NewWarehouseDialog({ onClose, onSaved }: { onClose: () => void; onSaved
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold">New Warehouse</h2>
+          <h2 className="text-lg font-semibold">{editing ? 'Edit Warehouse' : 'New Warehouse'}</h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -71,7 +79,7 @@ function NewWarehouseDialog({ onClose, onSaved }: { onClose: () => void; onSaved
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? (editing ? 'Saving...' : 'Creating...') : editing ? 'Save' : 'Create'}
             </button>
           </div>
         </form>
@@ -80,15 +88,15 @@ function NewWarehouseDialog({ onClose, onSaved }: { onClose: () => void; onSaved
   );
 }
 
-function NewItemDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewItemDialog({ editing, onClose, onSaved }: { editing?: any; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
-    code: '',
-    name: '',
-    type: 'STOCK',
-    uom: 'EA',
-    standardCost: '',
-    sellingPrice: '',
-    taxRate: '',
+    code: editing?.code || '',
+    name: editing?.name || '',
+    type: editing?.type || 'STOCK',
+    uom: editing?.uom || 'EA',
+    standardCost: editing?.standardCost != null ? String(editing.standardCost) : '',
+    sellingPrice: editing?.sellingPrice != null ? String(editing.sellingPrice) : '',
+    taxRate: editing?.taxRate != null ? String(editing.taxRate) : '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -97,16 +105,21 @@ function NewItemDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     e.preventDefault();
     setLoading(true);
     try {
-      await inventoryApi.createItem({
+      const payload = {
         ...form,
         standardCost: Number(form.standardCost) || 0,
         sellingPrice: Number(form.sellingPrice) || 0,
         taxRate: Number(form.taxRate) || 0,
-      });
+      };
+      if (editing) {
+        await inventoryApi.updateItem(editing.id, payload);
+      } else {
+        await inventoryApi.createItem(payload);
+      }
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create item');
+      setError(e.response?.data?.message || `Failed to ${editing ? 'update' : 'create'} item`);
     } finally {
       setLoading(false);
     }
@@ -116,7 +129,7 @@ function NewItemDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold">New Item</h2>
+          <h2 className="text-lg font-semibold">{editing ? 'Edit Item' : 'New Item'}</h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -199,7 +212,7 @@ function NewItemDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? (editing ? 'Saving...' : 'Creating...') : editing ? 'Save' : 'Create'}
             </button>
           </div>
         </form>
@@ -221,7 +234,9 @@ export default function InventoryPage() {
   const [rmas, setRmas] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [showNewItem, setShowNewItem] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [showNewWarehouse, setShowNewWarehouse] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState<any>(null);
   const [showLotModal, setShowLotModal] = useState(false);
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showRmaModal, setShowRmaModal] = useState(false);
@@ -322,11 +337,19 @@ export default function InventoryPage() {
 
   return (
     <div className="p-6">
-      {showNewItem && (
-        <NewItemDialog onClose={() => setShowNewItem(false)} onSaved={fetchItems} />
+      {(showNewItem || editingItem) && (
+        <NewItemDialog
+          editing={editingItem}
+          onClose={() => { setShowNewItem(false); setEditingItem(null); }}
+          onSaved={fetchItems}
+        />
       )}
-      {showNewWarehouse && (
-        <NewWarehouseDialog onClose={() => setShowNewWarehouse(false)} onSaved={fetchWarehouses} />
+      {(showNewWarehouse || editingWarehouse) && (
+        <NewWarehouseDialog
+          editing={editingWarehouse}
+          onClose={() => { setShowNewWarehouse(false); setEditingWarehouse(null); }}
+          onSaved={fetchWarehouses}
+        />
       )}
 
       <div className="flex items-center justify-between mb-6">
@@ -399,12 +422,13 @@ export default function InventoryPage() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">UOM</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Cost</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Price</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-400">
+                    <td colSpan={7} className="text-center py-8 text-gray-400">
                       No items found
                     </td>
                   </tr>
@@ -427,6 +451,9 @@ export default function InventoryPage() {
                       <td className="px-4 py-3 text-right">
                         ₹{Number(item.sellingPrice || 0).toLocaleString()}
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => setEditingItem(item)} className="text-xs text-blue-600 hover:underline">Edit</button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -446,12 +473,13 @@ export default function InventoryPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Address</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {warehouses.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-8 text-gray-400">
+                  <td colSpan={5} className="text-center py-8 text-gray-400">
                     No warehouses found
                   </td>
                 </tr>
@@ -469,6 +497,9 @@ export default function InventoryPage() {
                       >
                         {wh.isActive ? 'Active' : 'Inactive'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => setEditingWarehouse(wh)} className="text-xs text-blue-600 hover:underline">Edit</button>
                     </td>
                   </tr>
                 ))

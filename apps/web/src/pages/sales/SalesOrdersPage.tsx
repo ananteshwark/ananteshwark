@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, CheckCircle, Truck, PackageCheck, X, ArrowRight } from 'lucide-react';
+import { Plus, CheckCircle, Truck, PackageCheck, X, ArrowRight, Pencil } from 'lucide-react';
 import { salesApi } from '../../api/sales';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -17,15 +17,34 @@ const FULFIL_COLORS: Record<string, string> = {
   FULFILLED: 'bg-green-100 text-green-700',
 };
 
-function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateOrderModal({ editing, onClose, onCreated }: { editing?: any; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
-    contactName: '', orderDate: new Date().toISOString().slice(0, 10),
-    expectedDeliveryDate: '', currency: 'INR', notes: '',
+    contactName: editing?.contactName ?? '',
+    orderDate: editing?.orderDate ?? new Date().toISOString().slice(0, 10),
+    expectedDeliveryDate: editing?.expectedDeliveryDate ?? '',
+    currency: editing?.currency ?? 'INR',
+    notes: editing?.notes ?? '',
   });
   const [lines, setLines] = useState([
     { itemName: '', quantity: '1', unitPrice: '0', discountPct: '0', taxPct: '0' },
   ]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editing) return;
+    salesApi.getOrderLines(editing.id).then(r => {
+      const ol = r.data?.data || [];
+      if (ol.length > 0) {
+        setLines(ol.map((l: any) => ({
+          itemName: l.itemName ?? '',
+          quantity: String(l.quantity ?? '1'),
+          unitPrice: String(l.unitPrice ?? '0'),
+          discountPct: String(l.discountPct ?? '0'),
+          taxPct: String(l.taxPct ?? '0'),
+        })));
+      }
+    });
+  }, [editing]);
 
   const addLine = () => setLines(l => [...l, { itemName: '', quantity: '1', unitPrice: '0', discountPct: '0', taxPct: '0' }]);
   const removeLine = (i: number) => setLines(l => l.filter((_, idx) => idx !== i));
@@ -33,7 +52,7 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const save = async () => {
     setSaving(true);
     try {
-      await salesApi.createOrder({
+      const payload = {
         ...form,
         lines: lines.map(l => ({
           itemName: l.itemName,
@@ -42,7 +61,12 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
           discountPct: parseFloat(l.discountPct),
           taxPct: parseFloat(l.taxPct),
         })),
-      });
+      };
+      if (editing) {
+        await salesApi.updateOrder(editing.id, payload);
+      } else {
+        await salesApi.createOrder(payload);
+      }
       onCreated();
     } finally {
       setSaving(false);

@@ -35,6 +35,7 @@ export default function TenantsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [showTenantModal, setShowTenantModal] = useState(false);
+  const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
   const [tenantForm, setTenantForm] = useState({ name: '', slug: '', plan: 'trial', adminEmail: '', adminFirstName: '', adminLastName: '', adminPassword: '' });
 
   const [licenseFor, setLicenseFor] = useState<any | null>(null);
@@ -58,17 +59,36 @@ export default function TenantsPage() {
 
   useEffect(() => { fetchTenants(); }, []);
 
-  const handleCreateTenant = async (e: React.FormEvent) => {
+  const openNewTenant = () => {
+    setEditingTenantId(null);
+    setTenantForm({ name: '', slug: '', plan: 'trial', adminEmail: '', adminFirstName: '', adminLastName: '', adminPassword: '' });
+    setFormError(null);
+    setShowTenantModal(true);
+  };
+
+  const openEditTenant = (t: any) => {
+    setEditingTenantId(t.id);
+    setTenantForm({ name: t.name ?? '', slug: t.slug ?? '', plan: t.plan ?? 'trial', adminEmail: '', adminFirstName: '', adminLastName: '', adminPassword: '' });
+    setFormError(null);
+    setShowTenantModal(true);
+  };
+
+  const handleSubmitTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
     try {
-      await adminApi.createTenant(tenantForm);
+      if (editingTenantId) {
+        await adminApi.updateTenant(editingTenantId, { name: tenantForm.name, plan: tenantForm.plan });
+      } else {
+        await adminApi.createTenant(tenantForm);
+      }
       setShowTenantModal(false);
+      setEditingTenantId(null);
       setTenantForm({ name: '', slug: '', plan: 'trial', adminEmail: '', adminFirstName: '', adminLastName: '', adminPassword: '' });
       await fetchTenants();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create tenant');
+      setFormError(err?.response?.data?.message ?? (editingTenantId ? 'Failed to update tenant' : 'Failed to create tenant'));
     } finally {
       setSubmitting(false);
     }
@@ -198,7 +218,7 @@ export default function TenantsPage() {
               <h2 className="text-lg font-semibold">New Tenant</h2>
               <button onClick={() => setShowTenantModal(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleCreateTenant} className="p-5 space-y-4">
+            <form onSubmit={handleSubmitTenant} className="p-5 space-y-4">
               {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
