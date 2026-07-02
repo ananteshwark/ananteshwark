@@ -15,16 +15,27 @@ const LINE_TYPES = ['INGREDIENT', 'COPRODUCT', 'BYPRODUCT'];
 function FormulasTab() {
   const [formulas, setFormulas] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
-  const [form, setForm] = useState({ code: '', name: '', productItemId: '', outputQuantity: 100, outputUom: 'KG', yieldPct: 100 });
+  const emptyForm = { code: '', name: '', productItemId: '', outputQuantity: 100, outputUom: 'KG', yieldPct: 100 };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [detail, setDetail] = useState({ lineType: 'INGREDIENT', itemId: '', quantity: 0, uom: 'KG', scrapPct: 0 });
 
   useEffect(() => { load(); }, []);
   async function load() { setFormulas(unwrap(await opmApi.listFormulas())); }
   async function open(id: string) { const r = await opmApi.getFormula(id); setSelected(r.data?.data ?? r.data); }
 
+  function editFormula(f: any) {
+    setEditingId(f.id);
+    setForm({ code: f.code ?? '', name: f.name ?? '', productItemId: f.productItemId ?? '', outputQuantity: Number(f.outputQuantity) || 100, outputUom: f.outputUom ?? 'KG', yieldPct: Number(f.yieldPct) || 100 });
+  }
+  function cancelEdit() { setEditingId(null); setForm(emptyForm); }
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    try { await opmApi.createFormula(form); setForm({ code: '', name: '', productItemId: '', outputQuantity: 100, outputUom: 'KG', yieldPct: 100 }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingId) await opmApi.updateFormula(editingId, form);
+      else await opmApi.createFormula(form);
+      cancelEdit(); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   async function addDetail(e: React.FormEvent) {
     e.preventDefault();
@@ -43,13 +54,17 @@ function FormulasTab() {
           <div><label className="text-xs text-gray-500">Product Item ID</label><input required value={form.productItemId} onChange={(e) => setForm({ ...form, productItemId: e.target.value })} className="w-full border rounded px-2 py-1 text-sm font-mono" /></div>
           <div><label className="text-xs text-gray-500">Output Qty</label><input type="number" value={form.outputQuantity} onChange={(e) => setForm({ ...form, outputQuantity: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Yield %</label><input type="number" value={form.yieldPct} onChange={(e) => setForm({ ...form, yieldPct: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
-          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Formula</button>
+          <div className="flex gap-1">
+            <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save' : '+ Formula'}</button>
+            {editingId && <button type="button" onClick={cancelEdit} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
+          </div>
         </form>
         <div className="border rounded-lg divide-y">
           {formulas.length === 0 ? <p className="p-3 text-gray-400 text-sm">No formulas.</p> : formulas.map((f) => (
-            <div key={f.id} onClick={() => open(f.id)} className={`p-2 cursor-pointer hover:bg-gray-50 flex justify-between ${selected?.formula?.id === f.id ? 'bg-indigo-50' : ''}`}>
-              <span className="text-sm"><span className="font-mono text-xs">{f.code}</span> {f.name}</span>
+            <div key={f.id} className={`p-2 hover:bg-gray-50 flex justify-between items-center ${selected?.formula?.id === f.id ? 'bg-indigo-50' : ''}`}>
+              <span className="text-sm cursor-pointer flex-1" onClick={() => open(f.id)}><span className="font-mono text-xs">{f.code}</span> {f.name}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded ${f.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>{f.status}</span>
+              {f.status !== 'APPROVED' && <button onClick={() => editFormula(f)} className="text-xs text-indigo-600 hover:underline ml-2">Edit</button>}
             </div>
           ))}
         </div>

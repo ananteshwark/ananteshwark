@@ -8,7 +8,9 @@ function unwrap(res: any) {
 function PlansTab() {
   const [opId, setOpId] = useState('');
   const [plans, setPlans] = useState<any[]>([]);
-  const [form, setForm] = useState({ characteristicName: '', specMin: '', specMax: '', uom: '', isRequired: true, blockOnFail: true });
+  const emptyForm = { characteristicName: '', specMin: '', specMax: '', uom: '', isRequired: true, blockOnFail: true };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   async function load() {
     if (!opId) return;
@@ -16,11 +18,19 @@ function PlansTab() {
   }
   useEffect(() => { if (opId) load(); }, [opId]);
 
+  function editPlan(p: any) {
+    setEditingId(p.id);
+    setForm({ characteristicName: p.characteristicName ?? '', specMin: p.specMin != null ? String(p.specMin) : '', specMax: p.specMax != null ? String(p.specMax) : '', uom: p.uom ?? '', isRequired: !!p.isRequired, blockOnFail: !!p.blockOnFail });
+  }
+  function cancelEdit() { setEditingId(null); setForm(emptyForm); }
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    await opQualityApi.createPlan({ routingOperationId: opId, characteristicName: form.characteristicName, specMin: form.specMin ? Number(form.specMin) : undefined, specMax: form.specMax ? Number(form.specMax) : undefined, uom: form.uom || undefined, isRequired: form.isRequired, blockOnFail: form.blockOnFail });
-    setForm({ characteristicName: '', specMin: '', specMax: '', uom: '', isRequired: true, blockOnFail: true });
-    load();
+    const payload = { routingOperationId: opId, characteristicName: form.characteristicName, specMin: form.specMin ? Number(form.specMin) : undefined, specMax: form.specMax ? Number(form.specMax) : undefined, uom: form.uom || undefined, isRequired: form.isRequired, blockOnFail: form.blockOnFail };
+    try {
+      if (editingId) await opQualityApi.updatePlan(editingId, payload);
+      else await opQualityApi.createPlan(payload);
+      cancelEdit(); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
 
   return (
@@ -36,7 +46,10 @@ function PlansTab() {
           <div><label className="text-xs text-gray-500">Spec Min</label><input type="number" value={form.specMin} onChange={(e) => setForm({ ...form, specMin: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Spec Max</label><input type="number" value={form.specMax} onChange={(e) => setForm({ ...form, specMax: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.blockOnFail} onChange={(e) => setForm({ ...form, blockOnFail: e.target.checked })} /> Block</label>
-          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Plan</button>
+          <div className="flex gap-1">
+            <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save' : '+ Plan'}</button>
+            {editingId && <button type="button" onClick={cancelEdit} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
+          </div>
         </form>
       )}
       <div className="border rounded-lg overflow-hidden">
@@ -50,7 +63,7 @@ function PlansTab() {
                 <td className="px-3 py-2 text-right">{p.specMax ?? '—'}</td>
                 <td className="px-3 py-2">{p.isRequired ? '✓' : '—'}</td>
                 <td className="px-3 py-2">{p.blockOnFail ? '🔒' : '—'}</td>
-                <td className="px-3 py-2"><button onClick={async () => { await opQualityApi.deletePlan(p.id); load(); }} className="text-red-500 text-xs hover:underline">Del</button></td>
+                <td className="px-3 py-2 space-x-2 text-right"><button onClick={() => editPlan(p)} className="text-indigo-600 text-xs hover:underline">Edit</button><button onClick={async () => { await opQualityApi.deletePlan(p.id); load(); }} className="text-red-500 text-xs hover:underline">Del</button></td>
               </tr>
             ))}
           </tbody>

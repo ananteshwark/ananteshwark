@@ -27,6 +27,14 @@ export class OpmService {
     return { formula, details };
   }
 
+  async updateFormula(tenantId: string, id: string, dto: any): Promise<Formula> {
+    const formula = await this.formulaRepo.findOne({ where: { id, tenantId } });
+    if (!formula) throw new NotFoundException(`Formula ${id} not found`);
+    const { tenantId: _t, id: _i, status: _s, ...rest } = dto ?? {};
+    Object.assign(formula, rest);
+    return this.formulaRepo.save(formula);
+  }
+
   async createFormula(tenantId: string, data: {
     code: string; name: string; productItemId: string; outputQuantity: number; outputUom?: string; yieldPct?: number;
   }): Promise<Formula> {

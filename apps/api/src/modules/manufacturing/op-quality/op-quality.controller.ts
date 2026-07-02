@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { OpQualityService } from './op-quality.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -26,6 +26,13 @@ export class OpQualityController {
   @ApiOperation({ summary: 'Define a quality plan on a routing operation' })
   createPlan(@CurrentUser() u: any, @Body() b: any) {
     return this.service.createPlan(u.tenantId, b);
+  }
+
+  @Patch('plans/:id')
+  @RequirePermission('manufacturing:manage')
+  @ApiOperation({ summary: 'Update an operation quality plan' })
+  updatePlan(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) {
+    return this.service.updatePlan(u.tenantId, id, b);
   }
 
   @Delete('plans/:id')

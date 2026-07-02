@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { QualityService } from './quality.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -29,6 +29,12 @@ export class QualityController {
   @RequirePermission('quality:manage')
   createPlan(@CurrentUser() user: any, @Body() dto: CreateInspectionPlanDto) {
     return this.service.createPlan(user.tenantId, dto);
+  }
+
+  @Patch('inspection-plans/:id')
+  @RequirePermission('quality:manage')
+  updatePlan(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+    return this.service.updatePlan(user.tenantId, id, dto);
   }
 
   @Get('inspection-plans/:id')

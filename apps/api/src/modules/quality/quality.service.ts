@@ -19,6 +19,14 @@ export class QualityService {
   ) {}
 
   // ---- Inspection Plans ----
+  async updatePlan(tenantId: string, id: string, dto: any): Promise<InspectionPlan> {
+    const plan = await this.planRepo.findOne({ where: { id, tenantId } });
+    if (!plan) throw new NotFoundException(`Inspection plan ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(plan, rest);
+    return this.planRepo.save(plan);
+  }
+
   async createPlan(tenantId: string, dto: CreateInspectionPlanDto): Promise<InspectionPlan> {
     return this.planRepo.save(this.planRepo.create({ ...dto, tenantId }));
   }

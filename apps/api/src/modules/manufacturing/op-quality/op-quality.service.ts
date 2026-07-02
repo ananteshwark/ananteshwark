@@ -28,6 +28,14 @@ export class OpQualityService {
     return this.planRepo.find({ where, order: { createdAt: 'ASC' } });
   }
 
+  async updatePlan(tenantId: string, id: string, dto: any): Promise<OperationQualityPlan> {
+    const plan = await this.planRepo.findOne({ where: { id, tenantId } });
+    if (!plan) throw new NotFoundException(`Plan ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(plan, rest);
+    return this.planRepo.save(plan);
+  }
+
   async createPlan(tenantId: string, data: {
     routingOperationId: string; characteristicName: string; specMin?: number; specMax?: number;
     uom?: string; isRequired?: boolean; blockOnFail?: boolean;

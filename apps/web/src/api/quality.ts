@@ -5,6 +5,7 @@ export const qualityApi = {
   getPlans: (params?: any) => apiClient.get('/quality/inspection-plans', { params }),
   getPlan: (id: string) => apiClient.get(`/quality/inspection-plans/${id}`),
   createPlan: (data: any) => apiClient.post('/quality/inspection-plans', data),
+  updatePlan: (id: string, data: any) => apiClient.patch(`/quality/inspection-plans/${id}`, data),
 
   // Inspection Lots
   getLots: (params?: any) => apiClient.get('/quality/inspection-lots', { params }),

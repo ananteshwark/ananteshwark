@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { OpmService } from './opm.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -27,6 +27,11 @@ export class OpmController {
   @RequirePermission('manufacturing:manage')
   @ApiOperation({ summary: 'Create a formula / recipe' })
   createFormula(@CurrentUser() u: any, @Body() b: any) { return this.service.createFormula(u.tenantId, b); }
+
+  @Patch('formulas/:id')
+  @RequirePermission('manufacturing:manage')
+  @ApiOperation({ summary: 'Update a formula / recipe header' })
+  updateFormula(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateFormula(u.tenantId, id, b); }
 
   @Post('formulas/:id/details')
   @RequirePermission('manufacturing:manage')
