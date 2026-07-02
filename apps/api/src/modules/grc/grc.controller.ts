@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { GrcService } from './grc.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -22,6 +22,10 @@ export class GrcController {
   @RequirePermission('admin:manage')
   createSodRule(@CurrentUser() u: any, @Body() b: any) { return this.service.createSodRule(u.tenantId, b); }
 
+  @Patch('sod-rules/:id')
+  @RequirePermission('admin:manage')
+  updateSodRule(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateSodRule(u.tenantId, id, b); }
+
   @Post('sod-scan')
   @RequirePermission('admin:read')
   @ApiOperation({ summary: 'Detect SOD violations across user permission sets' })
@@ -36,6 +40,10 @@ export class GrcController {
   @RequirePermission('admin:manage')
   createControl(@CurrentUser() u: any, @Body() b: any) { return this.service.createControl(u.tenantId, b); }
 
+  @Patch('controls/:id')
+  @RequirePermission('admin:manage')
+  updateControl(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateControl(u.tenantId, id, b); }
+
   @Post('controls/:id/test')
   @RequirePermission('admin:manage')
   @ApiOperation({ summary: 'Record a control test (effective/deficient)' })
@@ -49,6 +57,10 @@ export class GrcController {
   @Post('risks')
   @RequirePermission('admin:manage')
   createRisk(@CurrentUser() u: any, @Body() b: any) { return this.service.createRisk(u.tenantId, b); }
+
+  @Patch('risks/:id')
+  @RequirePermission('admin:manage')
+  updateRisk(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateRisk(u.tenantId, id, b); }
 
   @Get('risks/heat-map')
   @RequirePermission('admin:read')

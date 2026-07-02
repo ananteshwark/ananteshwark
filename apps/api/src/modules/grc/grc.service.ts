@@ -20,6 +20,30 @@ export class GrcService {
     @InjectRepository(RiskEntry) private readonly riskRepo: Repository<RiskEntry>,
   ) {}
 
+  async updateSodRule(tenantId: string, id: string, dto: any): Promise<SodRule> {
+    const rule = await this.sodRepo.findOne({ where: { id, tenantId } });
+    if (!rule) throw new NotFoundException(`SOD rule ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(rule, rest);
+    return this.sodRepo.save(rule);
+  }
+
+  async updateControl(tenantId: string, id: string, dto: any): Promise<GrcControl> {
+    const control = await this.controlRepo.findOne({ where: { id, tenantId } });
+    if (!control) throw new NotFoundException(`Control ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(control, rest);
+    return this.controlRepo.save(control);
+  }
+
+  async updateRisk(tenantId: string, id: string, dto: any): Promise<RiskEntry> {
+    const risk = await this.riskRepo.findOne({ where: { id, tenantId } });
+    if (!risk) throw new NotFoundException(`Risk ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(risk, rest);
+    return this.riskRepo.save(risk);
+  }
+
   // ─── Ph-285: SOD conflict matrix ──────────────────────────────────
 
   listSodRules(tenantId: string): Promise<SodRule[]> {
