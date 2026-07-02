@@ -60,15 +60,25 @@ function AwardsTab({ cycleId }: { cycleId: string }) {
   const [budgets, setBudgets] = useState<any[]>([]);
   const [awards, setAwards] = useState<any[]>([]);
   const [form, setForm] = useState({ budgetId: '', employeeId: '', awardType: 'MERIT', currentSalary: 0, performanceRating: '', amount: 0 });
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => { if (cycleId) load(); }, [cycleId]);
   async function load() {
     setBudgets(unwrap(await compWorkbenchApi.listBudgets(cycleId)));
     setAwards(unwrap(await compWorkbenchApi.listAwards(cycleId)));
   }
+  function resetForm() { setForm({ budgetId: '', employeeId: '', awardType: 'MERIT', currentSalary: 0, performanceRating: '', amount: 0 }); setEditingId(null); }
+  function startEdit(a: any) {
+    setEditingId(a.id);
+    setForm({ budgetId: a.budgetId ?? '', employeeId: a.employeeId ?? '', awardType: a.awardType ?? 'MERIT', currentSalary: Number(a.currentSalary ?? 0), performanceRating: a.performanceRating ?? '', amount: Number(a.amount ?? 0) });
+  }
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    try { await compWorkbenchApi.proposeAward({ cycleId, ...form }); setForm({ budgetId: '', employeeId: '', awardType: 'MERIT', currentSalary: 0, performanceRating: '', amount: 0 }); load(); }
+    try {
+      if (editingId) await compWorkbenchApi.updateAward(editingId, form.amount);
+      else await compWorkbenchApi.proposeAward({ cycleId, ...form });
+      resetForm(); load();
+    }
     catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   async function act(fn: () => Promise<any>) {
@@ -83,7 +93,10 @@ function AwardsTab({ cycleId }: { cycleId: string }) {
         <div><label className="text-xs text-gray-500">Type</label><select value={form.awardType} onChange={(e) => setForm({ ...form, awardType: e.target.value })} className="w-full border rounded px-2 py-1 text-sm">{AWARD_TYPES.map((t) => <option key={t}>{t}</option>)}</select></div>
         <div><label className="text-xs text-gray-500">Rating</label><input value={form.performanceRating} onChange={(e) => setForm({ ...form, performanceRating: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
         <div><label className="text-xs text-gray-500">Amount</label><input type="number" required value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
-        <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Propose</button>
+        <div className="flex gap-1">
+          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save' : 'Propose'}</button>
+          {editingId && <button type="button" onClick={resetForm} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm">Cancel</button>}
+        </div>
       </form>
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
@@ -97,6 +110,7 @@ function AwardsTab({ cycleId }: { cycleId: string }) {
                 <td className="px-3 py-2 text-xs">{a.performanceRating ?? '—'}</td>
                 <td className="px-3 py-2"><span className={`text-xs px-1.5 py-0.5 rounded ${STATUS_STYLE[a.status]}`}>{a.status}</span></td>
                 <td className="px-3 py-2"><div className="flex gap-2">
+                  {(a.status === 'DRAFT' || a.status === 'REJECTED') && <button onClick={() => startEdit(a)} className="text-indigo-600 text-xs hover:underline">edit</button>}
                   {(a.status === 'DRAFT' || a.status === 'REJECTED') && <button onClick={() => act(() => compWorkbenchApi.submit(a.id))} className="text-blue-600 text-xs hover:underline">submit</button>}
                   {['SUBMITTED', 'HR_REVIEW', 'FINANCE_REVIEW'].includes(a.status) && <button onClick={() => act(() => compWorkbenchApi.approve(a.id))} className="text-green-600 text-xs hover:underline">approve</button>}
                   {['SUBMITTED', 'HR_REVIEW', 'FINANCE_REVIEW'].includes(a.status) && <button onClick={() => act(() => compWorkbenchApi.reject(a.id, prompt('Reason?') ?? undefined))} className="text-red-500 text-xs hover:underline">reject</button>}

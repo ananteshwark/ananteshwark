@@ -15,28 +15,47 @@ function CarriersTab() {
   const [carriers, setCarriers] = useState<any[]>([]);
   const [rates, setRates] = useState<any[]>([]);
   const [cForm, setCForm] = useState({ code: '', name: '', serviceLevel: 'STANDARD', transitDays: 3 });
+  const [editingCarrierId, setEditingCarrierId] = useState<string | null>(null);
   const [rForm, setRForm] = useState({ carrierId: '', originZone: '', destZone: '', flatRate: 0, ratePerKg: 0, fuelSurchargePct: 0, maxWeight: 1000 });
 
   useEffect(() => { load(); }, []);
   async function load() { setCarriers(unwrap(await logisticsApi.listCarriers())); setRates(unwrap(await logisticsApi.listRates())); }
-  async function createCarrier(e: React.FormEvent) { e.preventDefault(); await logisticsApi.createCarrier(cForm); setCForm({ code: '', name: '', serviceLevel: 'STANDARD', transitDays: 3 }); load(); }
+  async function submitCarrier(e: React.FormEvent) {
+    e.preventDefault();
+    if (editingCarrierId) await logisticsApi.updateCarrier(editingCarrierId, cForm);
+    else await logisticsApi.createCarrier(cForm);
+    setCForm({ code: '', name: '', serviceLevel: 'STANDARD', transitDays: 3 });
+    setEditingCarrierId(null);
+    load();
+  }
+  function editCarrier(c: any) {
+    setEditingCarrierId(c.id);
+    setCForm({ code: c.code ?? '', name: c.name ?? '', serviceLevel: c.serviceLevel ?? 'STANDARD', transitDays: c.transitDays ?? 3 });
+  }
+  function cancelCarrierEdit() {
+    setEditingCarrierId(null);
+    setCForm({ code: '', name: '', serviceLevel: 'STANDARD', transitDays: 3 });
+  }
   async function createRate(e: React.FormEvent) { e.preventDefault(); await logisticsApi.createRate(rForm); setRForm({ ...rForm, originZone: '', destZone: '', flatRate: 0, ratePerKg: 0 }); load(); }
 
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-3">
-        <form onSubmit={createCarrier} className="grid grid-cols-4 gap-2 bg-gray-50 p-3 rounded-lg items-end">
+        <form onSubmit={submitCarrier} className="grid grid-cols-4 gap-2 bg-gray-50 p-3 rounded-lg items-end">
           <div><label className="text-xs text-gray-500">Code</label><input required value={cForm.code} onChange={(e) => setCForm({ ...cForm, code: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Name</label><input required value={cForm.name} onChange={(e) => setCForm({ ...cForm, name: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Transit Days</label><input type="number" value={cForm.transitDays} onChange={(e) => setCForm({ ...cForm, transitDays: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
-          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Carrier</button>
+          <div className="flex gap-1">
+            <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingCarrierId ? 'Save' : '+ Carrier'}</button>
+            {editingCarrierId && <button type="button" onClick={cancelCarrierEdit} className="border px-3 py-1.5 rounded text-sm text-gray-600">Cancel</button>}
+          </div>
         </form>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Service</th><th className="px-3 py-2 text-right">Transit</th></tr></thead>
+            <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Code</th><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Service</th><th className="px-3 py-2 text-right">Transit</th><th className="px-3 py-2" /></tr></thead>
             <tbody className="divide-y">
-              {carriers.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-gray-400">No carriers.</td></tr> : carriers.map((c) => (
-                <tr key={c.id}><td className="px-3 py-2 font-mono text-xs">{c.code}</td><td className="px-3 py-2">{c.name}</td><td className="px-3 py-2 text-xs">{c.serviceLevel}</td><td className="px-3 py-2 text-right">{c.transitDays}d</td></tr>
+              {carriers.length === 0 ? <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No carriers.</td></tr> : carriers.map((c) => (
+                <tr key={c.id}><td className="px-3 py-2 font-mono text-xs">{c.code}</td><td className="px-3 py-2">{c.name}</td><td className="px-3 py-2 text-xs">{c.serviceLevel}</td><td className="px-3 py-2 text-right">{c.transitDays}d</td><td className="px-3 py-2 text-right"><button onClick={() => editCarrier(c)} className="text-indigo-600 text-xs hover:underline">edit</button></td></tr>
               ))}
             </tbody>
           </table>

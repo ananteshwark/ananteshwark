@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { UserCog, ArrowRight, Info, Plus, Ban } from 'lucide-react';
+import { UserCog, ArrowRight, Info, Plus, Ban, Pencil } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -49,6 +49,7 @@ export default function DelegationPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     delegateeUserId: '',
@@ -94,6 +95,7 @@ export default function DelegationPage() {
   }, []);
 
   const openModal = () => {
+    setEditingId(null);
     setForm({
       delegateeUserId: '',
       fromDate: todayStr(),
@@ -104,7 +106,19 @@ export default function DelegationPage() {
     setModalOpen(true);
   };
 
-  const handleCreate = async () => {
+  const openEdit = (d: Delegation) => {
+    setEditingId(d.id);
+    setForm({
+      delegateeUserId: d.delegateeUserId,
+      fromDate: d.fromDate.slice(0, 10),
+      toDate: d.toDate.slice(0, 10),
+      scope: d.scope,
+      reason: d.reason ?? '',
+    });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!form.delegateeUserId) {
       toast.error('Select a delegatee');
       return;
@@ -115,18 +129,25 @@ export default function DelegationPage() {
     }
     setSaving(true);
     try {
-      await delegationsApi.create({
+      const payload = {
         delegateeUserId: form.delegateeUserId,
         fromDate: form.fromDate,
         toDate: form.toDate,
         scope: form.scope,
         reason: form.reason || undefined,
-      });
-      toast.success('Delegation created');
+      };
+      if (editingId) {
+        await delegationsApi.update(editingId, payload);
+        toast.success('Delegation updated');
+      } else {
+        await delegationsApi.create(payload);
+        toast.success('Delegation created');
+      }
       setModalOpen(false);
+      setEditingId(null);
       await loadAll();
     } catch {
-      toast.error('Failed to create delegation');
+      toast.error(editingId ? 'Failed to update delegation' : 'Failed to create delegation');
     } finally {
       setSaving(false);
     }
@@ -211,14 +232,24 @@ export default function DelegationPage() {
                     {d.reason && <p className="mt-1 text-xs text-gray-400">{d.reason}</p>}
                   </div>
                   {d.isActive && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleRevoke(d.id)}
-                      leftIcon={<Ban className="h-4 w-4" />}
-                    >
-                      Revoke
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => openEdit(d)}
+                        leftIcon={<Pencil className="h-4 w-4" />}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRevoke(d.id)}
+                        leftIcon={<Ban className="h-4 w-4" />}
+                      >
+                        Revoke
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -227,7 +258,7 @@ export default function DelegationPage() {
         </div>
       )}
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="New Delegation">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Delegation' : 'New Delegation'}>
         <div className="space-y-4 p-6">
           <Select
             label="Delegatee"
@@ -263,8 +294,8 @@ export default function DelegationPage() {
             placeholder="e.g. Out of office"
           />
           <div className="flex gap-3">
-            <Button className="flex-1" onClick={handleCreate} loading={saving}>
-              Create
+            <Button className="flex-1" onClick={handleSave} loading={saving}>
+              {editingId ? 'Save Changes' : 'Create'}
             </Button>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               Cancel

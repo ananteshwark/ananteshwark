@@ -27,15 +27,15 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── New Order Dialog ────────────────────────────────────────────────────────
 
-function NewOrderDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewOrderDialog({ onClose, onSaved, editing }: { onClose: () => void; onSaved: () => void; editing?: any }) {
   const [form, setForm] = useState({
-    name: '',
-    description: '',
-    objectClass: 'OVERHEAD',
-    budget: '',
-    responsibleCostCenterId: '',
-    settlementCostCenterId: '',
-    settlementAccountId: '',
+    name: editing?.name ?? '',
+    description: editing?.description ?? '',
+    objectClass: editing?.objectClass ?? 'OVERHEAD',
+    budget: editing?.budget != null ? String(editing.budget) : '',
+    responsibleCostCenterId: editing?.responsibleCostCenterId ?? '',
+    settlementCostCenterId: editing?.settlementCostCenterId ?? '',
+    settlementAccountId: editing?.settlementAccountId ?? '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,17 +44,19 @@ function NewOrderDialog({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     e.preventDefault();
     setLoading(true);
     try {
-      await financeApi.createInternalOrder({
+      const payload = {
         ...form,
         budget: Number(form.budget) || 0,
         responsibleCostCenterId: form.responsibleCostCenterId || null,
         settlementCostCenterId: form.settlementCostCenterId || null,
         settlementAccountId: form.settlementAccountId || null,
-      });
+      };
+      if (editing) await financeApi.updateInternalOrder(editing.id, payload);
+      else await financeApi.createInternalOrder(payload);
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to create internal order');
+      setError(e.response?.data?.message || (editing ? 'Failed to update internal order' : 'Failed to create internal order'));
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,7 @@ function NewOrderDialog({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-        <div className="p-6 border-b"><h2 className="text-lg font-semibold">New Internal Order</h2></div>
+        <div className="p-6 border-b"><h2 className="text-lg font-semibold">{editing ? 'Edit Internal Order' : 'New Internal Order'}</h2></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
@@ -105,7 +107,7 @@ function NewOrderDialog({ onClose, onSaved }: { onClose: () => void; onSaved: ()
           <div className="flex gap-3 justify-end pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? (editing ? 'Saving...' : 'Creating...') : (editing ? 'Save' : 'Create')}
             </button>
           </div>
         </form>
@@ -120,6 +122,7 @@ function InternalOrdersTab() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [actuals, setActuals] = useState<Record<string, any>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -157,13 +160,13 @@ function InternalOrdersTab() {
         <p className="text-sm text-gray-600">Track overhead, investment, and accrual costs by internal order.</p>
         <div className="flex gap-2">
           <button onClick={load} className="p-2 border rounded-lg hover:bg-gray-50"><RefreshCw className="w-4 h-4" /></button>
-          <button onClick={() => setShowDialog(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          <button onClick={() => { setEditingOrder(null); setShowDialog(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             <Plus className="w-4 h-4" /> New Order
           </button>
         </div>
       </div>
 
-      {showDialog && <NewOrderDialog onClose={() => setShowDialog(false)} onSaved={load} />}
+      {showDialog && <NewOrderDialog editing={editingOrder} onClose={() => { setShowDialog(false); setEditingOrder(null); }} onSaved={load} />}
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>
@@ -211,6 +214,8 @@ function InternalOrdersTab() {
                       <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex gap-1 justify-center">
+                          <button onClick={() => { setEditingOrder(o); setShowDialog(true); }}
+                            className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Edit</button>
                           {o.status === 'OPEN' && (
                             <button disabled={actionLoading === o.id + 'r'}
                               onClick={() => doAction(() => financeApi.releaseInternalOrder(o.id), o.id + 'r')}

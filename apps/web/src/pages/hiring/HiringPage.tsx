@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Plus, X, ChevronRight, Users, Briefcase, Calendar, FileCheck,
   Clock, CheckCircle2, XCircle, AlertTriangle, Search, Eye,
-  Send, ThumbsUp, ThumbsDown, ClipboardList, TrendingUp,
+  Send, ThumbsUp, ThumbsDown, ClipboardList, TrendingUp, Pencil,
 } from 'lucide-react';
 import { hiringApi } from '../../api/hiring';
 import { hrApi } from '../../api/hr';
@@ -75,6 +75,7 @@ export default function HiringPage() {
   const [requisitions, setRequisitions] = useState<any[]>([]);
   const [reqFilter, setReqFilter] = useState('');
   const [showReqModal, setShowReqModal] = useState(false);
+  const [editingReqId, setEditingReqId] = useState<string | null>(null);
   const [reqForm, setReqForm] = useState(defaultReqForm());
   const [submittingReq, setSubmittingReq] = useState(false);
   const [reqFormError, setReqFormError] = useState<string | null>(null);
@@ -110,6 +111,31 @@ export default function HiringPage() {
   const [applicants, setApplicants] = useState<any[]>([]);
 
   const setRF = (patch: Partial<typeof reqForm>) => setReqForm(f => ({ ...f, ...patch }));
+
+  const startEditReq = (r: any) => {
+    setEditingReqId(r.id);
+    setReqForm({
+      title: r.title ?? '',
+      departmentId: r.departmentId ?? '',
+      functionId: r.functionId ?? '',
+      designationId: r.designationId ?? '',
+      vacancies: r.vacancies ?? 1,
+      employmentType: r.employmentType ?? 'FULL_TIME',
+      priority: r.priority ?? 'MEDIUM',
+      jobDescription: r.jobDescription ?? '',
+      requirements: r.requirements ?? '',
+      justification: r.justification ?? '',
+      expectedJoiningDate: r.expectedJoiningDate ? String(r.expectedJoiningDate).slice(0, 10) : '',
+      budgetMin: r.budgetMin != null ? String(r.budgetMin) : '',
+      budgetMax: r.budgetMax != null ? String(r.budgetMax) : '',
+      currency: r.currency ?? 'INR',
+      location: r.location ?? '',
+    });
+    setReqFormError(null);
+    setShowReqModal(true);
+  };
+
+  const closeReqModal = () => { setShowReqModal(false); setEditingReqId(null); };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -161,12 +187,14 @@ export default function HiringPage() {
       if (payload.budgetMin) payload.budgetMin = Number(payload.budgetMin); else delete payload.budgetMin;
       if (payload.budgetMax) payload.budgetMax = Number(payload.budgetMax); else delete payload.budgetMax;
       ['departmentId', 'functionId', 'designationId', 'requirements', 'justification', 'expectedJoiningDate', 'location'].forEach(k => { if (!payload[k]) delete payload[k]; });
-      await hiringApi.createRequisition(payload);
+      if (editingReqId) await hiringApi.updateRequisition(editingReqId, payload);
+      else await hiringApi.createRequisition(payload);
       setShowReqModal(false);
+      setEditingReqId(null);
       setReqForm(defaultReqForm());
       fetchAll();
     } catch (err: any) {
-      setReqFormError(err?.response?.data?.message ?? 'Failed to create requisition');
+      setReqFormError(err?.response?.data?.message ?? `Failed to ${editingReqId ? 'update' : 'create'} requisition`);
     }
     setSubmittingReq(false);
   };
@@ -328,7 +356,7 @@ export default function HiringPage() {
                 {Object.entries(REQ_STATUS_META).map(([s, m]) => <option key={s} value={s}>{m.label}</option>)}
               </select>
             </div>
-            <button onClick={() => { setShowReqModal(true); setReqFormError(null); setReqForm(defaultReqForm()); }}
+            <button onClick={() => { setShowReqModal(true); setEditingReqId(null); setReqFormError(null); setReqForm(defaultReqForm()); }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
               <Plus className="h-4 w-4" /> New Requisition
             </button>
@@ -364,6 +392,7 @@ export default function HiringPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
                         <button onClick={() => setSelectedReq(r)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"><Eye className="h-3.5 w-3.5" /></button>
+                        {['DRAFT', 'REJECTED'].includes(r.status) && <button onClick={() => startEditReq(r)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Pencil className="h-3.5 w-3.5" /></button>}
                         {r.status === 'DRAFT' && <button onClick={() => handleReqAction('submit', r.id)} className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1"><Send className="h-3 w-3" /> Submit</button>}
                         {r.status === 'SUBMITTED' && <>
                           <button onClick={() => handleReqAction('approve', r.id)} className="text-xs px-2.5 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> Approve</button>
@@ -567,8 +596,8 @@ export default function HiringPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5 text-indigo-600" /> New Manpower Requisition</h2>
-              <button onClick={() => setShowReqModal(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+              <h2 className="text-lg font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5 text-indigo-600" /> {editingReqId ? 'Edit Requisition' : 'New Manpower Requisition'}</h2>
+              <button onClick={closeReqModal} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={handleCreateReq} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -658,8 +687,8 @@ export default function HiringPage() {
                 </div>
               </div>
               <div className="flex gap-3 p-5 border-t flex-shrink-0">
-                <button type="button" onClick={() => setShowReqModal(false)} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={submittingReq} className="flex-1 bg-indigo-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{submittingReq ? 'Creating...' : 'Create Requisition'}</button>
+                <button type="button" onClick={closeReqModal} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={submittingReq} className="flex-1 bg-indigo-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{submittingReq ? (editingReqId ? 'Saving...' : 'Creating...') : (editingReqId ? 'Save Changes' : 'Create Requisition')}</button>
               </div>
             </form>
           </div>

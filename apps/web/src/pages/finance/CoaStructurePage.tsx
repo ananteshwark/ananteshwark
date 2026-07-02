@@ -18,6 +18,7 @@ function SegmentsTab() {
   const [segments, setSegments] = useState<any[]>([]);
   const [form, setForm] = useState({ position: 1, code: '', label: '', length: 4, isRequired: true, delimiter: '-' });
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedSeg, setSelectedSeg] = useState<any>(null);
   const [values, setValues] = useState<any[]>([]);
   const [valueForm, setValueForm] = useState({ value: '', description: '', parentValue: '' });
@@ -35,11 +36,23 @@ function SegmentsTab() {
     setValues(unwrap(await financeApi.listSegmentValues(seg.id)));
   }
 
+  function resetForm() {
+    setEditingId(null);
+    setForm({ position: segments.length + 1, code: '', label: '', length: 4, isRequired: true, delimiter: '-' });
+  }
+
+  function startEdit(s: any) {
+    setEditingId(s.id);
+    setForm({ position: s.position ?? 1, code: s.code ?? '', label: s.label ?? '', length: s.length ?? 4, isRequired: s.isRequired ?? true, delimiter: s.delimiter ?? '-' });
+    setShowForm(true);
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    await financeApi.createSegment(form);
+    if (editingId) await financeApi.updateSegment(editingId, form);
+    else await financeApi.createSegment(form);
     setShowForm(false);
-    setForm({ position: segments.length + 1, code: '', label: '', length: 4, isRequired: true, delimiter: '-' });
+    resetForm();
     load();
   }
 
@@ -65,11 +78,12 @@ function SegmentsTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Segment Definitions</h2>
-        <button onClick={() => setShowForm(!showForm)} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">+ Segment</button>
+        <button onClick={() => { if (showForm) { setShowForm(false); resetForm(); } else { resetForm(); setShowForm(true); } }} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">+ Segment</button>
       </div>
 
       {showForm && (
         <form onSubmit={handleCreate} className="border rounded-lg p-4 bg-gray-50 grid grid-cols-3 gap-3">
+          <div className="col-span-3 text-sm font-medium">{editingId ? 'Edit Segment' : 'New Segment'}</div>
           <div>
             <label className="text-xs text-gray-500">Position (1-6)</label>
             <input type="number" min={1} max={6} value={form.position} onChange={(e) => setForm({ ...form, position: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" />
@@ -95,8 +109,8 @@ function SegmentsTab() {
             <label htmlFor="req" className="text-sm">Required</label>
           </div>
           <div className="col-span-3 flex justify-end gap-2">
-            <button type="button" onClick={() => setShowForm(false)} className="border rounded px-3 py-1 text-sm">Cancel</button>
-            <button type="submit" className="bg-indigo-600 text-white px-3 py-1 rounded text-sm">Create</button>
+            <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="border rounded px-3 py-1 text-sm">Cancel</button>
+            <button type="submit" className="bg-indigo-600 text-white px-3 py-1 rounded text-sm">{editingId ? 'Update' : 'Create'}</button>
           </div>
         </form>
       )}
@@ -116,7 +130,7 @@ function SegmentsTab() {
                   <td className="px-3 py-2 font-mono text-xs">{s.code}</td>
                   <td className="px-3 py-2">{s.label}</td>
                   <td className="px-3 py-2">{s.isRequired ? '✓' : '—'}</td>
-                  <td className="px-3 py-2"><button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} className="text-red-500 text-xs hover:underline">Del</button></td>
+                  <td className="px-3 py-2 whitespace-nowrap"><button onClick={(e) => { e.stopPropagation(); startEdit(s); }} className="text-indigo-600 text-xs hover:underline mr-2">Edit</button><button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} className="text-red-500 text-xs hover:underline">Del</button></td>
                 </tr>
               ))}
             </tbody>

@@ -116,8 +116,9 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Create modal
+  // Create / Edit modal
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('Work Info');
   const [form, setForm] = useState(makeDefaultForm());
   const [submitting, setSubmitting] = useState(false);
@@ -191,6 +192,28 @@ export default function EmployeesPage() {
     label: fieldConfig[field]?.label ?? defaultLabel,
   });
 
+  const DATE_FIELDS = ['dateOfJoining', 'probationEndDate', 'confirmationDate', 'dateOfBirth', 'passportExpiry'];
+
+  const startEdit = (emp: any) => {
+    const base = makeDefaultForm();
+    const filled: any = { ...base };
+    (Object.keys(base) as string[]).forEach(k => {
+      const v = emp[k];
+      if (v !== undefined && v !== null) {
+        filled[k] = DATE_FIELDS.includes(k) && typeof v === 'string' ? v.slice(0, 10) : v;
+      }
+    });
+    filled.createLoginAccount = false;
+    filled.loginPassword = '';
+    setForm(filled);
+    setEditingId(emp.id);
+    setActiveTab('Work Info');
+    setFormError(null);
+    setShowModal(true);
+  };
+
+  const closeModal = () => { setShowModal(false); setEditingId(null); };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -212,13 +235,15 @@ export default function EmployeesPage() {
       ];
       optional.forEach(k => { if (!payload[k]) delete payload[k]; });
       if (!payload.createLoginAccount) delete payload.loginPassword;
-      await hrApi.createEmployee(payload);
+      if (editingId) await hrApi.updateEmployee(editingId, payload);
+      else await hrApi.createEmployee(payload);
       setShowModal(false);
+      setEditingId(null);
       setForm(makeDefaultForm());
       setActiveTab('Work Info');
       await fetchData();
     } catch (err: any) {
-      setFormError(err?.response?.data?.message ?? 'Failed to create employee');
+      setFormError(err?.response?.data?.message ?? `Failed to ${editingId ? 'update' : 'create'} employee`);
     } finally {
       setSubmitting(false);
     }
@@ -280,7 +305,7 @@ export default function EmployeesPage() {
           </button>
           <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
           <button
-            onClick={() => { setShowModal(true); setActiveTab('Work Info'); setForm(makeDefaultForm()); setFormError(null); }}
+            onClick={() => { setShowModal(true); setEditingId(null); setActiveTab('Work Info'); setForm(makeDefaultForm()); setFormError(null); }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
           >
             <Plus className="h-4 w-4" /> New Employee
@@ -347,11 +372,12 @@ export default function EmployeesPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Joining Date</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {employees.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No employees found</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-gray-400">No employees found</td></tr>
               ) : (
                 employees.map(emp => (
                   <tr key={emp.id} className="hover:bg-gray-50">
@@ -370,6 +396,9 @@ export default function EmployeesPage() {
                         {emp.status?.replace('_', ' ')}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button onClick={() => startEdit(emp)} className="text-xs px-2.5 py-1 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Edit</button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -383,8 +412,8 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
-              <h2 className="text-lg font-semibold">New Employee</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+              <h2 className="text-lg font-semibold">{editingId ? 'Edit Employee' : 'New Employee'}</h2>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
 
             {/* Tabs */}
@@ -887,8 +916,8 @@ export default function EmployeesPage() {
 
               {/* Footer */}
               <div className="flex gap-3 p-5 border-t flex-shrink-0">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={submitting} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{submitting ? 'Creating...' : 'Create Employee'}</button>
+                <button type="button" onClick={closeModal} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={submitting} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{submitting ? (editingId ? 'Saving...' : 'Creating...') : (editingId ? 'Save Changes' : 'Create Employee')}</button>
               </div>
             </form>
           </div>

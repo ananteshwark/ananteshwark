@@ -5,21 +5,34 @@ import { inventoryApi } from '../../api/inventory';
 
 type Tab = 'routings' | 'capacity';
 
-function CreateRoutingModal({ items, workCenters, onClose, onCreated }: { items: any[]; workCenters: any[]; onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ itemId: items[0]?.id || '', version: '1.0', description: '' });
-  const [ops, setOps] = useState<any[]>([
-    { sequence: 10, workCenterId: workCenters[0]?.id || '', description: '', setupMinutes: '0', runMinutesPerUnit: '0', yieldPercent: '100' },
-  ]);
+function CreateRoutingModal({ items, workCenters, editing, onClose, onCreated }: { items: any[]; workCenters: any[]; editing: any | null; onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState(
+    editing
+      ? { itemId: editing.itemId, version: editing.version ?? '1.0', description: editing.description ?? '' }
+      : { itemId: items[0]?.id || '', version: '1.0', description: '' },
+  );
+  const [ops, setOps] = useState<any[]>(
+    editing
+      ? (editing.operations ?? []).map((o: any) => ({
+          sequence: String(o.sequence),
+          workCenterId: o.workCenterId,
+          description: o.description ?? '',
+          setupMinutes: String(o.setupMinutes ?? 0),
+          runMinutesPerUnit: String(o.runMinutesPerUnit ?? 0),
+          yieldPercent: String(o.yieldPercent ?? 100),
+        }))
+      : [{ sequence: 10, workCenterId: workCenters[0]?.id || '', description: '', setupMinutes: '0', runMinutesPerUnit: '0', yieldPercent: '100' }],
+  );
   const [saving, setSaving] = useState(false);
 
-  const addOp = () => setOps(p => [...p, { sequence: (p[p.length - 1]?.sequence ?? 0) + 10, workCenterId: workCenters[0]?.id || '', description: '', setupMinutes: '0', runMinutesPerUnit: '0', yieldPercent: '100' }]);
+  const addOp = () => setOps(p => [...p, { sequence: (Number(p[p.length - 1]?.sequence) || 0) + 10, workCenterId: workCenters[0]?.id || '', description: '', setupMinutes: '0', runMinutesPerUnit: '0', yieldPercent: '100' }]);
   const removeOp = (i: number) => setOps(p => p.filter((_, idx) => idx !== i));
   const setOp = (i: number, k: string, v: string) => setOps(p => p.map((o, idx) => idx === i ? { ...o, [k]: v } : o));
 
   const save = async () => {
     setSaving(true);
     try {
-      await manufacturingApi.createRouting({
+      const payload = {
         ...form,
         operations: ops.map(o => ({
           sequence: parseInt(o.sequence, 10),
@@ -29,7 +42,9 @@ function CreateRoutingModal({ items, workCenters, onClose, onCreated }: { items:
           runMinutesPerUnit: parseFloat(o.runMinutesPerUnit || '0'),
           yieldPercent: parseFloat(o.yieldPercent || '100'),
         })),
-      });
+      };
+      if (editing) await manufacturingApi.updateRouting(editing.id, payload);
+      else await manufacturingApi.createRouting(payload);
       onCreated();
     } finally { setSaving(false); }
   };
@@ -37,7 +52,7 @@ function CreateRoutingModal({ items, workCenters, onClose, onCreated }: { items:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">New Routing</h2>
+        <h2 className="text-lg font-semibold mb-4">{editing ? 'Edit Routing' : 'New Routing'}</h2>
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="col-span-2">
             <label className="block text-xs text-gray-500 mb-1">Item</label>
@@ -90,7 +105,7 @@ function CreateRoutingModal({ items, workCenters, onClose, onCreated }: { items:
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border rounded-lg">Cancel</button>
           <button onClick={save} disabled={saving || !form.itemId || ops.length === 0}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50">{saving ? 'Saving...' : 'Create Routing'}</button>
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50">{saving ? 'Saving...' : editing ? 'Save Changes' : 'Create Routing'}</button>
         </div>
       </div>
     </div>
@@ -105,6 +120,7 @@ export default function RoutingsPage() {
   const [capacity, setCapacity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
   const today = new Date().toISOString().slice(0, 10);
   const [range, setRange] = useState({ fromDate: today, toDate: today });
 
@@ -160,7 +176,7 @@ export default function RoutingsPage() {
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
-                <tr>{['Item', 'Version', 'Operations', 'Active'].map(h => <th key={h} className="text-left px-4 py-2 text-xs text-gray-500 font-medium">{h}</th>)}</tr>
+                <tr>{['Item', 'Version', 'Operations', 'Active', ''].map(h => <th key={h} className="text-left px-4 py-2 text-xs text-gray-500 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y">
                 {routings.map((r: any) => (
@@ -178,6 +194,9 @@ export default function RoutingsPage() {
                     </td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs ${r.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{r.isActive ? 'Active' : 'Inactive'}</span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <button onClick={() => setEditing(r)} className="text-xs text-blue-600 border border-blue-300 rounded px-2 py-1 hover:bg-blue-50">Edit</button>
                     </td>
                   </tr>
                 ))}
@@ -232,8 +251,10 @@ export default function RoutingsPage() {
         </div>
       )}
 
-      {showCreate && (
-        <CreateRoutingModal items={items} workCenters={workCenters} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />
+      {(showCreate || editing) && (
+        <CreateRoutingModal items={items} workCenters={workCenters} editing={editing}
+          onClose={() => { setShowCreate(false); setEditing(null); }}
+          onCreated={() => { setShowCreate(false); setEditing(null); load(); }} />
       )}
     </div>
   );

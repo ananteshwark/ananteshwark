@@ -10,6 +10,7 @@ function unwrap(res: any) {
 function CodesTab() {
   const [codes, setCodes] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ code: '', name: '', section: '', rate: 10, thresholdAmount: 0, certificateType: 'FORM_16A' });
   const [test, setTest] = useState({ whtCodeId: '', grossAmount: 100000 });
   const [testResult, setTestResult] = useState<any>(null);
@@ -17,11 +18,23 @@ function CodesTab() {
   useEffect(() => { load(); }, []);
   async function load() { setCodes(unwrap(await financeApi.listWhtCodes())); }
 
+  function resetForm() {
+    setEditingId(null);
+    setForm({ code: '', name: '', section: '', rate: 10, thresholdAmount: 0, certificateType: 'FORM_16A' });
+  }
+
+  function startEdit(c: any) {
+    setEditingId(c.id);
+    setForm({ code: c.code ?? '', name: c.name ?? '', section: c.section ?? '', rate: Number(c.rate) || 0, thresholdAmount: Number(c.thresholdAmount) || 0, certificateType: c.certificateType ?? 'FORM_16A' });
+    setShowForm(true);
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    await financeApi.createWhtCode(form);
+    if (editingId) await financeApi.updateWhtCode(editingId, form);
+    else await financeApi.createWhtCode(form);
     setShowForm(false);
-    setForm({ code: '', name: '', section: '', rate: 10, thresholdAmount: 0, certificateType: 'FORM_16A' });
+    resetForm();
     load();
   }
 
@@ -34,18 +47,19 @@ function CodesTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">WHT / TDS Codes</h2>
-        <button onClick={() => setShowForm(!showForm)} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">+ Code</button>
+        <button onClick={() => { if (showForm) { setShowForm(false); resetForm(); } else { resetForm(); setShowForm(true); } }} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">+ Code</button>
       </div>
 
       {showForm && (
         <form onSubmit={handleCreate} className="border rounded-lg p-4 bg-gray-50 grid grid-cols-3 gap-3">
+          <div className="col-span-3 text-sm font-medium">{editingId ? 'Edit WHT Code' : 'New WHT Code'}</div>
           <div><label className="text-xs text-gray-500">Code</label><input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="194J" className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Name</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Professional fees" className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Section</label><input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} placeholder="194J" className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Rate %</label><input type="number" step="0.01" value={form.rate} onChange={(e) => setForm({ ...form, rate: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Threshold</label><input type="number" value={form.thresholdAmount} onChange={(e) => setForm({ ...form, thresholdAmount: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
           <div><label className="text-xs text-gray-500">Cert Type</label><select value={form.certificateType} onChange={(e) => setForm({ ...form, certificateType: e.target.value })} className="w-full border rounded px-2 py-1 text-sm">{CERT_TYPES.map((c) => <option key={c}>{c}</option>)}</select></div>
-          <div className="col-span-3 flex justify-end gap-2"><button type="button" onClick={() => setShowForm(false)} className="border rounded px-3 py-1 text-sm">Cancel</button><button type="submit" className="bg-indigo-600 text-white px-3 py-1 rounded text-sm">Create</button></div>
+          <div className="col-span-3 flex justify-end gap-2"><button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="border rounded px-3 py-1 text-sm">Cancel</button><button type="submit" className="bg-indigo-600 text-white px-3 py-1 rounded text-sm">{editingId ? 'Update' : 'Create'}</button></div>
         </form>
       )}
 
@@ -61,7 +75,7 @@ function CodesTab() {
                 <td className="px-3 py-2 text-right">{Number(c.rate)}</td>
                 <td className="px-3 py-2 text-right">{Number(c.thresholdAmount).toLocaleString()}</td>
                 <td className="px-3 py-2 text-xs">{c.certificateType}</td>
-                <td className="px-3 py-2"><button onClick={async () => { if (confirm('Delete?')) { await financeApi.deleteWhtCode(c.id); load(); } }} className="text-red-500 text-xs hover:underline">Del</button></td>
+                <td className="px-3 py-2 whitespace-nowrap"><button onClick={() => startEdit(c)} className="text-indigo-600 text-xs hover:underline mr-2">Edit</button><button onClick={async () => { if (confirm('Delete?')) { await financeApi.deleteWhtCode(c.id); load(); } }} className="text-red-500 text-xs hover:underline">Del</button></td>
               </tr>
             ))}
           </tbody>

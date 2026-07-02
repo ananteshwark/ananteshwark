@@ -60,6 +60,7 @@ function PaymentTermsTab() {
   const [terms, setTerms] = useState<PaymentTerm[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     code: '',
     name: '',
@@ -69,6 +70,23 @@ function PaymentTermsTab() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({ code: '', name: '', netDays: 30, description: '', tiers: [{ discountPercent: 2, withinDays: 10 }] });
+  };
+
+  const startEdit = (t: PaymentTerm) => {
+    setEditingId(t.id);
+    setForm({
+      code: t.code,
+      name: t.name,
+      netDays: t.netDays,
+      description: t.description ?? '',
+      tiers: (t.tiers ?? []).map(x => ({ discountPercent: x.discountPercent, withinDays: x.withinDays })),
+    });
+    setShowForm(true);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -96,18 +114,20 @@ function PaymentTermsTab() {
     setSaving(true);
     setError('');
     try {
-      await financeApi.createPaymentTerm({
+      const payload = {
         code: form.code,
         name: form.name,
         netDays: form.netDays,
         description: form.description || undefined,
         tiers: form.tiers,
-      });
+      };
+      if (editingId) await financeApi.updatePaymentTerm(editingId, payload);
+      else await financeApi.createPaymentTerm(payload);
       setShowForm(false);
-      setForm({ code: '', name: '', netDays: 30, description: '', tiers: [{ discountPercent: 2, withinDays: 10 }] });
+      resetForm();
       load();
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Failed to create payment term');
+      setError(err.response?.data?.message ?? (editingId ? 'Failed to update payment term' : 'Failed to create payment term'));
     } finally {
       setSaving(false);
     }
@@ -139,7 +159,7 @@ function PaymentTermsTab() {
           Seed defaults
         </button>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { resetForm(); setShowForm(true); }}
           className="ml-auto flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700"
         >
           <Plus size={15} /> New Term
@@ -150,7 +170,7 @@ function PaymentTermsTab() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="border rounded-lg p-4 bg-gray-50 space-y-3">
-          <h3 className="font-medium text-sm">New Payment Term</h3>
+          <h3 className="font-medium text-sm">{editingId ? 'Edit Payment Term' : 'New Payment Term'}</h3>
           <div className="grid grid-cols-3 gap-3 text-sm">
             <label className="space-y-1">
               <span className="text-gray-600">Code *</span>
@@ -190,9 +210,9 @@ function PaymentTermsTab() {
 
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving…' : editingId ? 'Update' : 'Save'}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="border px-4 py-1.5 rounded text-sm hover:bg-gray-100">
+            <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="border px-4 py-1.5 rounded text-sm hover:bg-gray-100">
               Cancel
             </button>
           </div>
@@ -228,9 +248,12 @@ function PaymentTermsTab() {
                   </span>
                 </td>
                 <td className="px-3 py-2">
-                  <button onClick={() => handleDelete(t.id)} className="text-gray-400 hover:text-red-600">
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => startEdit(t)} className="text-blue-600 text-xs hover:underline">Edit</button>
+                    <button onClick={() => handleDelete(t.id)} className="text-gray-400 hover:text-red-600">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

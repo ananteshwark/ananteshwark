@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   Copy,
+  Pencil,
 } from 'lucide-react';
 import { webhooksApi } from '../../api/webhooks';
 
@@ -51,6 +52,7 @@ export default function WebhooksPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
     targetUrl: '',
@@ -83,16 +85,43 @@ export default function WebhooksPage() {
     if (tab === 'deliveries') loadDeliveries(selectedSubId ?? undefined);
   }, [tab, selectedSubId]);
 
-  const createSub = async () => {
+  const openCreate = () => {
+    setEditingId(null);
+    setForm({ name: '', targetUrl: '', selectedEvents: [], maxRetries: 3 });
+    setShowForm(true);
+  };
+
+  const startEdit = (sub: any) => {
+    setEditingId(sub.id);
+    setForm({
+      name: sub.name ?? '',
+      targetUrl: sub.targetUrl ?? '',
+      selectedEvents: sub.eventTypes ?? [],
+      maxRetries: sub.maxRetries ?? 3,
+    });
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm({ name: '', targetUrl: '', selectedEvents: [], maxRetries: 3 });
+  };
+
+  const submitSub = async () => {
     if (!form.name || !form.targetUrl || !form.selectedEvents.length) return;
-    await webhooksApi.createSubscription({
+    const payload = {
       name: form.name,
       targetUrl: form.targetUrl,
       eventTypes: form.selectedEvents,
       maxRetries: form.maxRetries,
-    });
-    setShowForm(false);
-    setForm({ name: '', targetUrl: '', selectedEvents: [], maxRetries: 3 });
+    };
+    if (editingId) {
+      await webhooksApi.updateSubscription(editingId, payload);
+    } else {
+      await webhooksApi.createSubscription(payload);
+    }
+    closeForm();
     load();
   };
 
@@ -145,7 +174,7 @@ export default function WebhooksPage() {
         </div>
         {tab === 'subscriptions' && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
           >
             <Plus className="w-4 h-4" /> New Webhook
@@ -175,7 +204,7 @@ export default function WebhooksPage() {
         <div className="space-y-4">
           {showForm && (
             <div className="bg-white border rounded-xl p-6 shadow-sm space-y-4">
-              <h3 className="font-semibold text-gray-800">New Webhook Subscription</h3>
+              <h3 className="font-semibold text-gray-800">{editingId ? 'Edit Webhook Subscription' : 'New Webhook Subscription'}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Name *</label>
@@ -227,17 +256,17 @@ export default function WebhooksPage() {
               </div>
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => setShowForm(false)}
+                  onClick={closeForm}
                   className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={createSub}
+                  onClick={submitSub}
                   disabled={!form.name || !form.targetUrl || !form.selectedEvents.length}
                   className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  Create Webhook
+                  {editingId ? 'Save Changes' : 'Create Webhook'}
                 </button>
               </div>
             </div>
@@ -270,6 +299,13 @@ export default function WebhooksPage() {
                         className="p-1.5 text-gray-400 hover:text-green-600 rounded hover:bg-green-50"
                       >
                         <Play className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => startEdit(sub)}
+                        title="Edit"
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 rounded hover:bg-indigo-50"
+                      >
+                        <Pencil className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => rotateSecret(sub.id)}
