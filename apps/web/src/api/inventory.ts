@@ -100,6 +100,7 @@ export const inventoryApi = {
   // Phase 92: Putaway Strategies
   listPutawayRules: (warehouseId?: string) => apiClient.get('/inventory/wms/putaway-rules', { params: warehouseId ? { warehouseId } : {} }),
   createPutawayRule: (data: any) => apiClient.post('/inventory/wms/putaway-rules', data),
+  updatePutawayRule: (id: string, data: any) => apiClient.patch(`/inventory/wms/putaway-rules/${id}`, data),
   deletePutawayRule: (id: string) => apiClient.delete(`/inventory/wms/putaway-rules/${id}`),
   suggestPutaway: (data: any) => apiClient.post('/inventory/wms/putaway-suggest', data),
 

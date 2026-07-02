@@ -21,6 +21,7 @@ const lotStatusColor = (s: string) => ({
 export default function QualityPage() {
   const [tab, setTab] = useState<'lots' | 'plans' | 'ncrs'>('lots');
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [editPlan, setEditPlan] = useState<any>(null);
   const [showLotModal, setShowLotModal] = useState(false);
   const [showNcrModal, setShowNcrModal] = useState(false);
   const [resolveId, setResolveId] = useState<string | null>(null);
@@ -37,6 +38,10 @@ export default function QualityPage() {
   const createPlan = useMutation({
     mutationFn: (d: any) => qualityApi.createPlan(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['quality-plans'] }); setShowPlanModal(false); },
+  });
+  const updatePlan = useMutation({
+    mutationFn: ({ id, data }: any) => qualityApi.updatePlan(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quality-plans'] }); setEditPlan(null); },
   });
   const createLot = useMutation({
     mutationFn: (d: any) => qualityApi.createLot(d),
@@ -127,7 +132,10 @@ export default function QualityPage() {
                     <div className="text-xs text-gray-500">{plan.code} · {plan.inspectionType}</div>
                     <div className="text-xs text-gray-600 mt-1">Item: {plan.itemCode} — {plan.itemName}</div>
                   </div>
-                  <span className={clsx('text-xs px-2 py-0.5 rounded-full', plan.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600')}>{plan.isActive ? 'Active' : 'Inactive'}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={clsx('text-xs px-2 py-0.5 rounded-full', plan.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600')}>{plan.isActive ? 'Active' : 'Inactive'}</span>
+                    <button onClick={() => setEditPlan(plan)} className="text-xs text-blue-600 hover:underline">Edit</button>
+                  </div>
                 </div>
                 <div className="mt-3 text-xs text-gray-500">{plan.checkpoints?.length ?? 0} checkpoints</div>
               </div>
@@ -166,29 +174,29 @@ export default function QualityPage() {
         </div>
       )}
 
-      {/* Create Plan Modal */}
-      {showPlanModal && (
+      {/* Create / Edit Plan Modal */}
+      {(showPlanModal || editPlan) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <form className="bg-white rounded-xl p-6 w-[480px]" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); createPlan.mutate({ code: f.get('code'), name: f.get('name'), itemCode: f.get('itemCode'), itemName: f.get('itemName'), inspectionType: f.get('inspectionType'), checkpoints: [] }); }}>
-            <h2 className="text-lg font-semibold mb-4">New Inspection Plan</h2>
+          <form className="bg-white rounded-xl p-6 w-[480px]" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); const data = { code: f.get('code'), name: f.get('name'), itemCode: f.get('itemCode'), itemName: f.get('itemName'), inspectionType: f.get('inspectionType') }; if (editPlan) updatePlan.mutate({ id: editPlan.id, data }); else createPlan.mutate({ ...data, checkpoints: [] }); }}>
+            <h2 className="text-lg font-semibold mb-4">{editPlan ? 'Edit Inspection Plan' : 'New Inspection Plan'}</h2>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-gray-500">Code</label><input name="code" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-                <div><label className="text-xs text-gray-500">Name</label><input name="name" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                <div><label className="text-xs text-gray-500">Code</label><input name="code" required defaultValue={editPlan?.code} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                <div><label className="text-xs text-gray-500">Name</label><input name="name" required defaultValue={editPlan?.name} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-gray-500">Item Code</label><input name="itemCode" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-                <div><label className="text-xs text-gray-500">Item Name</label><input name="itemName" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                <div><label className="text-xs text-gray-500">Item Code</label><input name="itemCode" required defaultValue={editPlan?.itemCode} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+                <div><label className="text-xs text-gray-500">Item Name</label><input name="itemName" required defaultValue={editPlan?.itemName} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
               </div>
               <div><label className="text-xs text-gray-500">Type</label>
-                <select name="inspectionType" required className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+                <select name="inspectionType" required defaultValue={editPlan?.inspectionType} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
                   <option value="GRN">GRN</option><option value="PRODUCTION">Production</option><option value="PERIODIC">Periodic</option>
                 </select>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-5">
-              <button type="button" onClick={() => setShowPlanModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-              <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create</button>
+              <button type="button" onClick={() => { setShowPlanModal(false); setEditPlan(null); }} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">{editPlan ? 'Save' : 'Create'}</button>
             </div>
           </form>
         </div>

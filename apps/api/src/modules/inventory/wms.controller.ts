@@ -154,6 +154,13 @@ export class WmsController {
     return this.putawayService.createRule(user.tenantId, body);
   }
 
+  @Patch('putaway-rules/:id')
+  @RequirePermission('inventory:manage')
+  @ApiOperation({ summary: 'Update a putaway strategy rule' })
+  updatePutawayRule(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.putawayService.updateRule(user.tenantId, id, body);
+  }
+
   @Delete('putaway-rules/:id')
   @RequirePermission('inventory:manage')
   @ApiOperation({ summary: 'Delete a putaway rule' })

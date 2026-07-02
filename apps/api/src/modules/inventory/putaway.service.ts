@@ -30,6 +30,14 @@ export class PutawayService {
     return (this.ruleRepo.save(entity) as unknown) as Promise<PutawayRule>;
   }
 
+  async updateRule(tenantId: string, id: string, dto: any): Promise<PutawayRule> {
+    const rule = await this.ruleRepo.findOne({ where: { id, tenantId } });
+    if (!rule) throw new NotFoundException(`Putaway rule ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(rule, rest);
+    return (this.ruleRepo.save(rule) as unknown) as Promise<PutawayRule>;
+  }
+
   async listRules(tenantId: string, warehouseId?: string): Promise<PutawayRule[]> {
     const where: any = { tenantId };
     if (warehouseId) where.warehouseId = warehouseId;

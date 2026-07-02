@@ -366,10 +366,12 @@ const RULE_TYPE_LABELS: Record<string, string> = {
 function PutawayRulesTab() {
   const [rules, setRules] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const emptyForm = {
     warehouseId: '', name: '', ruleType: 'CONSOLIDATE', priority: '50',
     itemId: '', itemCategoryId: '', destBinId: '', destZone: '',
-  });
+  };
+  const [form, setForm] = useState(emptyForm);
   const [suggest, setSuggest] = useState({ warehouseId: '', itemId: '', qty: '1' });
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -383,19 +385,30 @@ function PutawayRulesTab() {
     } catch {}
   }
 
+  function editRule(r: any) {
+    setEditingId(r.id);
+    setForm({
+      warehouseId: r.warehouseId ?? '', name: r.name ?? '', ruleType: r.ruleType ?? 'CONSOLIDATE', priority: String(r.priority ?? '50'),
+      itemId: r.itemId ?? '', itemCategoryId: r.itemCategoryId ?? '', destBinId: r.destBinId ?? '', destZone: r.destZone ?? '',
+    });
+    setShowForm(true);
+  }
+  function resetForm() { setShowForm(false); setEditingId(null); setForm(emptyForm); }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    const payload = {
+      ...form,
+      priority: Number(form.priority),
+      itemId: form.itemId || null,
+      itemCategoryId: form.itemCategoryId || null,
+      destBinId: form.destBinId || null,
+      destZone: form.destZone || null,
+    };
     try {
-      await inventoryApi.createPutawayRule({
-        ...form,
-        priority: Number(form.priority),
-        itemId: form.itemId || null,
-        itemCategoryId: form.itemCategoryId || null,
-        destBinId: form.destBinId || null,
-        destZone: form.destZone || null,
-      });
-      setShowForm(false);
-      setForm({ warehouseId: '', name: '', ruleType: 'CONSOLIDATE', priority: '50', itemId: '', itemCategoryId: '', destBinId: '', destZone: '' });
+      if (editingId) await inventoryApi.updatePutawayRule(editingId, payload);
+      else await inventoryApi.createPutawayRule(payload);
+      resetForm();
       loadRules();
     } catch (err: any) {
       setMessage(`Error: ${err?.response?.data?.message ?? 'Failed'}`);
@@ -427,7 +440,7 @@ function PutawayRulesTab() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Putaway Strategy Rules</h2>
-        <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm">+ New Rule</button>
+        <button onClick={() => (showForm ? resetForm() : setShowForm(true))} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm">{showForm ? 'Close' : '+ New Rule'}</button>
       </div>
 
       {message && (
@@ -438,7 +451,7 @@ function PutawayRulesTab() {
 
       {showForm && (
         <form onSubmit={handleCreate} className="bg-gray-50 border rounded p-4 space-y-3 text-sm">
-          <div className="font-medium">New Putaway Rule</div>
+          <div className="font-medium">{editingId ? 'Edit Putaway Rule' : 'New Putaway Rule'}</div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block font-medium mb-1">Name</label>
@@ -480,8 +493,8 @@ function PutawayRulesTab() {
             )}
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="px-3 py-1.5 bg-blue-600 text-white rounded">Create</button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 border rounded">Cancel</button>
+            <button type="submit" className="px-3 py-1.5 bg-blue-600 text-white rounded">{editingId ? 'Save' : 'Create'}</button>
+            <button type="button" onClick={resetForm} className="px-3 py-1.5 border rounded">Cancel</button>
           </div>
         </form>
       )}
@@ -518,6 +531,7 @@ function PutawayRulesTab() {
                 </span>
               </td>
               <td className="p-2 border">
+                <button onClick={() => editRule(r)} className="text-xs px-2 py-1 text-blue-600 border border-blue-200 rounded hover:bg-blue-50 mr-1">Edit</button>
                 <button onClick={() => deleteRule(r.id)} className="text-xs px-2 py-1 text-red-600 border border-red-200 rounded hover:bg-red-50">Delete</button>
               </td>
             </tr>
