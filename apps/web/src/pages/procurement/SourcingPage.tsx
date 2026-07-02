@@ -17,6 +17,7 @@ export default function SourcingPage() {
   const [bids, setBids] = useState<any[]>([]);
   const [scores, setScores] = useState<Record<string, any>>({});
   const [eventForm, setEventForm] = useState({ eventType: 'RFQ', title: '', visibility: 'SEALED' });
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [lineForm, setLineForm] = useState({ description: '', quantity: 1, targetPrice: 0 });
   const [bidForm, setBidForm] = useState({ lineId: '', supplierId: '', unitPrice: 0, leadTimeDays: 0, qualityScore: 0 });
 
@@ -29,9 +30,15 @@ export default function SourcingPage() {
   }
   async function refresh() { if (selected) { const e = events.find((x) => x.id === selected.id); await selectEvent(e ?? selected); await loadEvents(); } }
 
+  function editEvent(e: any) { setEditingEventId(e.id); setEventForm({ eventType: e.eventType ?? 'RFQ', title: e.title ?? '', visibility: e.visibility ?? 'SEALED' }); }
+  function cancelEventEdit() { setEditingEventId(null); setEventForm({ eventType: 'RFQ', title: '', visibility: 'SEALED' }); }
   async function createEvent(ev: React.FormEvent) {
     ev.preventDefault();
-    try { await sourcingApi.createEvent(eventForm); setEventForm({ eventType: 'RFQ', title: '', visibility: 'SEALED' }); loadEvents(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingEventId) await sourcingApi.updateEvent(editingEventId, eventForm);
+      else await sourcingApi.createEvent(eventForm);
+      cancelEventEdit(); loadEvents();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   async function addLine(ev: React.FormEvent) {
     ev.preventDefault();
@@ -72,12 +79,15 @@ export default function SourcingPage() {
               <select value={eventForm.eventType} onChange={(e) => setEventForm({ ...eventForm, eventType: e.target.value })} className="flex-1 border rounded px-2 py-1 text-sm">{['RFI', 'RFQ', 'AUCTION'].map((t) => <option key={t}>{t}</option>)}</select>
               <select value={eventForm.visibility} onChange={(e) => setEventForm({ ...eventForm, visibility: e.target.value })} className="flex-1 border rounded px-2 py-1 text-sm">{['SEALED', 'OPEN'].map((t) => <option key={t}>{t}</option>)}</select>
             </div>
-            <button type="submit" className="w-full bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Event</button>
+            <div className="flex gap-2">
+              <button type="submit" className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingEventId ? 'Save' : '+ Event'}</button>
+              {editingEventId && <button type="button" onClick={cancelEventEdit} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
+            </div>
           </form>
           <ul className="border rounded-lg divide-y text-sm">
             {events.length === 0 ? <li className="px-3 py-4 text-center text-gray-400">No events.</li> : events.map((e) => (
               <li key={e.id} className={`px-3 py-2 cursor-pointer ${selected?.id === e.id ? 'bg-indigo-50' : ''}`} onClick={() => selectEvent(e)}>
-                <div className="flex justify-between items-center"><span className="font-medium">{e.title}</span><span className={`text-xs px-1.5 py-0.5 rounded ${STATUS[e.status]}`}>{e.status}</span></div>
+                <div className="flex justify-between items-center"><span className="font-medium">{e.title}</span><span className="flex items-center gap-2"><span className={`text-xs px-1.5 py-0.5 rounded ${STATUS[e.status]}`}>{e.status}</span>{e.status === 'DRAFT' && <button onClick={(ev) => { ev.stopPropagation(); editEvent(e); }} className="text-xs text-indigo-600 hover:underline">Edit</button>}</span></div>
                 <span className="text-xs text-gray-400 font-mono">{e.eventNumber} · {e.eventType} · R{e.currentRound}</span>
               </li>
             ))}

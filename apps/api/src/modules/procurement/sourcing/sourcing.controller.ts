@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { SourcingService } from './sourcing.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -22,6 +22,11 @@ export class SourcingController {
   @RequirePermission('procurement:manage')
   @ApiOperation({ summary: 'Create a sourcing event (RFI/RFQ/Auction)' })
   createEvent(@CurrentUser() u: any, @Body() b: any) { return this.service.createEvent(u.tenantId, b); }
+
+  @Patch('events/:id')
+  @RequirePermission('procurement:manage')
+  @ApiOperation({ summary: 'Update a DRAFT sourcing event' })
+  updateEvent(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateEvent(u.tenantId, id, b); }
 
   @Get('events/:id/lines')
   @RequirePermission('procurement:read')

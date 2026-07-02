@@ -15,16 +15,26 @@ function QuestionnairesTab() {
   const [responses, setResponses] = useState<any[]>([]);
   const [form, setForm] = useState({ name: '', category: '', passThresholdPct: 70 });
   const [questions, setQuestions] = useState<any[]>([{ id: 'q1', text: '', type: 'BOOLEAN', weight: 1, passValue: true }]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
   async function load() {
     setItems(unwrap(await supplierQualApi.listQuestionnaires()));
     setResponses(unwrap(await supplierQualApi.listResponses()));
   }
+  function resetForm() { setEditingId(null); setForm({ name: '', category: '', passThresholdPct: 70 }); setQuestions([{ id: 'q1', text: '', type: 'BOOLEAN', weight: 1, passValue: true }]); }
+  function editQuestionnaire(q: any) {
+    setEditingId(q.id);
+    setForm({ name: q.name ?? '', category: q.category ?? '', passThresholdPct: q.passThresholdPct ?? 70 });
+    setQuestions((q.questions ?? []).length ? q.questions : [{ id: 'q1', text: '', type: 'BOOLEAN', weight: 1, passValue: true }]);
+  }
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    try { await supplierQualApi.createQuestionnaire({ ...form, questions }); setForm({ name: '', category: '', passThresholdPct: 70 }); setQuestions([{ id: 'q1', text: '', type: 'BOOLEAN', weight: 1, passValue: true }]); load(); }
-    catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingId) await supplierQualApi.updateQuestionnaire(editingId, { ...form, questions });
+      else await supplierQualApi.createQuestionnaire({ ...form, questions });
+      resetForm(); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   function setQ(i: number, patch: any) { setQuestions(questions.map((q, idx) => (idx === i ? { ...q, ...patch } : q))); }
   async function review(id: string, decision: 'APPROVE' | 'REJECT') {
@@ -47,11 +57,14 @@ function QuestionnairesTab() {
             </div>
           ))}
           <button type="button" onClick={() => setQuestions([...questions, { id: `q${questions.length + 1}`, text: '', type: 'BOOLEAN', weight: 1, passValue: true }])} className="text-indigo-600 text-xs hover:underline">+ question</button>
-          <button type="submit" className="w-full bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Create Questionnaire</button>
+          <div className="flex gap-2">
+            <button type="submit" className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save Questionnaire' : 'Create Questionnaire'}</button>
+            {editingId && <button type="button" onClick={resetForm} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
+          </div>
         </form>
         <ul className="border rounded-lg divide-y text-sm">
           {items.length === 0 ? <li className="px-3 py-4 text-center text-gray-400">No questionnaires.</li> : items.map((q) => (
-            <li key={q.id} className="px-3 py-2"><span className="font-medium">{q.name}</span> <span className="text-xs text-gray-400">{q.category} · {q.questions?.length} Q · pass {q.passThresholdPct}%</span></li>
+            <li key={q.id} className="px-3 py-2 flex items-center justify-between"><span><span className="font-medium">{q.name}</span> <span className="text-xs text-gray-400">{q.category} · {q.questions?.length} Q · pass {q.passThresholdPct}%</span></span><button onClick={() => editQuestionnaire(q)} className="text-xs text-indigo-600 hover:underline">Edit</button></li>
           ))}
         </ul>
       </div>

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { SupplierQualificationService } from './supplier-qualification.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -23,6 +23,10 @@ export class SupplierQualificationController {
   @Post('questionnaires')
   @RequirePermission('procurement:manage')
   createQuestionnaire(@CurrentUser() u: any, @Body() b: any) { return this.service.createQuestionnaire(u.tenantId, b); }
+
+  @Patch('questionnaires/:id')
+  @RequirePermission('procurement:manage')
+  updateQuestionnaire(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateQuestionnaire(u.tenantId, id, b); }
 
   // ─── Ph-203: responses ────────────────────────────────────────────
   @Post('responses')

@@ -86,6 +86,7 @@ export const procurementApi = {
   getServiceEntries: (params?: any) => apiClient.get('/procurement/service-entries', { params }),
   getServiceEntry: (id: string) => apiClient.get(`/procurement/service-entries/${id}`),
   createServiceEntry: (data: any) => apiClient.post('/procurement/service-entries', data),
+  updateServiceEntry: (id: string, data: any) => apiClient.patch(`/procurement/service-entries/${id}`, data),
   submitServiceEntry: (id: string) => apiClient.post(`/procurement/service-entries/${id}/submit`),
   approveServiceEntry: (id: string) => apiClient.post(`/procurement/service-entries/${id}/approve`),
   rejectServiceEntry: (id: string, data: any) => apiClient.post(`/procurement/service-entries/${id}/reject`, data),

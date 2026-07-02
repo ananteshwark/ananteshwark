@@ -18,6 +18,14 @@ export class SupplierQualificationService {
     @InjectRepository(SupplierScorecard) private readonly scoreRepo: Repository<SupplierScorecard>,
   ) {}
 
+  async updateQuestionnaire(tenantId: string, id: string, dto: any): Promise<Questionnaire> {
+    const q = await this.qRepo.findOne({ where: { id, tenantId } });
+    if (!q) throw new NotFoundException(`Questionnaire ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(q, rest);
+    return this.qRepo.save(q);
+  }
+
   // ─── Ph-202: questionnaires ───────────────────────────────────────
 
   listQuestionnaires(tenantId: string, category?: string): Promise<Questionnaire[]> {

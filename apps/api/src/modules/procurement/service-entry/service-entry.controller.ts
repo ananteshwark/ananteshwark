@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -48,6 +49,13 @@ export class ServiceEntryController {
   @ApiOperation({ summary: 'Create a service entry sheet against a service PO' })
   create(@CurrentUser() user: any, @Body() dto: CreateServiceEntryDto) {
     return this.service.create(user.tenantId, dto);
+  }
+
+  @Patch(':id')
+  @RequirePermission('procurement:grn:create')
+  @ApiOperation({ summary: 'Update a DRAFT service entry sheet header' })
+  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+    return this.service.update(user.tenantId, id, dto);
   }
 
   @Post(':id/submit')

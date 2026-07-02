@@ -17,6 +17,15 @@ export class SourcingService {
     @InjectRepository(SourcingAward) private readonly awardRepo: Repository<SourcingAward>,
   ) {}
 
+  async updateEvent(tenantId: string, id: string, dto: any): Promise<SourcingEvent> {
+    const event = await this.eventRepo.findOne({ where: { id, tenantId } });
+    if (!event) throw new NotFoundException(`Sourcing event ${id} not found`);
+    if (event.status !== SourcingEventStatus.DRAFT) throw new BadRequestException('Only DRAFT events can be edited');
+    const { tenantId: _t, id: _i, status: _s, ...rest } = dto ?? {};
+    Object.assign(event, rest);
+    return this.eventRepo.save(event);
+  }
+
   // ─── Ph-198: event types ──────────────────────────────────────────
 
   listEvents(tenantId: string): Promise<SourcingEvent[]> {

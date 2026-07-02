@@ -3,6 +3,7 @@ import { apiClient } from './client';
 export const sourcingApi = {
   listEvents: () => apiClient.get('/procurement/sourcing/events'),
   createEvent: (data: any) => apiClient.post('/procurement/sourcing/events', data),
+  updateEvent: (id: string, data: any) => apiClient.patch(`/procurement/sourcing/events/${id}`, data),
   listLines: (id: string) => apiClient.get(`/procurement/sourcing/events/${id}/lines`),
   addLine: (id: string, data: any) => apiClient.post(`/procurement/sourcing/events/${id}/lines`, data),
   publish: (id: string) => apiClient.post(`/procurement/sourcing/events/${id}/publish`),

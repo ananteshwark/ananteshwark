@@ -41,6 +41,15 @@ export class ServiceEntryService {
     return `SES-${String(next).padStart(6, '0')}`;
   }
 
+  async update(tenantId: string, id: string, dto: any): Promise<ServiceEntrySheet> {
+    const ses = await this.repo.findOne({ where: { id, tenantId } });
+    if (!ses) throw new NotFoundException(`Service entry ${id} not found`);
+    if (ses.status !== ServiceEntryStatus.DRAFT) throw new BadRequestException('Only DRAFT service entries can be edited');
+    const { tenantId: _t, id: _i, status: _s, lines: _l, ...rest } = dto ?? {};
+    Object.assign(ses, rest);
+    return this.repo.save(ses);
+  }
+
   async create(tenantId: string, dto: CreateServiceEntryDto): Promise<ServiceEntrySheet> {
     // Validate the PO exists
     await this.poService.findOne(tenantId, dto.poId);
