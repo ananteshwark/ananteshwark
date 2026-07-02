@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SuccessionService } from './succession.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -31,6 +31,12 @@ export class SuccessionController {
   @RequirePermission('talent:succession:manage')
   createPlan(@CurrentUser() user: any, @Body() dto: CreateSuccessionPlanDto) {
     return this.service.createPlan(user.tenantId, dto);
+  }
+
+  @Patch('plans/:id')
+  @RequirePermission('talent:succession:manage')
+  updatePlan(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+    return this.service.updatePlan(user.tenantId, id, dto);
   }
 
   @Post('candidates')

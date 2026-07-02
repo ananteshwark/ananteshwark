@@ -45,6 +45,7 @@ export const talentApi = {
   getSuccessionPlans: (params?: any) => apiClient.get('/talent/succession/plans', { params }),
   getSuccessionPlan: (id: string) => apiClient.get(`/talent/succession/plans/${id}`),
   createSuccessionPlan: (data: any) => apiClient.post('/talent/succession/plans', data),
+  updateSuccessionPlan: (id: string, data: any) => apiClient.patch(`/talent/succession/plans/${id}`, data),
   addSuccessorCandidate: (data: any) => apiClient.post('/talent/succession/candidates', data),
 
   // Goals / OKRs

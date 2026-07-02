@@ -21,20 +21,21 @@ const READINESS_COLORS: Record<string, string> = {
   READY_3_5_YEARS: 'bg-red-100 text-red-700',
 };
 
-function CreatePlanModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [positionTitle, setPositionTitle] = useState('');
-  const [criticality, setCriticality] = useState('MEDIUM');
+function CreatePlanModal({ onClose, onCreated, editPlan }: { onClose: () => void; onCreated: () => void; editPlan?: any }) {
+  const [positionTitle, setPositionTitle] = useState(editPlan?.positionTitle ?? '');
+  const [criticality, setCriticality] = useState(editPlan?.criticality ?? 'MEDIUM');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await talentApi.createSuccessionPlan({ positionTitle, criticality });
+      if (editPlan) await talentApi.updateSuccessionPlan(editPlan.id, { positionTitle, criticality });
+      else await talentApi.createSuccessionPlan({ positionTitle, criticality });
       onCreated();
       onClose();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create plan');
+      alert(err.response?.data?.message || 'Failed to save plan');
     } finally {
       setSubmitting(false);
     }
@@ -44,7 +45,7 @@ function CreatePlanModal({ onClose, onCreated }: { onClose: () => void; onCreate
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">New Succession Plan</h2>
+          <h2 className="text-lg font-semibold">{editPlan ? 'Edit Succession Plan' : 'New Succession Plan'}</h2>
           <button onClick={onClose}><X className="h-5 w-5 text-gray-400" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,7 +76,7 @@ function CreatePlanModal({ onClose, onCreated }: { onClose: () => void; onCreate
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-              {submitting ? 'Creating...' : 'Create Plan'}
+              {submitting ? 'Saving...' : editPlan ? 'Save Changes' : 'Create Plan'}
             </button>
           </div>
         </form>
@@ -164,6 +165,7 @@ export default function SuccessionPage() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const [editPlan, setEditPlan] = useState<any>(null);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
 
   const loadPlans = async () => {
@@ -226,9 +228,17 @@ export default function SuccessionPage() {
                       <h3 className="font-semibold text-gray-900">{plan.positionTitle}</h3>
                       <p className="text-xs text-gray-500 mt-0.5">Status: {plan.status}</p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CRITICALITY_COLORS[plan.criticality] || 'bg-gray-100 text-gray-700'}`}>
-                      {plan.criticality}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CRITICALITY_COLORS[plan.criticality] || 'bg-gray-100 text-gray-700'}`}>
+                        {plan.criticality}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditPlan(plan); }}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -288,6 +298,13 @@ export default function SuccessionPage() {
         <CreatePlanModal
           onClose={() => setShowCreatePlan(false)}
           onCreated={loadPlans}
+        />
+      )}
+      {editPlan && (
+        <CreatePlanModal
+          editPlan={editPlan}
+          onClose={() => setEditPlan(null)}
+          onCreated={() => { loadPlans(); if (selectedPlan?.id === editPlan.id) loadPlanDetail(editPlan); }}
         />
       )}
       {showAddCandidate && selectedPlan && (

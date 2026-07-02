@@ -18,6 +18,14 @@ export class SuccessionService {
     return this.planRepo.save(plan);
   }
 
+  async updatePlan(tenantId: string, id: string, dto: any): Promise<SuccessionPlan> {
+    const plan = await this.planRepo.findOne({ where: { id, tenantId } });
+    if (!plan) throw new NotFoundException('Succession plan not found');
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(plan, rest);
+    return this.planRepo.save(plan);
+  }
+
   async listPlans(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<SuccessionPlan>> {
     const page = pagination.page || 1;
     const limit = pagination.limit || 20;
