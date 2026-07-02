@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { WorkflowDefinition } from './entities/workflow-definition.entity';
+import { WorkflowDefinition, WorkflowStep } from './entities/workflow-definition.entity';
 import { WorkflowInstance, WorkflowInstanceStatus } from './entities/workflow-instance.entity';
+import { Employee } from '../hr/employees/entities/employee.entity';
+import { PermissionsService } from '../rbac/permissions.service';
 import { CreateWorkflowDefinitionDto, StartWorkflowDto, ApproveStepDto } from './dto/workflow.dto';
 
 @Injectable()
@@ -12,7 +14,72 @@ export class WorkflowService {
     private readonly definitionRepository: Repository<WorkflowDefinition>,
     @InjectRepository(WorkflowInstance)
     private readonly instanceRepository: Repository<WorkflowInstance>,
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
+    private readonly permissionsService: PermissionsService,
   ) {}
+
+  /**
+   * Whether `userId` is an authorized approver for `step` on `instance`.
+   * - `user`    → the approver value is the user's id
+   * - `role`    → the user holds a role with that name (active, non-expired)
+   * - `manager` → the user is the initiator's direct manager (resolved via Employee)
+   * A step with no approvers defined is treated as unrestricted (callers still need
+   * the route permission), so we return true only for that explicit empty case.
+   */
+  private async isAuthorizedApprover(
+    instance: WorkflowInstance,
+    step: WorkflowStep | undefined,
+    userId: string,
+    tenantId: string,
+  ): Promise<boolean> {
+    const approvers = step?.approvers ?? [];
+    if (approvers.length === 0) return true;
+
+    for (const approver of approvers) {
+      if (approver.type === 'user' && approver.value === userId) return true;
+      if (approver.type === 'role') {
+        const roleNames = await this.permissionsService.getUserRoleNames(userId, tenantId);
+        if (roleNames.includes(approver.value)) return true;
+      }
+      if (approver.type === 'manager') {
+        const initiatorEmp = await this.employeeRepository.findOne({
+          where: { tenantId, userId: instance.initiatorId },
+        });
+        if (initiatorEmp?.managerId) {
+          const managerEmp = await this.employeeRepository.findOne({
+            where: { tenantId, id: initiatorEmp.managerId },
+          });
+          if (managerEmp?.userId && managerEmp.userId === userId) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private async loadActionableInstance(
+    instanceId: string,
+    stepId: string,
+    userId: string,
+    tenantId: string,
+  ): Promise<{ instance: WorkflowInstance; step: WorkflowStep | undefined }> {
+    const instance = await this.instanceRepository.findOne({ where: { id: instanceId, tenantId } });
+    if (!instance) throw new NotFoundException('Workflow instance not found');
+    if (instance.currentStep !== stepId) {
+      throw new BadRequestException(`Step ${stepId} is not the current active step`);
+    }
+    if (instance.initiatorId && instance.initiatorId === userId) {
+      throw new ForbiddenException('You cannot approve or reject your own request');
+    }
+    const definition = await this.definitionRepository.findOne({
+      where: { id: instance.definitionId, tenantId },
+    });
+    const step = definition?.steps?.find(s => s.id === stepId);
+    if (!(await this.isAuthorizedApprover(instance, step, userId, tenantId))) {
+      throw new ForbiddenException('You are not an authorized approver for this step');
+    }
+    return { instance, step };
+  }
 
   async createDefinition(
     tenantId: string,
@@ -70,18 +137,15 @@ export class WorkflowService {
     instanceId: string,
     stepId: string,
     userId: string,
+    tenantId: string,
     dto: ApproveStepDto,
   ): Promise<WorkflowInstance> {
-    const instance = await this.instanceRepository.findOne({ where: { id: instanceId } });
-    if (!instance) throw new NotFoundException('Workflow instance not found');
-    if (instance.currentStep !== stepId) {
-      throw new BadRequestException(`Step ${stepId} is not the current active step`);
-    }
-
-    const definition = await this.definitionRepository.findOne({
-      where: { id: instance.definitionId },
-    });
-    const currentStepDef = definition?.steps?.find(s => s.id === stepId);
+    const { instance, step: currentStepDef } = await this.loadActionableInstance(
+      instanceId,
+      stepId,
+      userId,
+      tenantId,
+    );
 
     instance.history = [
       ...instance.history,
@@ -110,10 +174,10 @@ export class WorkflowService {
     instanceId: string,
     stepId: string,
     userId: string,
+    tenantId: string,
     dto: ApproveStepDto,
   ): Promise<WorkflowInstance> {
-    const instance = await this.instanceRepository.findOne({ where: { id: instanceId } });
-    if (!instance) throw new NotFoundException('Workflow instance not found');
+    const { instance } = await this.loadActionableInstance(instanceId, stepId, userId, tenantId);
 
     instance.history = [
       ...instance.history,
@@ -141,9 +205,9 @@ export class WorkflowService {
     });
   }
 
-  async getWorkflowHistory(subjectType: string, subjectId: string): Promise<WorkflowInstance[]> {
+  async getWorkflowHistory(tenantId: string, subjectType: string, subjectId: string): Promise<WorkflowInstance[]> {
     return this.instanceRepository.find({
-      where: { subjectType, subjectId },
+      where: { tenantId, subjectType, subjectId },
       order: { createdAt: 'DESC' },
     });
   }

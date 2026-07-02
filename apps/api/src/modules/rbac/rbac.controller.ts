@@ -50,22 +50,22 @@ export class RbacController {
   @Get('roles/:id')
   @RequirePermission('rbac:roles:read')
   @ApiOperation({ summary: 'Get role by ID' })
-  findById(@Param('id') id: string) {
-    return this.rbacService.findById(id);
+  findById(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.rbacService.findById(id, user.tenantId);
   }
 
   @Patch('roles/:id')
   @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Update a role' })
-  update(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
-    return this.rbacService.update(id, dto);
+  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateRoleDto) {
+    return this.rbacService.update(id, user.tenantId, dto);
   }
 
   @Delete('roles/:id')
   @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Delete a role' })
-  delete(@Param('id') id: string) {
-    return this.rbacService.delete(id);
+  delete(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.rbacService.delete(id, user.tenantId);
   }
 
   @Get('users/:userId/permissions')

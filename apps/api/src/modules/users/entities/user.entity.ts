@@ -59,6 +59,15 @@ export class User {
   @Column({ name: 'failed_login_attempts', default: 0 })
   failedLoginAttempts: number;
 
+  // Password reset: a SHA-256 hash of the emailed token plus its expiry. The raw
+  // token is never stored, so a DB leak cannot be used to reset passwords.
+  @Exclude()
+  @Column({ name: 'password_reset_token_hash', nullable: true })
+  passwordResetTokenHash: string | null;
+
+  @Column({ name: 'password_reset_expires_at', type: 'timestamp', nullable: true })
+  passwordResetExpiresAt: Date | null;
+
   @Column({ name: 'mfa_enabled', default: false })
   mfaEnabled: boolean;
 

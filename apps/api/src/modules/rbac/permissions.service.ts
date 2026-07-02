@@ -231,6 +231,21 @@ export class PermissionsService {
     return permissions.includes(permission);
   }
 
+  /** Active (non-expired) role names held by a user — used by the workflow engine to
+   *  resolve role-based approvers. */
+  async getUserRoleNames(userId: string, tenantId: string): Promise<string[]> {
+    const userRoles = await this.userRoleRepository.find({
+      where: { userId, tenantId },
+      relations: ['role'],
+    });
+    const names = new Set<string>();
+    for (const userRole of userRoles) {
+      if (userRole.expiresAt && userRole.expiresAt < new Date()) continue;
+      if (userRole.role?.name) names.add(userRole.role.name);
+    }
+    return Array.from(names);
+  }
+
   async assignRole(
     userId: string,
     roleId: string,

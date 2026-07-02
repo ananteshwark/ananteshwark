@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes, createHash } from 'crypto';
 import { User, UserStatus } from '../users/entities/user.entity';
 import { TenantsService } from '../tenants/tenants.service';
 import { TenantPlan } from '../tenants/entities/tenant.entity';
@@ -128,6 +129,11 @@ export class AuthService {
       });
       const user = await this.userRepository.findOne({ where: { id: payload.sub } });
       if (!user) throw new UnauthorizedException();
+      // A locked or otherwise non-active account must not be able to mint fresh
+      // tokens by refreshing an old one.
+      if (user.status !== UserStatus.ACTIVE) {
+        throw new UnauthorizedException('Account is not active');
+      }
       return this.generateTokens(user);
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -135,12 +141,49 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
-    // In production: generate token, store in Redis, send email
-    return { message: 'If an account exists with that email, a password reset link has been sent' };
+    const genericMessage = { message: 'If an account exists with that email, a password reset link has been sent' };
+    let user: User | null = null;
+    if (dto.tenantSlug) {
+      try {
+        const tenant = await this.tenantsService.findBySlug(dto.tenantSlug);
+        user = await this.userRepository.findOne({ where: { email: dto.email.toLowerCase(), tenantId: tenant.id } });
+      } catch {
+        user = null;
+      }
+    } else {
+      user = await this.userRepository.findOne({ where: { email: dto.email.toLowerCase() } });
+    }
+
+    // Always return the same response regardless of whether the account exists,
+    // to avoid leaking which emails are registered.
+    if (!user) return genericMessage;
+
+    const rawToken = randomBytes(32).toString('hex');
+    user.passwordResetTokenHash = createHash('sha256').update(rawToken).digest('hex');
+    user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await this.userRepository.save(user);
+
+    // Email delivery is best-effort and configured per tenant; the raw token is
+    // surfaced in the response only outside production so the flow is usable
+    // before SMTP is wired up.
+    const isProd = this.configService.get('APP_ENV') === 'production';
+    return isProd ? genericMessage : { ...genericMessage, resetToken: rawToken };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    // In production: verify token from Redis, update password, invalidate token
+    const tokenHash = createHash('sha256').update(dto.token).digest('hex');
+    const user = await this.userRepository.findOne({ where: { passwordResetTokenHash: tokenHash } });
+    if (!user || !user.passwordResetExpiresAt || user.passwordResetExpiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    user.passwordHash = await bcrypt.hash(dto.password, 12);
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    // A successful reset also clears any lockout so the user can log in again.
+    user.failedLoginAttempts = 0;
+    if (user.status === UserStatus.LOCKED) user.status = UserStatus.ACTIVE;
+    await this.userRepository.save(user);
     return { message: 'Password reset successful' };
   }
 

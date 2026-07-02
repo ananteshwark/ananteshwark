@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from './entities/role.entity';
@@ -45,27 +45,37 @@ export class RbacService implements OnModuleInit {
   }
 
   async findAll(tenantId: string): Promise<Role[]> {
+    // Each tenant is seeded its own copy of the system roles (tagged with its
+    // tenantId), so filtering by tenantId returns both custom and system roles
+    // for the caller — without leaking other tenants' rows.
     return this.roleRepository
       .createQueryBuilder('role')
-      .where('role.tenantId = :tenantId OR role.isSystemRole = true', { tenantId })
+      .where('role.tenantId = :tenantId', { tenantId })
       .orderBy('role.name', 'ASC')
       .getMany();
   }
 
-  async findById(id: string): Promise<Role> {
-    const role = await this.roleRepository.findOne({ where: { id } });
+  async findById(id: string, tenantId: string): Promise<Role> {
+    const role = await this.roleRepository.findOne({ where: { id, tenantId } });
     if (!role) throw new NotFoundException(`Role ${id} not found`);
     return role;
   }
 
-  async update(id: string, dto: UpdateRoleDto): Promise<Role> {
-    const role = await this.findById(id);
+  async update(id: string, tenantId: string, dto: UpdateRoleDto): Promise<Role> {
+    const role = await this.findById(id, tenantId);
+    if (role.isSystemRole) {
+      throw new BadRequestException('System roles cannot be modified');
+    }
     Object.assign(role, dto);
     return this.roleRepository.save(role);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.roleRepository.delete(id);
+  async delete(id: string, tenantId: string): Promise<void> {
+    const role = await this.findById(id, tenantId);
+    if (role.isSystemRole) {
+      throw new BadRequestException('System roles cannot be deleted');
+    }
+    await this.roleRepository.delete({ id, tenantId });
   }
 
   async seedSystemRoles(tenantId: string): Promise<void> {
