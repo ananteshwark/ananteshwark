@@ -10,15 +10,23 @@ const BUCKET: Record<string, string> = { '90': 'bg-blue-100 text-blue-700', '60'
 
 function ClausesTab() {
   const [clauses, setClauses] = useState<any[]>([]);
-  const [form, setForm] = useState({ code: '', title: '', category: '', standardText: '', riskLevel: 'LOW' });
+  const emptyForm = { code: '', title: '', category: '', standardText: '', riskLevel: 'LOW' };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [assembly, setAssembly] = useState<any>(null);
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
 
   useEffect(() => { load(); }, []);
   async function load() { setClauses(unwrap(await clmApi.listClauses())); }
+  function editClause(c: any) { setEditingId(c.id); setForm({ code: c.code ?? '', title: c.title ?? '', category: c.category ?? '', standardText: c.standardText ?? '', riskLevel: c.riskLevel ?? 'LOW' }); }
+  function cancelEdit() { setEditingId(null); setForm(emptyForm); }
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    try { await clmApi.createClause(form); setForm({ code: '', title: '', category: '', standardText: '', riskLevel: 'LOW' }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingId) await clmApi.updateClause(editingId, form);
+      else await clmApi.createClause(form);
+      cancelEdit(); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   async function assemble() {
     if (!selectedCodes.length) return;
@@ -36,7 +44,10 @@ function ClausesTab() {
             <select value={form.riskLevel} onChange={(e) => setForm({ ...form, riskLevel: e.target.value })} className="border rounded px-1 py-1 text-sm">{['LOW', 'MEDIUM', 'HIGH'].map((r) => <option key={r}>{r}</option>)}</select>
           </div>
           <textarea required placeholder="Standard text" value={form.standardText} onChange={(e) => setForm({ ...form, standardText: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" rows={2} />
-          <button type="submit" className="w-full bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Clause</button>
+          <div className="flex gap-2">
+            <button type="submit" className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save Clause' : '+ Clause'}</button>
+            {editingId && <button type="button" onClick={cancelEdit} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
+          </div>
         </form>
         <table className="w-full text-sm border rounded-lg overflow-hidden">
           <thead className="bg-gray-50"><tr><th className="px-2 py-2" /><th className="px-2 py-2 text-left">Code</th><th className="px-2 py-2 text-left">Title</th><th className="px-2 py-2 text-left">Risk</th><th className="px-2 py-2" /></tr></thead>
@@ -47,7 +58,7 @@ function ClausesTab() {
                 <td className="px-2 py-2 font-mono text-xs">{c.code}</td>
                 <td className="px-2 py-2">{c.title}</td>
                 <td className="px-2 py-2"><span className={`text-xs px-1.5 py-0.5 rounded ${RISK[c.riskLevel]}`}>{c.riskLevel}</span></td>
-                <td className="px-2 py-2 text-right">{c.isApproved ? <span className="text-xs text-green-600">approved</span> : <button onClick={async () => { await clmApi.approveClause(c.id); load(); }} className="text-indigo-600 text-xs hover:underline">approve</button>}</td>
+                <td className="px-2 py-2 text-right space-x-2 whitespace-nowrap"><button onClick={() => editClause(c)} className="text-indigo-600 text-xs hover:underline">edit</button>{c.isApproved ? <span className="text-xs text-green-600">approved</span> : <button onClick={async () => { await clmApi.approveClause(c.id); load(); }} className="text-indigo-600 text-xs hover:underline">approve</button>}</td>
               </tr>
             ))}
           </tbody>

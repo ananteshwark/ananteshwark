@@ -40,6 +40,15 @@ export class MarketingService {
     return this.campaignRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' } });
   }
 
+  async updateCampaign(tenantId: string, id: string, dto: any): Promise<Campaign> {
+    const campaign = await this.campaignRepo.findOne({ where: { id, tenantId } });
+    if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
+    if (campaign.status === CampaignStatus.SENT) throw new BadRequestException('Sent campaigns cannot be edited');
+    const { tenantId: _t, id: _i, status: _s, ...rest } = dto ?? {};
+    Object.assign(campaign, rest);
+    return this.campaignRepo.save(campaign);
+  }
+
   async createCampaign(tenantId: string, data: { name: string; channel?: CampaignChannel; content?: string; cost?: number; currency?: string }): Promise<Campaign> {
     if (!data.name?.trim()) throw new BadRequestException('name is required');
     const c = this.campaignRepo.create({

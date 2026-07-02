@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ClmService } from './clm.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -23,6 +23,10 @@ export class ClmController {
   @Post('clauses')
   @RequirePermission('contracts:manage')
   createClause(@CurrentUser() u: any, @Body() b: any) { return this.service.createClause(u.tenantId, b); }
+
+  @Patch('clauses/:id')
+  @RequirePermission('contracts:manage')
+  updateClause(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateClause(u.tenantId, id, b); }
 
   @Post('clauses/:id/approve')
   @RequirePermission('contracts:manage')

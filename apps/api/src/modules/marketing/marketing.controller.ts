@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { MarketingService } from './marketing.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -21,6 +21,10 @@ export class MarketingController {
   @Post('campaigns')
   @RequirePermission('crm:manage')
   createCampaign(@CurrentUser() u: any, @Body() b: any) { return this.service.createCampaign(u.tenantId, b); }
+
+  @Patch('campaigns/:id')
+  @RequirePermission('crm:manage')
+  updateCampaign(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateCampaign(u.tenantId, id, b); }
 
   @Post('campaigns/:id/members')
   @RequirePermission('crm:manage')

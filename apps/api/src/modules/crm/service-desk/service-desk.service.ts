@@ -15,6 +15,14 @@ export class ServiceDeskService {
 
   // ─── Ph-229: knowledge base ───────────────────────────────────────
 
+  async updateArticle(tenantId: string, id: string, dto: any): Promise<KbArticle> {
+    const article = await this.kbRepo.findOne({ where: { id, tenantId } });
+    if (!article) throw new NotFoundException(`Article ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(article, rest);
+    return this.kbRepo.save(article);
+  }
+
   async createArticle(tenantId: string, data: Partial<KbArticle>): Promise<KbArticle> {
     if (!data.title?.trim() || !data.body?.trim()) throw new BadRequestException('title and body are required');
     const a = this.kbRepo.create({

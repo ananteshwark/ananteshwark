@@ -3,6 +3,7 @@ import { apiClient } from './client';
 export const clmApi = {
   listClauses: (approvedOnly?: boolean) => apiClient.get('/contracts/clm/clauses', { params: approvedOnly ? { approvedOnly: true } : {} }),
   createClause: (data: any) => apiClient.post('/contracts/clm/clauses', data),
+  updateClause: (id: string, data: any) => apiClient.patch(`/contracts/clm/clauses/${id}`, data),
   approveClause: (id: string) => apiClient.post(`/contracts/clm/clauses/${id}/approve`),
   assemble: (clauseCodes: string[]) => apiClient.post('/contracts/clm/assemble', { clauseCodes }),
   recordDeviation: (data: any) => apiClient.post('/contracts/clm/deviations', data),

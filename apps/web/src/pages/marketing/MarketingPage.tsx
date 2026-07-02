@@ -15,13 +15,20 @@ function CampaignsTab() {
   const [stats, setStats] = useState<any>(null);
   const [roi, setRoi] = useState<any>(null);
   const [form, setForm] = useState({ name: '', channel: 'EMAIL', cost: 0 });
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [leads, setLeads] = useState('');
 
   useEffect(() => { load(); }, []);
   async function load() { setCampaigns(unwrap(await marketingApi.listCampaigns())); }
+  function editCampaign(c: any) { setEditingId(c.id); setForm({ name: c.name ?? '', channel: c.channel ?? 'EMAIL', cost: Number(c.cost) || 0 }); }
+  function cancelEdit() { setEditingId(null); setForm({ name: '', channel: 'EMAIL', cost: 0 }); }
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    try { await marketingApi.createCampaign(form); setForm({ name: '', channel: 'EMAIL', cost: 0 }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingId) await marketingApi.updateCampaign(editingId, form);
+      else await marketingApi.createCampaign(form);
+      cancelEdit(); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   async function select(c: any) {
     setSelected(c);
@@ -44,12 +51,15 @@ function CampaignsTab() {
             <select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} className="flex-1 border rounded px-2 py-1 text-sm">{['EMAIL', 'SMS'].map((c) => <option key={c}>{c}</option>)}</select>
             <input type="number" placeholder="Cost" value={form.cost} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })} className="w-24 border rounded px-2 py-1 text-sm" />
           </div>
-          <button type="submit" className="w-full bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Campaign</button>
+          <div className="flex gap-2">
+            <button type="submit" className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save' : '+ Campaign'}</button>
+            {editingId && <button type="button" onClick={cancelEdit} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
+          </div>
         </form>
         <ul className="border rounded-lg divide-y text-sm">
           {campaigns.length === 0 ? <li className="px-3 py-4 text-center text-gray-400">No campaigns.</li> : campaigns.map((c) => (
             <li key={c.id} className={`px-3 py-2 cursor-pointer ${selected?.id === c.id ? 'bg-indigo-50' : ''}`} onClick={() => select(c)}>
-              <div className="flex justify-between"><span className="font-medium">{c.name}</span><span className={`text-xs px-1.5 py-0.5 rounded ${CSTATUS[c.status]}`}>{c.status}</span></div>
+              <div className="flex justify-between"><span className="font-medium">{c.name}</span><span className="flex items-center gap-2"><span className={`text-xs px-1.5 py-0.5 rounded ${CSTATUS[c.status]}`}>{c.status}</span>{c.status !== 'SENT' && <button onClick={(e) => { e.stopPropagation(); editCampaign(c); }} className="text-xs text-indigo-600 hover:underline">edit</button>}</span></div>
               <span className="text-xs text-gray-400">{c.channel} · cost {money(c.cost)}</span>
             </li>
           ))}

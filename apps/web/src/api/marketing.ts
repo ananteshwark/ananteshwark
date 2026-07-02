@@ -3,6 +3,7 @@ import { apiClient } from './client';
 export const marketingApi = {
   listCampaigns: () => apiClient.get('/marketing/campaigns'),
   createCampaign: (data: any) => apiClient.post('/marketing/campaigns', data),
+  updateCampaign: (id: string, data: any) => apiClient.patch(`/marketing/campaigns/${id}`, data),
   addMembers: (id: string, leadIds: string[]) => apiClient.post(`/marketing/campaigns/${id}/members`, { leadIds }),
   schedule: (id: string, scheduledAt: string) => apiClient.post(`/marketing/campaigns/${id}/schedule`, { scheduledAt }),
   send: (id: string, sentAt: string) => apiClient.post(`/marketing/campaigns/${id}/send`, { sentAt }),

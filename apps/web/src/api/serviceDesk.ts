@@ -2,6 +2,7 @@ import { apiClient } from './client';
 
 export const serviceDeskApi = {
   createArticle: (data: any) => apiClient.post('/crm/service-desk/articles', data),
+  updateArticle: (id: string, data: any) => apiClient.patch(`/crm/service-desk/articles/${id}`, data),
   publishArticle: (id: string) => apiClient.post(`/crm/service-desk/articles/${id}/publish`),
   rateArticle: (id: string, helpful: boolean) => apiClient.post(`/crm/service-desk/articles/${id}/rate`, { helpful }),
   searchArticles: (term?: string, publicOnly?: boolean) => apiClient.get('/crm/service-desk/articles/search', { params: { term, publicOnly } }),

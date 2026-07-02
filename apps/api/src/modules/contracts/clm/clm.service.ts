@@ -25,6 +25,14 @@ export class ClmService {
     return this.clauseRepo.find({ where, order: { code: 'ASC' } });
   }
 
+  async updateClause(tenantId: string, id: string, dto: any): Promise<ContractClause> {
+    const clause = await this.clauseRepo.findOne({ where: { id, tenantId } });
+    if (!clause) throw new NotFoundException(`Clause ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(clause, rest);
+    return this.clauseRepo.save(clause);
+  }
+
   async createClause(tenantId: string, data: { code: string; title: string; category?: string; standardText: string; riskLevel?: ClauseRisk; isApproved?: boolean }): Promise<ContractClause> {
     if (!data.code?.trim() || !data.standardText?.trim()) throw new BadRequestException('code and standardText are required');
     const dup = await this.clauseRepo.findOne({ where: { tenantId, code: data.code } });

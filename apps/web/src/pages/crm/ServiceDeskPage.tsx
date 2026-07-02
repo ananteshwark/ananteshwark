@@ -11,25 +11,38 @@ const ART_STATUS: Record<string, string> = { DRAFT: 'bg-gray-100 text-gray-600',
 function KbTab() {
   const [results, setResults] = useState<any[]>([]);
   const [term, setTerm] = useState('');
-  const [form, setForm] = useState({ title: '', body: '', category: '', visibility: 'PUBLIC' });
+  const emptyForm = { title: '', body: '', category: '', visibility: 'PUBLIC' };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   useEffect(() => { search(); }, []);
   async function search() { setResults(unwrap(await serviceDeskApi.searchArticles(term))); }
+  function editArticle(a: any) { setEditingId(a.id); setForm({ title: a.title ?? '', body: a.body ?? '', category: a.category ?? '', visibility: a.visibility ?? 'PUBLIC' }); }
+  function cancelEdit() { setEditingId(null); setForm(emptyForm); }
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    try { const r = await serviceDeskApi.createArticle(form); const a = r.data?.data ?? r.data; await serviceDeskApi.publishArticle(a.id); setForm({ title: '', body: '', category: '', visibility: 'PUBLIC' }); search(); }
-    catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingId) {
+        await serviceDeskApi.updateArticle(editingId, form);
+      } else {
+        const r = await serviceDeskApi.createArticle(form); const a = r.data?.data ?? r.data; await serviceDeskApi.publishArticle(a.id);
+      }
+      cancelEdit(); search();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   return (
     <div className="grid grid-cols-2 gap-6">
       <form onSubmit={create} className="bg-gray-50 p-3 rounded-lg space-y-2">
-        <h3 className="font-semibold text-sm">New Article (auto-published)</h3>
+        <h3 className="font-semibold text-sm">{editingId ? 'Edit Article' : 'New Article (auto-published)'}</h3>
         <input required placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" />
         <textarea required placeholder="Body" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" rows={3} />
         <div className="flex gap-2">
           <input placeholder="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="flex-1 border rounded px-2 py-1 text-sm" />
           <select value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value })} className="border rounded px-2 py-1 text-sm">{['PUBLIC', 'INTERNAL'].map((v) => <option key={v}>{v}</option>)}</select>
         </div>
-        <button type="submit" className="w-full bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Publish Article</button>
+        <div className="flex gap-2">
+          <button type="submit" className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save Article' : 'Publish Article'}</button>
+          {editingId && <button type="button" onClick={cancelEdit} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
+        </div>
       </form>
       <div className="space-y-2">
         <div className="flex gap-2">
@@ -41,7 +54,7 @@ function KbTab() {
             <li key={a.id} className="px-3 py-2">
               <div className="flex justify-between"><span className="font-medium">{a.title}</span><span className={`text-xs px-1.5 py-0.5 rounded ${ART_STATUS[a.status]}`}>{a.status}</span></div>
               <p className="text-xs text-gray-500">{a.category} · {a.visibility} · 👍 {a.helpfulCount} 👎 {a.notHelpfulCount}</p>
-              <div className="mt-1 flex gap-2"><button onClick={async () => { await serviceDeskApi.rateArticle(a.id, true); search(); }} className="text-green-600 text-xs hover:underline">helpful</button><button onClick={async () => { await serviceDeskApi.rateArticle(a.id, false); search(); }} className="text-red-500 text-xs hover:underline">not helpful</button></div>
+              <div className="mt-1 flex gap-2"><button onClick={() => editArticle(a)} className="text-indigo-600 text-xs hover:underline">edit</button><button onClick={async () => { await serviceDeskApi.rateArticle(a.id, true); search(); }} className="text-green-600 text-xs hover:underline">helpful</button><button onClick={async () => { await serviceDeskApi.rateArticle(a.id, false); search(); }} className="text-red-500 text-xs hover:underline">not helpful</button></div>
             </li>
           ))}
         </ul>
