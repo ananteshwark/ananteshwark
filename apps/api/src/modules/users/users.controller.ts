@@ -81,4 +81,10 @@ export class UsersController {
   deactivate(@CurrentUser() user: any, @Param('id') id: string) {
     return this.usersService.deactivate(id, user.tenantId);
   }
+
+  @Post(':id/unlock')
+  @ApiOperation({ summary: 'Clear a lockout and re-activate a locked user' })
+  unlock(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.usersService.unlock(id, user.tenantId);
+  }
 }

@@ -91,6 +91,14 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
+  /** Clear a lockout: reset failed-login count and re-activate a LOCKED account. */
+  async unlock(id: string, tenantId: string): Promise<User> {
+    const user = await this.findById(id, tenantId);
+    user.failedLoginAttempts = 0;
+    if (user.status === UserStatus.LOCKED) user.status = UserStatus.ACTIVE;
+    return this.userRepository.save(user);
+  }
+
   async invite(tenantId: string, dto: InviteUserDto): Promise<User> {
     const existing = await this.userRepository.findOne({
       where: { email: dto.email.toLowerCase(), tenantId },

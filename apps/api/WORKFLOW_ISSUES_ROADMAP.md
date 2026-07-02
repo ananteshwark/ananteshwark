@@ -31,3 +31,27 @@ service's spec to provide a `SequenceService` mock.
 - `sales/rebate.service.ts:17` (rebate)
 - plus any other service using `count({ where: { tenantId } }) + 1` for a
   document number (grep: `count(` in `*.service.ts`).
+
+### Phase 3 status
+- **M1 (super-admin from DB)** — ✅ Already correct: `JwtStrategy.validate` re-loads
+  the user from the DB each request and sources `isSuperAdmin` from that record
+  (not the token). Additionally hardened: `validate` now rejects non-ACTIVE
+  accounts, so a locked/disabled user's access token stops working immediately
+  rather than at expiry (the access-token analog of H5).
+- **M3 (account unlock)** — ✅ `POST /users/:id/unlock` (UsersService.unlock)
+  clears `failedLoginAttempts` and re-activates a LOCKED account; password reset
+  also unlocks.
+- **M2 (migrations)** — 📋 Deployment task (needs a live DB to generate
+  accurately, so not committed here). Steps: `synchronize` is already gated to
+  dev only (`config/database.config.ts:30`); generate the baseline with
+  `typeorm migration:generate` against a fresh DB, commit it under
+  `src/database/migrations`, and run `migration:run` on deploy.
+
+### Newly found during implementation (follow-up)
+- **UsersController has no RBAC.** `src/modules/users/users.controller.ts` is
+  guarded only by `JwtAuthGuard` — create/update/deactivate/unlock have no
+  `@RequirePermission`, so any authenticated tenant user can manage users. Add
+  `RbacGuard` + `@RequirePermission('users:users:*')` (the permissions already
+  exist in the catalog). Deferred to keep this change focused; the unlock
+  endpoint follows the controller's existing pattern and does not worsen the
+  posture.
