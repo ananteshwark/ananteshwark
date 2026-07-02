@@ -15,6 +15,14 @@ export class HeadcountService {
 
   // ─── Ph-191: position budgeting ───────────────────────────────────
 
+  async updateBudget(tenantId: string, id: string, dto: any): Promise<PositionBudget> {
+    const b = await this.budgetRepo.findOne({ where: { id, tenantId } });
+    if (!b) throw new NotFoundException(`Budget ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(b, rest);
+    return this.budgetRepo.save(b);
+  }
+
   listBudgets(tenantId: string, fiscalYear?: number): Promise<PositionBudget[]> {
     const where: any = { tenantId };
     if (fiscalYear) where.fiscalYear = fiscalYear;

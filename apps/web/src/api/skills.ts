@@ -3,8 +3,10 @@ import { apiClient } from './client';
 export const skillsApi = {
   listCategories: () => apiClient.get('/hr/skills/categories'),
   createCategory: (data: any) => apiClient.post('/hr/skills/categories', data),
+  updateCategory: (id: string, data: any) => apiClient.patch(`/hr/skills/categories/${id}`, data),
   listSkills: (categoryId?: string) => apiClient.get('/hr/skills/catalog', { params: categoryId ? { categoryId } : {} }),
   createSkill: (data: any) => apiClient.post('/hr/skills/catalog', data),
+  updateSkill: (id: string, data: any) => apiClient.patch(`/hr/skills/catalog/${id}`, data),
   listEmployeeSkills: (employeeId: string) => apiClient.get(`/hr/skills/employees/${employeeId}`),
   assignSkill: (data: any) => apiClient.post('/hr/skills/employees', data),
   removeEmployeeSkill: (id: string) => apiClient.delete(`/hr/skills/employees/${id}`),

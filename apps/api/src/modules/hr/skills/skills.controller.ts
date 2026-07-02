@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { SkillsService } from './skills.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -22,6 +22,10 @@ export class SkillsController {
   @RequirePermission('hr:manage')
   createCategory(@CurrentUser() u: any, @Body() b: any) { return this.service.createCategory(u.tenantId, b); }
 
+  @Patch('categories/:id')
+  @RequirePermission('hr:manage')
+  updateCategory(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateCategory(u.tenantId, id, b); }
+
   @Get('catalog')
   @RequirePermission('hr:read')
   @ApiQuery({ name: 'categoryId', required: false })
@@ -30,6 +34,10 @@ export class SkillsController {
   @Post('catalog')
   @RequirePermission('hr:manage')
   createSkill(@CurrentUser() u: any, @Body() b: any) { return this.service.createSkill(u.tenantId, b); }
+
+  @Patch('catalog/:id')
+  @RequirePermission('hr:manage')
+  updateSkill(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateSkill(u.tenantId, id, b); }
 
   // ─── Ph-188: employee profile ─────────────────────────────────────
   @Get('employees/:employeeId')

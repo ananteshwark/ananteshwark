@@ -9,7 +9,9 @@ function TaxonomyTab() {
   const [categories, setCategories] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
   const [catForm, setCatForm] = useState({ name: '', description: '' });
+  const [editCatId, setEditCatId] = useState<string | null>(null);
   const [skillForm, setSkillForm] = useState({ categoryId: '', name: '', maxProficiency: 5 });
+  const [editSkillId, setEditSkillId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
   async function load() {
@@ -18,12 +20,22 @@ function TaxonomyTab() {
   }
   async function addCat(e: React.FormEvent) {
     e.preventDefault();
-    try { await skillsApi.createCategory(catForm); setCatForm({ name: '', description: '' }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editCatId) await skillsApi.updateCategory(editCatId, catForm);
+      else await skillsApi.createCategory(catForm);
+      setCatForm({ name: '', description: '' }); setEditCatId(null); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
+  function editCat(c: any) { setEditCatId(c.id); setCatForm({ name: c.name ?? '', description: c.description ?? '' }); }
   async function addSkill(e: React.FormEvent) {
     e.preventDefault();
-    try { await skillsApi.createSkill(skillForm); setSkillForm({ categoryId: '', name: '', maxProficiency: 5 }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editSkillId) await skillsApi.updateSkill(editSkillId, skillForm);
+      else await skillsApi.createSkill(skillForm);
+      setSkillForm({ categoryId: '', name: '', maxProficiency: 5 }); setEditSkillId(null); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
+  function editSkill(s: any) { setEditSkillId(s.id); setSkillForm({ categoryId: s.categoryId ?? '', name: s.name ?? '', maxProficiency: s.maxProficiency ?? 5 }); }
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? id;
 
   return (
@@ -32,10 +44,11 @@ function TaxonomyTab() {
         <h3 className="font-semibold text-sm">Categories</h3>
         <form onSubmit={addCat} className="flex gap-2 bg-gray-50 p-3 rounded-lg items-end">
           <div className="flex-1"><label className="text-xs text-gray-500">Name</label><input required value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
-          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Category</button>
+          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editCatId ? 'Save' : '+ Category'}</button>
+          {editCatId && <button type="button" onClick={() => { setEditCatId(null); setCatForm({ name: '', description: '' }); }} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
         </form>
         <ul className="border rounded-lg divide-y text-sm">
-          {categories.length === 0 ? <li className="px-3 py-4 text-center text-gray-400">No categories.</li> : categories.map((c) => <li key={c.id} className="px-3 py-2 font-medium">{c.name}</li>)}
+          {categories.length === 0 ? <li className="px-3 py-4 text-center text-gray-400">No categories.</li> : categories.map((c) => <li key={c.id} className="px-3 py-2 font-medium flex items-center justify-between"><span>{c.name}</span><button onClick={() => editCat(c)} className="text-xs text-indigo-600 hover:underline">Edit</button></li>)}
         </ul>
       </div>
       <div className="space-y-3">
@@ -43,13 +56,14 @@ function TaxonomyTab() {
         <form onSubmit={addSkill} className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-lg items-end">
           <div><label className="text-xs text-gray-500">Category</label><select required value={skillForm.categoryId} onChange={(e) => setSkillForm({ ...skillForm, categoryId: e.target.value })} className="w-full border rounded px-2 py-1 text-sm"><option value="">—</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
           <div><label className="text-xs text-gray-500">Skill</label><input required value={skillForm.name} onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
-          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Skill</button>
+          <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editSkillId ? 'Save' : '+ Skill'}</button>
+          {editSkillId && <button type="button" onClick={() => { setEditSkillId(null); setSkillForm({ categoryId: '', name: '', maxProficiency: 5 }); }} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
         </form>
         <table className="w-full text-sm border rounded-lg overflow-hidden">
-          <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Skill</th><th className="px-3 py-2 text-left">Category</th><th className="px-3 py-2 text-right">Max</th></tr></thead>
+          <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Skill</th><th className="px-3 py-2 text-left">Category</th><th className="px-3 py-2 text-right">Max</th><th className="px-3 py-2"></th></tr></thead>
           <tbody className="divide-y">
-            {skills.length === 0 ? <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400">No skills.</td></tr> : skills.map((s) => (
-              <tr key={s.id}><td className="px-3 py-2 font-medium">{s.name}</td><td className="px-3 py-2 text-xs">{catName(s.categoryId)}</td><td className="px-3 py-2 text-right">{s.maxProficiency}</td></tr>
+            {skills.length === 0 ? <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400">No skills.</td></tr> : skills.map((s) => (
+              <tr key={s.id}><td className="px-3 py-2 font-medium">{s.name}</td><td className="px-3 py-2 text-xs">{catName(s.categoryId)}</td><td className="px-3 py-2 text-right">{s.maxProficiency}</td><td className="px-3 py-2 text-right"><button onClick={() => editSkill(s)} className="text-xs text-indigo-600 hover:underline">Edit</button></td></tr>
             ))}
           </tbody>
         </table>

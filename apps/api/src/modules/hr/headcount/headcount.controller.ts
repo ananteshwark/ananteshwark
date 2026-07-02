@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { HeadcountService } from './headcount.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -25,6 +25,10 @@ export class HeadcountController {
   @RequirePermission('hr:manage')
   @ApiOperation({ summary: 'Create a position headcount budget' })
   createBudget(@CurrentUser() u: any, @Body() b: any) { return this.service.createBudget(u.tenantId, b); }
+
+  @Patch('budgets/:id')
+  @RequirePermission('hr:manage')
+  updateBudget(@CurrentUser() u: any, @Param('id') id: string, @Body() b: any) { return this.service.updateBudget(u.tenantId, id, b); }
 
   // ─── Ph-192: headcount control ────────────────────────────────────
   @Get('check')

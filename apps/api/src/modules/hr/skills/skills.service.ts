@@ -17,6 +17,22 @@ export class SkillsService {
     @InjectRepository(Course) private readonly courseRepo: Repository<Course>,
   ) {}
 
+  async updateSkill(tenantId: string, id: string, dto: any): Promise<Skill> {
+    const s = await this.skillRepo.findOne({ where: { id, tenantId } });
+    if (!s) throw new NotFoundException(`Skill ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(s, rest);
+    return (this.skillRepo.save(s) as unknown) as Promise<Skill>;
+  }
+
+  async updateCategory(tenantId: string, id: string, dto: any): Promise<SkillCategory> {
+    const c = await this.catRepo.findOne({ where: { id, tenantId } });
+    if (!c) throw new NotFoundException(`Category ${id} not found`);
+    const { tenantId: _t, id: _i, ...rest } = dto ?? {};
+    Object.assign(c, rest);
+    return (this.catRepo.save(c) as unknown) as Promise<SkillCategory>;
+  }
+
   // ─── Ph-187: skills taxonomy ──────────────────────────────────────
 
   listCategories(tenantId: string): Promise<SkillCategory[]> {

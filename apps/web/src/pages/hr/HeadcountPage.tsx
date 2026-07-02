@@ -10,7 +10,9 @@ const SCEN_STATUS: Record<string, string> = { DRAFT: 'bg-gray-100 text-gray-600'
 
 function BudgetsTab() {
   const [budgets, setBudgets] = useState<any[]>([]);
-  const [form, setForm] = useState({ positionId: '', fiscalYear: new Date().getFullYear(), approvedFte: 1, salaryMin: 0, salaryMax: 0 });
+  const emptyForm = { positionId: '', fiscalYear: new Date().getFullYear(), approvedFte: 1, salaryMin: 0, salaryMax: 0 };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [check, setCheck] = useState<any>(null);
   const [checkForm, setCheckForm] = useState({ positionId: '', fiscalYear: new Date().getFullYear(), requestedFte: 1 });
 
@@ -18,7 +20,15 @@ function BudgetsTab() {
   async function load() { setBudgets(unwrap(await headcountApi.listBudgets())); }
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    try { await headcountApi.createBudget(form); setForm({ positionId: '', fiscalYear: new Date().getFullYear(), approvedFte: 1, salaryMin: 0, salaryMax: 0 }); load(); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+    try {
+      if (editingId) await headcountApi.updateBudget(editingId, form);
+      else await headcountApi.createBudget(form);
+      setForm(emptyForm); setEditingId(null); load();
+    } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
+  }
+  function editBudget(b: any) {
+    setEditingId(b.id);
+    setForm({ positionId: b.positionId ?? '', fiscalYear: b.fiscalYear ?? new Date().getFullYear(), approvedFte: Number(b.approvedFte) || 1, salaryMin: Number(b.salaryMin) || 0, salaryMax: Number(b.salaryMax) || 0 });
   }
   async function runCheck() {
     if (!checkForm.positionId) return;
@@ -32,13 +42,14 @@ function BudgetsTab() {
         <div><label className="text-xs text-gray-500">Fiscal Year</label><input type="number" value={form.fiscalYear} onChange={(e) => setForm({ ...form, fiscalYear: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
         <div><label className="text-xs text-gray-500">Approved FTE</label><input type="number" step="0.5" value={form.approvedFte} onChange={(e) => setForm({ ...form, approvedFte: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
         <div><label className="text-xs text-gray-500">Salary Max</label><input type="number" value={form.salaryMax} onChange={(e) => setForm({ ...form, salaryMax: Number(e.target.value) })} className="w-full border rounded px-2 py-1 text-sm" /></div>
-        <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">+ Budget</button>
+        <button type="submit" className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">{editingId ? 'Save' : '+ Budget'}</button>
+        {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); }} className="border px-3 py-1.5 rounded text-sm">Cancel</button>}
       </form>
       <table className="w-full text-sm border rounded-lg overflow-hidden">
-        <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Position</th><th className="px-3 py-2 text-right">FY</th><th className="px-3 py-2 text-right">Approved FTE</th><th className="px-3 py-2 text-right">Salary Range</th></tr></thead>
+        <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Position</th><th className="px-3 py-2 text-right">FY</th><th className="px-3 py-2 text-right">Approved FTE</th><th className="px-3 py-2 text-right">Salary Range</th><th className="px-3 py-2"></th></tr></thead>
         <tbody className="divide-y">
-          {budgets.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-gray-400">No budgets.</td></tr> : budgets.map((b) => (
-            <tr key={b.id}><td className="px-3 py-2 font-mono text-xs">{b.positionId?.slice(0, 8)}</td><td className="px-3 py-2 text-right">{b.fiscalYear}</td><td className="px-3 py-2 text-right">{b.approvedFte}</td><td className="px-3 py-2 text-right text-xs">{money(b.salaryMin)}–{money(b.salaryMax)}</td></tr>
+          {budgets.length === 0 ? <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No budgets.</td></tr> : budgets.map((b) => (
+            <tr key={b.id}><td className="px-3 py-2 font-mono text-xs">{b.positionId?.slice(0, 8)}</td><td className="px-3 py-2 text-right">{b.fiscalYear}</td><td className="px-3 py-2 text-right">{b.approvedFte}</td><td className="px-3 py-2 text-right text-xs">{money(b.salaryMin)}–{money(b.salaryMax)}</td><td className="px-3 py-2 text-right"><button onClick={() => editBudget(b)} className="text-xs text-indigo-600 hover:underline">Edit</button></td></tr>
           ))}
         </tbody>
       </table>
