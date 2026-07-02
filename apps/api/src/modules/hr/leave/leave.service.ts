@@ -152,11 +152,20 @@ export class LeaveService {
       throw new BadRequestException(`Application is not in SUBMITTED status`);
     }
 
-    // Deduct balance
+    // Deduct balance — re-check availability at approval time. The apply-time
+    // check can be stale (two overlapping requests can each pass it), so we
+    // re-validate here before committing the deduction.
     const leaveYear = new Date(application.fromDate).getFullYear();
     let balance = await this.balanceRepo.findOne({ where: { tenantId, employeeId: application.employeeId, leaveTypeId: application.leaveTypeId, leaveYear } });
     if (!balance) {
       balance = this.balanceRepo.create({ tenantId, employeeId: application.employeeId, leaveTypeId: application.leaveTypeId, leaveYear });
+    }
+    const available = Number(balance.openingBalance ?? 0) + Number(balance.accrued ?? 0)
+      - Number(balance.taken ?? 0) + Number(balance.adjusted ?? 0);
+    if (available < Number(application.days)) {
+      throw new BadRequestException(
+        `Insufficient leave balance to approve. Available: ${available}, Requested: ${application.days}`,
+      );
     }
     balance.taken = Number(balance.taken) + Number(application.days);
     await this.balanceRepo.save(balance);

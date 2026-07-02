@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -73,6 +74,17 @@ export class RunService {
     const runType = dto.runType ?? PayrollRunType.REGULAR;
     const name =
       dto.name ?? `${MONTH_NAMES[payPeriodMonth - 1]} ${payPeriodYear} Payroll`;
+
+    // Guard against duplicate runs for the same period+type, which would
+    // otherwise let payroll be processed and paid twice for one month.
+    const duplicate = await this.runRepo.findOne({
+      where: { tenantId, payPeriodYear, payPeriodMonth, runType },
+    });
+    if (duplicate) {
+      throw new ConflictException(
+        `A ${runType} payroll run for ${payPeriodMonth}/${payPeriodYear} already exists (${duplicate.status})`,
+      );
+    }
 
     const run = this.runRepo.create({
       tenantId,

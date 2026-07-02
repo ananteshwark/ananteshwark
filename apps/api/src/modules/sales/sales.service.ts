@@ -199,6 +199,12 @@ export class SalesService {
     for (const line of lines) {
       const qtyToShip = dto.lineQties?.[line.id] ?? (line.quantity - line.qtyShipped);
       if (qtyToShip <= 0) continue;
+      const actualShip = Math.min(qtyToShip, line.quantity - line.qtyShipped);
+      // Relieve inventory for the quantity actually shipped. Throws (aborting the
+      // whole ship) if stock is insufficient, so an order can never oversell.
+      if (line.inventoryItemId && actualShip > 0) {
+        await this.atpService.issueForItem(tenantId, line.inventoryItemId, actualShip);
+      }
       const newQtyShipped = Math.min(line.qtyShipped + qtyToShip, line.quantity);
       line.qtyShipped = round2(newQtyShipped);
       line.status = newQtyShipped >= line.quantity ? LineStatus.FULFILLED : LineStatus.PARTIAL;

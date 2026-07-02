@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StockBalance } from '../inventory/entities/stock-balance.entity';
@@ -116,6 +116,35 @@ export class AtpService {
       bal.committedQty = round4(committed - release);
       await this.balanceRepo.save(bal);
       remaining = round4(remaining - release);
+    }
+  }
+
+  /**
+   * Ship (issue) qty for an item: relieves on-hand across the item's warehouses
+   * (most-stocked first) and releases the matching committed reservation.
+   * Throws if total on-hand is insufficient, so a shipment can never oversell.
+   */
+  async issueForItem(tenantId: string, itemId: string, qty: number): Promise<void> {
+    const need = qty || 0;
+    if (need <= 0) return;
+    const balances = await this.balanceRepo.find({ where: { tenantId, itemId } });
+    const totalOnHand = balances.reduce((s, b) => s + (Number(b.qtyOnHand) || 0), 0);
+    if (round4(totalOnHand) < round4(need)) {
+      throw new BadRequestException(
+        `Insufficient stock to ship item ${itemId}: on-hand ${round4(totalOnHand)}, requested ${round4(need)}`,
+      );
+    }
+    balances.sort((a, b) => (Number(b.qtyOnHand) || 0) - (Number(a.qtyOnHand) || 0));
+    let remaining = need;
+    for (const bal of balances) {
+      if (remaining <= 0) break;
+      const onHand = Number(bal.qtyOnHand) || 0;
+      if (onHand <= 0) continue;
+      const take = Math.min(onHand, remaining);
+      bal.qtyOnHand = round4(onHand - take);
+      bal.committedQty = round4(Math.max(0, (Number(bal.committedQty) || 0) - take));
+      await this.balanceRepo.save(bal);
+      remaining = round4(remaining - take);
     }
   }
 
