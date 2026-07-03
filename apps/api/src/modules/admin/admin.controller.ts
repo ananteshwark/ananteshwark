@@ -1,9 +1,16 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../../common/guards/super-admin.guard';
-import { CreateTenantDto, UpdateTenantDto, AllocateLicenseDto, UpdateLicenseDto } from './dto/admin.dto';
+import {
+  CreateTenantDto,
+  UpdateTenantDto,
+  AllocateLicenseDto,
+  UpdateLicenseDto,
+  AddTenantAdminDto,
+  UpdateTenantAdminDto,
+} from './dto/admin.dto';
 import { TenantStatus } from '../tenants/entities/tenant.entity';
 
 @ApiTags('admin')
@@ -16,8 +23,9 @@ export class AdminController {
   // ---- Tenants ----
   @Get('tenants')
   @ApiOperation({ summary: 'List all tenants with license + user counts (super admin)' })
-  listTenants() {
-    return this.adminService.listTenants();
+  @ApiQuery({ name: 'includeHidden', required: false, type: Boolean })
+  listTenants(@Query('includeHidden') includeHidden?: string) {
+    return this.adminService.listTenants(includeHidden === 'true');
   }
 
   @Get('tenants/:id')
@@ -43,6 +51,35 @@ export class AdminController {
   @Patch('tenants/:id/activate')
   activateTenant(@Param('id') id: string) {
     return this.adminService.setTenantStatus(id, TenantStatus.ACTIVE);
+  }
+
+  @Patch('tenants/:id/hide')
+  @ApiOperation({ summary: 'Hide a tenant from the management list' })
+  hideTenant(@Param('id') id: string) {
+    return this.adminService.setTenantHidden(id, true);
+  }
+
+  @Patch('tenants/:id/unhide')
+  @ApiOperation({ summary: 'Unhide a previously hidden tenant' })
+  unhideTenant(@Param('id') id: string) {
+    return this.adminService.setTenantHidden(id, false);
+  }
+
+  // ---- Tenant admins ----
+  @Post('tenants/:id/admins')
+  @ApiOperation({ summary: 'Add a new tenant admin user to a tenant' })
+  addTenantAdmin(@Param('id') id: string, @Body() dto: AddTenantAdminDto) {
+    return this.adminService.addTenantAdmin(id, dto);
+  }
+
+  @Patch('tenants/:id/admins/:userId')
+  @ApiOperation({ summary: 'Edit a tenant admin (name / phone / password)' })
+  updateTenantAdmin(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateTenantAdminDto,
+  ) {
+    return this.adminService.updateTenantAdmin(id, userId, dto);
   }
 
   // ---- License allocation ----

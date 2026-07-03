@@ -84,3 +84,43 @@ export class AllocateLicenseDto {
 }
 
 export class UpdateLicenseDto extends PartialType(AllocateLicenseDto) {}
+
+// Add a new Tenant Admin user to an existing tenant.
+export class AddTenantAdminDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(1)
+  firstName: string;
+
+  @IsString()
+  @MinLength(1)
+  lastName: string;
+
+  @IsString()
+  @MinLength(8)
+  password: string;
+}
+
+// Edit an existing tenant admin (name / phone, and optional password reset).
+export class UpdateTenantAdminDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Building2, KeyRound, Ban, CheckCircle, Users, Mail, ShieldCheck } from 'lucide-react';
+import { Plus, X, Building2, KeyRound, Ban, CheckCircle, Users, Mail, ShieldCheck, Eye, EyeOff, UserPlus, Pencil } from 'lucide-react';
 import { adminApi } from '../../api/admin';
 
 const TIERS = ['TRIAL', 'FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE'];
@@ -49,21 +49,44 @@ export default function TenantsPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [includeHidden, setIncludeHidden] = useState(false);
 
-  const fetchTenants = async () => {
+  // Tenant-admin add/edit within the license modal.
+  const emptyAdminForm = { email: '', firstName: '', lastName: '', phone: '', password: '' };
+  const [adminMode, setAdminMode] = useState<null | 'add' | string>(null); // 'add' | userId
+  const [adminForm, setAdminForm] = useState(emptyAdminForm);
+  const [savingAdmin, setSavingAdmin] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
+
+  const fetchTenants = async (hidden = includeHidden): Promise<any[]> => {
     setLoading(true);
     setError(null);
     try {
-      const res = await adminApi.getTenants();
-      setTenants(res.data?.data ?? res.data?.items ?? res.data ?? []);
+      const res = await adminApi.getTenants(hidden);
+      const list = res.data?.data ?? res.data?.items ?? res.data ?? [];
+      setTenants(list);
+      return list;
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to load tenants');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchTenants(); }, []);
+
+  const toggleIncludeHidden = () => {
+    const next = !includeHidden;
+    setIncludeHidden(next);
+    fetchTenants(next);
+  };
+
+  const toggleHidden = async (t: any) => {
+    if (t.hidden) await adminApi.unhideTenant(t.id);
+    else await adminApi.hideTenant(t.id);
+    fetchTenants();
+  };
 
   const openNewTenant = () => {
     setEditingTenantId(null);
@@ -118,7 +141,49 @@ export default function TenantsPage() {
       notes: lic?.notes ?? '',
     });
     setFormError(null);
+    setAdminMode(null);
+    setAdminError(null);
     setLicenseFor(t);
+  };
+
+  const openAddAdmin = () => {
+    setAdminForm(emptyAdminForm);
+    setAdminError(null);
+    setAdminMode('add');
+  };
+
+  const openEditAdmin = (a: any) => {
+    setAdminForm({ email: a.email ?? '', firstName: a.firstName ?? '', lastName: a.lastName ?? '', phone: a.phone ?? '', password: '' });
+    setAdminError(null);
+    setAdminMode(a.id);
+  };
+
+  const saveAdmin = async () => {
+    if (!licenseFor) return;
+    setSavingAdmin(true);
+    setAdminError(null);
+    try {
+      if (adminMode === 'add') {
+        await adminApi.addTenantAdmin(licenseFor.id, {
+          email: adminForm.email,
+          firstName: adminForm.firstName,
+          lastName: adminForm.lastName,
+          password: adminForm.password,
+        });
+      } else if (adminMode) {
+        const payload: any = { firstName: adminForm.firstName, lastName: adminForm.lastName, phone: adminForm.phone };
+        if (adminForm.password) payload.password = adminForm.password;
+        await adminApi.updateTenantAdmin(licenseFor.id, adminMode, payload);
+      }
+      const list = await fetchTenants();
+      const fresh = list.find((x: any) => x.id === licenseFor.id);
+      if (fresh) setLicenseFor(fresh);
+      setAdminMode(null);
+    } catch (err: any) {
+      setAdminError(err?.response?.data?.message ?? 'Failed to save admin');
+    } finally {
+      setSavingAdmin(false);
+    }
   };
 
   const handleAllocate = async (e: React.FormEvent) => {
@@ -153,9 +218,15 @@ export default function TenantsPage() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Building2 className="h-6 w-6 text-indigo-600" /> Tenant Management</h1>
           <p className="text-sm text-gray-500 mt-1">Super-admin: manage tenants and the licenses allocated to them</p>
         </div>
-        <button onClick={() => setShowTenantModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
-          <Plus className="h-4 w-4" /> New Tenant
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+            <input type="checkbox" checked={includeHidden} onChange={toggleIncludeHidden} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            Show hidden
+          </label>
+          <button onClick={openNewTenant} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
+            <Plus className="h-4 w-4" /> New Tenant
+          </button>
+        </div>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
@@ -184,7 +255,10 @@ export default function TenantsPage() {
               ) : tenants.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{t.name}</div>
+                    <div className="font-medium text-gray-900 flex items-center gap-1.5">
+                      {t.name}
+                      {t.hidden && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex items-center gap-1"><EyeOff className="h-3 w-3" /> Hidden</span>}
+                    </div>
                     <div className="text-xs text-gray-400 flex items-center gap-1"><Users className="h-3 w-3" /> {t.userCount} users</div>
                   </td>
                   <td className="px-4 py-3">
@@ -226,6 +300,9 @@ export default function TenantsPage() {
                       </button>
                       <button onClick={() => toggleStatus(t)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium ${t.status === 'suspended' ? 'border border-green-200 text-green-700 hover:bg-green-50' : 'border border-red-200 text-red-700 hover:bg-red-50'}`}>
                         {t.status === 'suspended' ? <><CheckCircle className="h-3.5 w-3.5" /> Activate</> : <><Ban className="h-3.5 w-3.5" /> Suspend</>}
+                      </button>
+                      <button onClick={() => toggleHidden(t)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50">
+                        {t.hidden ? <><Eye className="h-3.5 w-3.5" /> Unhide</> : <><EyeOff className="h-3.5 w-3.5" /> Hide</>}
                       </button>
                     </div>
                   </td>
@@ -302,6 +379,59 @@ export default function TenantsPage() {
               <h2 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-indigo-600" /> License — {licenseFor.name}</h2>
               <button onClick={() => setLicenseFor(null)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
+
+            {/* Tenant admins */}
+            <div className="p-5 border-b bg-gray-50/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-indigo-500" /> Tenant Admins</h3>
+                <button type="button" onClick={openAddAdmin} className="flex items-center gap-1 px-2.5 py-1.5 border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-100 text-xs font-medium">
+                  <UserPlus className="h-3.5 w-3.5" /> Add Admin
+                </button>
+              </div>
+
+              {(licenseFor.admins ?? []).length === 0 && adminMode !== 'add' && (
+                <p className="text-xs text-gray-400">No tenant admin assigned yet.</p>
+              )}
+
+              <div className="space-y-1.5">
+                {(licenseFor.admins ?? []).map((a: any) => (
+                  <div key={a.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-800 truncate">{a.fullName || `${a.firstName} ${a.lastName}`}</div>
+                      <div className="text-xs text-gray-500 truncate flex items-center gap-1"><Mail className="h-3 w-3" /> {a.email}</div>
+                    </div>
+                    <button type="button" onClick={() => openEditAdmin(a)} className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg">
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {adminMode && (
+                <div className="rounded-lg border border-indigo-200 bg-white p-3 space-y-3">
+                  <p className="text-xs font-semibold text-gray-700">{adminMode === 'add' ? 'New Tenant Admin' : 'Edit Tenant Admin'}</p>
+                  {adminError && <div className="p-2 bg-red-50 text-red-700 rounded text-xs">{adminError}</div>}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input placeholder="First name" value={adminForm.firstName} onChange={e => setAdminForm(f => ({ ...f, firstName: e.target.value }))} className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input placeholder="Last name" value={adminForm.lastName} onChange={e => setAdminForm(f => ({ ...f, lastName: e.target.value }))} className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  {adminMode === 'add' ? (
+                    <input type="email" placeholder="Email" value={adminForm.email} onChange={e => setAdminForm(f => ({ ...f, email: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  ) : (
+                    <>
+                      <input value={adminForm.email} disabled className="w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-lg px-2.5 py-1.5 text-sm" />
+                      <input placeholder="Phone (optional)" value={adminForm.phone} onChange={e => setAdminForm(f => ({ ...f, phone: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </>
+                  )}
+                  <input type="password" placeholder={adminMode === 'add' ? 'Temporary password (min 8)' : 'New password (optional, min 8)'} value={adminForm.password} onChange={e => setAdminForm(f => ({ ...f, password: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setAdminMode(null)} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-1.5 text-xs font-medium hover:bg-gray-50">Cancel</button>
+                    <button type="button" onClick={saveAdmin} disabled={savingAdmin} className="flex-1 bg-indigo-600 text-white rounded-lg py-1.5 text-xs font-medium hover:bg-indigo-700 disabled:opacity-50">{savingAdmin ? 'Saving...' : (adminMode === 'add' ? 'Create Admin' : 'Save Admin')}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <form onSubmit={handleAllocate} className="p-5 space-y-4">
               {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>}
               <div className="grid grid-cols-3 gap-4">

@@ -1,11 +1,19 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 import { Tenant, TenantStatus } from '../tenants/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../rbac/entities/user-role.entity';
 import { TenantLicense, TenantLicenseStatus } from './entities/tenant-license.entity';
-import { CreateTenantDto, UpdateTenantDto, AllocateLicenseDto, UpdateLicenseDto } from './dto/admin.dto';
+import {
+  CreateTenantDto,
+  UpdateTenantDto,
+  AllocateLicenseDto,
+  UpdateLicenseDto,
+  AddTenantAdminDto,
+  UpdateTenantAdminDto,
+} from './dto/admin.dto';
 import { UsersService } from '../users/users.service';
 import { RbacService } from '../rbac/rbac.service';
 import { PermissionsService } from '../rbac/permissions.service';
@@ -67,8 +75,11 @@ export class AdminService {
   }
 
   // ---- Tenants (cross-tenant; super admin only) ----
-  async listTenants(): Promise<any[]> {
-    const tenants = await this.tenantRepo.find({ order: { createdAt: 'DESC' } });
+  async listTenants(includeHidden = false): Promise<any[]> {
+    const tenants = await this.tenantRepo.find({
+      where: includeHidden ? {} : { hidden: false },
+      order: { createdAt: 'DESC' },
+    });
     if (tenants.length === 0) return [];
     const ids = tenants.map(t => t.id);
     const [licenses, users, adminsByTenant] = await Promise.all([
@@ -141,6 +152,53 @@ export class AdminService {
     if (!tenant) throw new NotFoundException(`Tenant ${id} not found`);
     tenant.status = status;
     return this.tenantRepo.save(tenant);
+  }
+
+  // Hide/unhide a tenant from the management list (soft archive; not a delete).
+  async setTenantHidden(id: string, hidden: boolean): Promise<Tenant> {
+    const tenant = await this.tenantRepo.findOne({ where: { id } });
+    if (!tenant) throw new NotFoundException(`Tenant ${id} not found`);
+    tenant.hidden = hidden;
+    return this.tenantRepo.save(tenant);
+  }
+
+  // ---- Tenant admins ----
+  private async grantTenantAdminRole(tenantId: string, userId: string): Promise<void> {
+    await this.rbacService.seedSystemRoles(tenantId); // idempotent
+    const roles = await this.rbacService.findAll(tenantId);
+    const adminRole = roles.find((r) => r.name === 'Tenant Admin');
+    if (adminRole) {
+      await this.permissionsService.assignRole(userId, adminRole.id, tenantId, userId);
+    }
+  }
+
+  async addTenantAdmin(tenantId: string, dto: AddTenantAdminDto): Promise<any> {
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException(`Tenant ${tenantId} not found`);
+
+    // Login resolves the tenant by email, so the admin email must be globally unique.
+    const emailTaken = await this.userRepo.findOne({ where: { email: dto.email.toLowerCase() } });
+    if (emailTaken) throw new ConflictException(`Email ${dto.email} is already in use`);
+
+    const adminUser = await this.usersService.create(tenantId, {
+      email: dto.email,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      password: dto.password,
+    } as any);
+    await this.grantTenantAdminRole(tenantId, adminUser.id);
+    return this.toAdminSummary(adminUser);
+  }
+
+  async updateTenantAdmin(tenantId: string, userId: string, dto: UpdateTenantAdminDto): Promise<any> {
+    const user = await this.userRepo.findOne({ where: { id: userId, tenantId } });
+    if (!user) throw new NotFoundException(`Admin user ${userId} not found in tenant ${tenantId}`);
+    if (dto.firstName !== undefined) user.firstName = dto.firstName;
+    if (dto.lastName !== undefined) user.lastName = dto.lastName;
+    if (dto.phone !== undefined) user.phone = dto.phone;
+    if (dto.password) user.passwordHash = await bcrypt.hash(dto.password, 12);
+    const saved = await this.userRepo.save(user);
+    return this.toAdminSummary(saved);
   }
 
   // ---- License allocation ----
