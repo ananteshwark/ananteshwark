@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { Formula, FormulaDetail, FormulaStatus, FormulaLineType } from './entities/formula.entity';
 import { Batch, BatchStatus } from './entities/batch.entity';
 
@@ -12,6 +13,7 @@ export class OpmService {
     @InjectRepository(Formula) private readonly formulaRepo: Repository<Formula>,
     @InjectRepository(FormulaDetail) private readonly detailRepo: Repository<FormulaDetail>,
     @InjectRepository(Batch) private readonly batchRepo: Repository<Batch>,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Ph-159: Formula / recipe ─────────────────────────────────────
@@ -168,7 +170,6 @@ export class OpmService {
   }
 
   private async nextBatchNumber(tenantId: string): Promise<string> {
-    const count = await this.batchRepo.count({ where: { tenantId } });
-    return `BATCH-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'opm-batch', 'BATCH-', 6);
   }
 }

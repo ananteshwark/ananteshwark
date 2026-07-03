@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InventoryOrgService } from './inventory-org.service';
+import { SequenceService } from '../../common/sequence/sequence.service';
 import { InventoryOrganization } from './entities/inventory-organization.entity';
+
+const seqMock = () => ({
+  next: jest.fn().mockResolvedValue(1),
+  formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+});
 import { ItemOrgAssignment } from './entities/item-org-assignment.entity';
 import { InterOrgTransfer, InterOrgStatus } from './entities/inter-org-transfer.entity';
 import { Item } from './entities/item.entity';
@@ -24,6 +30,7 @@ describe('InventoryOrgService — Phase 134-136', () => {
     const module = await Test.createTestingModule({
       providers: [
         InventoryOrgService,
+        { provide: SequenceService, useValue: seqMock() },
         { provide: getRepositoryToken(InventoryOrganization), useValue: orgRepo },
         { provide: getRepositoryToken(ItemOrgAssignment), useValue: assignRepo },
         { provide: getRepositoryToken(InterOrgTransfer), useValue: transferRepo },

@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { OpmService } from './opm.service';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { Formula, FormulaDetail, FormulaStatus, FormulaLineType } from './entities/formula.entity';
+
+const seqMock = () => ({
+  next: jest.fn().mockResolvedValue(1),
+  formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+});
 import { Batch, BatchStatus } from './entities/batch.entity';
 
 const mockRepo = () => ({
@@ -22,6 +28,7 @@ describe('OpmService — Phase 159-162', () => {
     const module = await Test.createTestingModule({
       providers: [
         OpmService,
+        { provide: SequenceService, useValue: seqMock() },
         { provide: getRepositoryToken(Formula), useValue: formulaRepo },
         { provide: getRepositoryToken(FormulaDetail), useValue: detailRepo },
         { provide: getRepositoryToken(Batch), useValue: batchRepo },

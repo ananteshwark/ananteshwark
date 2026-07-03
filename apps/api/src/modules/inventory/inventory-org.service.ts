@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../common/sequence/sequence.service';
 import { InventoryOrganization } from './entities/inventory-organization.entity';
 import { ItemOrgAssignment } from './entities/item-org-assignment.entity';
 import { InterOrgTransfer, InterOrgStatus } from './entities/inter-org-transfer.entity';
@@ -16,6 +17,7 @@ export class InventoryOrgService {
     @InjectRepository(ItemOrgAssignment) private readonly assignRepo: Repository<ItemOrgAssignment>,
     @InjectRepository(InterOrgTransfer) private readonly transferRepo: Repository<InterOrgTransfer>,
     @InjectRepository(Item) private readonly itemRepo: Repository<Item>,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Ph-134: Organizations ────────────────────────────────────────
@@ -193,7 +195,6 @@ export class InventoryOrgService {
   }
 
   private async nextTransferNumber(tenantId: string): Promise<string> {
-    const count = await this.transferRepo.count({ where: { tenantId } });
-    return `IOT-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'inter-org-transfer', 'IOT-', 6);
   }
 }

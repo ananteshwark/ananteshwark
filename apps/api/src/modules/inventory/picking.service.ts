@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../common/sequence/sequence.service';
 import { PickWave, WaveStatus, PickStrategy } from './entities/pick-wave.entity';
 import { WarehouseTask, TaskStatus, TaskType } from './entities/warehouse-task.entity';
 import { BinStock } from './entities/bin-stock.entity';
@@ -29,11 +30,11 @@ export class PickingService {
     @InjectRepository(BinStock) private readonly binStockRepo: Repository<BinStock>,
     @InjectRepository(BinLocation) private readonly binRepo: Repository<BinLocation>,
     @InjectRepository(LotSerial) private readonly lotRepo: Repository<LotSerial>,
+    private readonly sequence: SequenceService,
   ) {}
 
   private async nextWaveNumber(tenantId: string): Promise<string> {
-    const count = await this.waveRepo.count({ where: { tenantId } });
-    return `WAVE-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'pick-wave', 'WAVE-', 6);
   }
 
   // ─── Wave Management ───────────────────────────────────────────────

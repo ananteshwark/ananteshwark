@@ -14,7 +14,11 @@ describe('WmsService', () => {
     taskRepo = mockRepo();
     lotRepo = mockRepo();
     binRepo = mockRepo();
-    svc = new WmsService(batchCharRepo, binStockRepo, taskRepo, lotRepo, binRepo);
+    const sequence: any = {
+      next: jest.fn().mockResolvedValue(1),
+      formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+    };
+    svc = new WmsService(batchCharRepo, binStockRepo, taskRepo, lotRepo, binRepo, sequence);
   });
 
   describe('recordBatchCharacteristics', () => {
@@ -136,12 +140,11 @@ describe('WmsService', () => {
   });
 
   describe('createTask', () => {
-    it('assigns a zero-padded sequential task number', async () => {
-      taskRepo.count.mockResolvedValue(5);
+    it('assigns a zero-padded task number from the atomic sequence', async () => {
       taskRepo.create.mockImplementation((x: any) => x);
       taskRepo.save.mockImplementation(async (x: any) => x);
       const res: any = await svc.createTask('t1', { taskType: TaskType.PICK, warehouseId: 'wh1', itemId: 'item1', qty: 5 });
-      expect(res.taskNumber).toBe('WMS-000006');
+      expect(res.taskNumber).toBe('WMS-000001');
     });
   });
 

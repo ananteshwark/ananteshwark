@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { ServiceDeskService } from './service-desk.service';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { KbArticle, ArticleStatus, ArticleVisibility } from './entities/kb-article.entity';
+
+const seqMock = () => ({
+  next: jest.fn().mockResolvedValue(1),
+  formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+});
 import { EmailRoutingRule } from './entities/email-routing-rule.entity';
 import { ServiceTicket, TicketPriority, TicketStatus } from '../entities/service-ticket.entity';
 
@@ -23,6 +29,7 @@ describe('ServiceDeskService — Phase 229-232', () => {
     const module = await Test.createTestingModule({
       providers: [
         ServiceDeskService,
+        { provide: SequenceService, useValue: seqMock() },
         { provide: getRepositoryToken(KbArticle), useValue: kbRepo },
         { provide: getRepositoryToken(EmailRoutingRule), useValue: ruleRepo },
         { provide: getRepositoryToken(ServiceTicket), useValue: ticketRepo },

@@ -189,16 +189,19 @@ describe('PickingService', () => {
     binStockRepo = mockRepo();
     binRepo = mockRepo();
     lotRepo = mockRepo();
-    service = new PickingService(waveRepo, taskRepo, binStockRepo, binRepo, lotRepo);
+    const sequence: any = {
+      next: jest.fn().mockResolvedValue(1),
+      formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+    };
+    service = new PickingService(waveRepo, taskRepo, binStockRepo, binRepo, lotRepo, sequence);
   });
 
   // ─── Wave tests ───────────────────────────────────────────────────
 
-  it('createWave generates sequential wave numbers', async () => {
-    waveRepo.count.mockResolvedValue(5);
+  it('createWave generates a wave number from the atomic sequence', async () => {
     waveRepo.save.mockImplementation((v: any) => Promise.resolve({ ...v, id: 'w1' }));
     const wave = await service.createWave('t1', { warehouseId: 'wh1', pickStrategy: PickStrategy.FEFO, priority: 50 });
-    expect(wave.waveNumber).toBe('WAVE-000006');
+    expect(wave.waveNumber).toBe('WAVE-000001');
   });
 
   it('releaseWave sets tasks to IN_PROGRESS', async () => {

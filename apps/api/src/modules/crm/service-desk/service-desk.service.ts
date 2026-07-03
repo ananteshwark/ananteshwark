@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { KbArticle, ArticleStatus, ArticleVisibility } from './entities/kb-article.entity';
 import { EmailRoutingRule } from './entities/email-routing-rule.entity';
 import { ServiceTicket, TicketPriority, TicketStatus } from '../entities/service-ticket.entity';
@@ -11,6 +12,7 @@ export class ServiceDeskService {
     @InjectRepository(KbArticle) private readonly kbRepo: Repository<KbArticle>,
     @InjectRepository(EmailRoutingRule) private readonly ruleRepo: Repository<EmailRoutingRule>,
     @InjectRepository(ServiceTicket) private readonly ticketRepo: Repository<ServiceTicket>,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Ph-229: knowledge base ───────────────────────────────────────
@@ -83,8 +85,7 @@ export class ServiceDeskService {
     const haystack = `${email.subject} ${email.body ?? ''}`.toLowerCase();
     const rules = (await this.ruleRepo.find({ where: { tenantId, isActive: true }, order: { priorityOrder: 'ASC' } }));
     const matched = rules.find((r) => haystack.includes(r.keyword.toLowerCase()));
-    const count = await this.ticketRepo.count({ where: { tenantId } });
-    const ticketNumber = `TKT-${String(count + 1).padStart(6, '0')}`;
+    const ticketNumber = await this.sequence.formatted(tenantId, 'service-ticket', 'TKT-', 6);
     const ticket = this.ticketRepo.create({
       tenantId, ticketNumber, customerId: email.customerId ?? null, subject: email.subject,
       description: email.body ?? null, priority: matched?.setPriority ?? TicketPriority.MEDIUM,

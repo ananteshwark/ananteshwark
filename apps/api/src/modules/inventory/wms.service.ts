@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../common/sequence/sequence.service';
 import { BatchCharacteristic, CharacteristicResult } from './entities/batch-characteristic.entity';
 import { BinStock } from './entities/bin-stock.entity';
 import { WarehouseTask, TaskType, TaskStatus } from './entities/warehouse-task.entity';
@@ -15,11 +16,11 @@ export class WmsService {
     @InjectRepository(WarehouseTask) private readonly taskRepo: Repository<WarehouseTask>,
     @InjectRepository(LotSerial) private readonly lotRepo: Repository<LotSerial>,
     @InjectRepository(BinLocation) private readonly binRepo: Repository<BinLocation>,
+    private readonly sequence: SequenceService,
   ) {}
 
   private async nextTaskNumber(tenantId: string): Promise<string> {
-    const count = await this.taskRepo.count({ where: { tenantId } });
-    return `WMS-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'wms-task', 'WMS-', 6);
   }
 
   // ─── Batch Management ─────────────────────────────────────────────

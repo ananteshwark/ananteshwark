@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { CpqProductModel } from './entities/cpq-product-model.entity';
 import { CpqQuote, CpqQuoteStatus } from './entities/cpq-quote.entity';
 import { CpqGuidedQuestionnaire } from './entities/cpq-guided-questionnaire.entity';
@@ -20,6 +21,7 @@ export class CpqService {
     @InjectRepository(CpqGuidedQuestionnaire) private readonly guidedRepo: Repository<CpqGuidedQuestionnaire>,
     @InjectRepository(SalesOrder) private readonly soRepo: Repository<SalesOrder>,
     @InjectRepository(SalesOrderLine) private readonly soLineRepo: Repository<SalesOrderLine>,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Ph-220: product configurator ─────────────────────────────────
@@ -103,8 +105,7 @@ export class CpqService {
     const totalDiscountPct = list > 0 ? round2((1 - net / list) * 100) : 0;
     const requiresApproval = totalDiscountPct > APPROVAL_THRESHOLD_PCT;
 
-    const count = await this.quoteRepo.count({ where: { tenantId } });
-    const quoteNumber = `CPQ-${String(count + 1).padStart(5, '0')}`;
+    const quoteNumber = await this.sequence.formatted(tenantId, 'cpq-quote', 'CPQ-', 5);
     const q = this.quoteRepo.create({
       tenantId, quoteNumber, customerId: data.customerId ?? null, customerName: data.customerName ?? null,
       modelCode: data.modelCode, selectedOptions: data.selectedOptions ?? [], quantity: qty,
@@ -203,8 +204,7 @@ export class CpqService {
     if (q.status !== CpqQuoteStatus.APPROVED) throw new BadRequestException('Only APPROVED quotes can be converted');
     if (q.soId) throw new BadRequestException('Quote already converted');
     const model = await this.modelRepo.findOne({ where: { tenantId, code: q.modelCode } });
-    const orderCount = await this.soRepo.count({ where: { tenantId } });
-    const orderNumber = `SO-CPQ-${String(orderCount + 1).padStart(5, '0')}`;
+    const orderNumber = await this.sequence.formatted(tenantId, 'cpq-sales-order', 'SO-CPQ-', 5);
     const order = this.soRepo.create({
       tenantId, orderNumber, quoteId: q.id, customerId: q.customerId, contactName: q.customerName,
       orderDate: new Date().toISOString().slice(0, 10), status: SalesOrderStatus.DRAFT,

@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WhtService } from './wht.service';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { ApWhtCode, WhtCertificateType } from './entities/ap-wht-code.entity';
+
+const seqMock = () => ({
+  next: jest.fn().mockResolvedValue(1),
+  formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+});
 import { WhtCertificate } from './entities/wht-certificate.entity';
 import { Bill } from './entities/bill.entity';
 import { Vendor } from './entities/vendor.entity';
@@ -31,6 +37,7 @@ describe('WhtService — Phase 103-105', () => {
     const module = await Test.createTestingModule({
       providers: [
         WhtService,
+        { provide: SequenceService, useValue: seqMock() },
         { provide: getRepositoryToken(ApWhtCode), useValue: codeRepo },
         { provide: getRepositoryToken(WhtCertificate), useValue: certRepo },
         { provide: getRepositoryToken(Bill), useValue: billRepo },

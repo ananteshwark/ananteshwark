@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LogisticsService } from './logistics.service';
+import { SequenceService } from '../../common/sequence/sequence.service';
 import { Carrier } from './entities/carrier.entity';
+
+const seqMock = () => ({
+  next: jest.fn().mockResolvedValue(1),
+  formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+});
 import { FreightRate } from './entities/freight-rate.entity';
 import { ShipmentPlan, ShipmentPlanStatus } from './entities/shipment-plan.entity';
 
@@ -23,6 +29,7 @@ describe('LogisticsService — Phase 151-154', () => {
     const module = await Test.createTestingModule({
       providers: [
         LogisticsService,
+        { provide: SequenceService, useValue: seqMock() },
         { provide: getRepositoryToken(Carrier), useValue: carrierRepo },
         { provide: getRepositoryToken(FreightRate), useValue: rateRepo },
         { provide: getRepositoryToken(ShipmentPlan), useValue: planRepo },

@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { CpqService } from './cpq.service';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { CpqProductModel } from './entities/cpq-product-model.entity';
+
+const seqMock = () => ({
+  next: jest.fn().mockResolvedValue(1),
+  formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+});
 import { CpqQuote, CpqQuoteStatus } from './entities/cpq-quote.entity';
 import { CpqGuidedQuestionnaire } from './entities/cpq-guided-questionnaire.entity';
 import { SalesOrder } from '../entities/sales-order.entity';
@@ -34,6 +40,7 @@ describe('CpqService — Phase 220-224', () => {
     const module = await Test.createTestingModule({
       providers: [
         CpqService,
+        { provide: SequenceService, useValue: seqMock() },
         { provide: getRepositoryToken(CpqProductModel), useValue: modelRepo },
         { provide: getRepositoryToken(CpqQuote), useValue: quoteRepo },
         { provide: getRepositoryToken(CpqGuidedQuestionnaire), useValue: guidedRepo },

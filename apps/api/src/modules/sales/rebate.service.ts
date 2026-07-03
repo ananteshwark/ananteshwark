@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../common/sequence/sequence.service';
 import { RebateAgreement, RebateStatus, RebateCalculationBasis } from './entities/rebate-agreement.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 
@@ -11,11 +12,11 @@ export class RebateService {
     private readonly rebateRepo: Repository<RebateAgreement>,
     @InjectRepository(SalesOrder)
     private readonly orderRepo: Repository<SalesOrder>,
+    private readonly sequence: SequenceService,
   ) {}
 
   private async nextAgreementNumber(tenantId: string): Promise<string> {
-    const count = await this.rebateRepo.count({ where: { tenantId } });
-    return `REB-${String(count + 1).padStart(5, '0')}`;
+    return this.sequence.formatted(tenantId, 'rebate-agreement', 'REB-', 5);
   }
 
   async createAgreement(tenantId: string, dto: any): Promise<RebateAgreement> {

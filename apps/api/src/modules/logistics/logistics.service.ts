@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../common/sequence/sequence.service';
 import { Carrier } from './entities/carrier.entity';
 import { FreightRate } from './entities/freight-rate.entity';
 import { ShipmentPlan, ShipmentPlanStatus } from './entities/shipment-plan.entity';
@@ -24,6 +25,7 @@ export class LogisticsService {
     @InjectRepository(Carrier) private readonly carrierRepo: Repository<Carrier>,
     @InjectRepository(FreightRate) private readonly rateRepo: Repository<FreightRate>,
     @InjectRepository(ShipmentPlan) private readonly planRepo: Repository<ShipmentPlan>,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Ph-151: Carrier master ───────────────────────────────────────
@@ -180,7 +182,6 @@ export class LogisticsService {
   }
 
   private async nextShipmentNumber(tenantId: string): Promise<string> {
-    const count = await this.planRepo.count({ where: { tenantId } });
-    return `SHP-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'shipment-plan', 'SHP-', 6);
   }
 }

@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { LockboxService } from './lockbox.service';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { LockboxBatch } from './entities/lockbox-batch.entity';
+
+const seqMock = () => ({
+  next: jest.fn().mockResolvedValue(1),
+  formatted: jest.fn((_t: string, _k: string, prefix: string, pad = 6) => Promise.resolve(`${prefix}${String(1).padStart(pad, '0')}`)),
+});
 import { LockboxReceipt, LockboxReceiptStatus } from './entities/lockbox-receipt.entity';
 import { Invoice, InvoiceStatus } from '../ar/entities/invoice.entity';
 import { Customer } from '../ar/entities/customer.entity';
@@ -34,6 +40,7 @@ describe('LockboxService — Phase 112-114', () => {
     const module = await Test.createTestingModule({
       providers: [
         LockboxService,
+        { provide: SequenceService, useValue: seqMock() },
         { provide: getRepositoryToken(LockboxBatch), useValue: batchRepo },
         { provide: getRepositoryToken(LockboxReceipt), useValue: receiptRepo },
         { provide: getRepositoryToken(Invoice), useValue: invoiceRepo },

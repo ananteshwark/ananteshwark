@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { LockboxBatch, LockboxFormat, LockboxBatchStatus } from './entities/lockbox-batch.entity';
 import { LockboxReceipt, LockboxReceiptStatus } from './entities/lockbox-receipt.entity';
 import { Invoice, InvoiceStatus } from '../ar/entities/invoice.entity';
@@ -27,6 +28,7 @@ export class LockboxService {
     @InjectRepository(Invoice) private readonly invoiceRepo: Repository<Invoice>,
     @InjectRepository(Customer) private readonly customerRepo: Repository<Customer>,
     private readonly arService: ArService,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Ph-112: Parsers ──────────────────────────────────────────────
@@ -342,7 +344,6 @@ export class LockboxService {
   }
 
   private async nextBatchNumber(tenantId: string): Promise<string> {
-    const count = await this.batchRepo.count({ where: { tenantId } });
-    return `LBX-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'lockbox-batch', 'LBX-', 6);
   }
 }

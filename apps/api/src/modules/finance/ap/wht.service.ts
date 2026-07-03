@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
+import { SequenceService } from '../../../common/sequence/sequence.service';
 import { ApWhtCode, WhtCertificateType } from './entities/ap-wht-code.entity';
 import { WhtCertificate } from './entities/wht-certificate.entity';
 import { Bill } from './entities/bill.entity';
@@ -22,6 +23,7 @@ export class WhtService {
     @InjectRepository(WhtCertificate) private readonly certRepo: Repository<WhtCertificate>,
     @InjectRepository(Bill) private readonly billRepo: Repository<Bill>,
     @InjectRepository(Vendor) private readonly vendorRepo: Repository<Vendor>,
+    private readonly sequence: SequenceService,
   ) {}
 
   // ─── Ph-103: WHT Codes ────────────────────────────────────────────
@@ -177,7 +179,6 @@ export class WhtService {
   }
 
   private async nextCertNumber(tenantId: string): Promise<string> {
-    const count = await this.certRepo.count({ where: { tenantId } });
-    return `WHT-${String(count + 1).padStart(6, '0')}`;
+    return this.sequence.formatted(tenantId, 'wht-certificate', 'WHT-', 6);
   }
 }
