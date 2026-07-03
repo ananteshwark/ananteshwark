@@ -385,6 +385,9 @@ export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
   const { tenant, user } = useAuthStore();
   const { data: myPermissions } = useMyPermissions();
   const enabledModules = tenant?.settings?.enabledModules || [];
+  // Modules the super admin assigned on the license. When known, a tenant user
+  // is never shown a module outside this set, even if tenant settings drifted.
+  const licensedModules = tenant?.licensedModules;
   const location = useLocation();
 
   const isAdmin = !!user?.isSuperAdmin || ADMIN_MARKERS.some((p) => (myPermissions ?? []).includes(p));
@@ -398,7 +401,12 @@ export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
   const isItemVisible = (item: NavItem) => {
     if (item.superAdmin && !user?.isSuperAdmin) return false;
     if (!item.module) return true;
-    return enabledModules.includes(item.module);
+    if (!enabledModules.includes(item.module)) return false;
+    // Tenant users only see modules the platform assigned on the license.
+    if (!user?.isSuperAdmin && Array.isArray(licensedModules) && !licensedModules.includes(item.module)) {
+      return false;
+    }
+    return true;
   };
 
   const renderItem = (item: NavItem) => {

@@ -20,6 +20,9 @@ interface Tenant {
     locale?: string;
     timezone?: string;
   };
+  // Modules provisioned by the platform (super admin) on the tenant's license.
+  // Tenant admins may enable at most these; they cannot grant themselves more.
+  licensedModules?: string[];
 }
 
 interface AuthState {

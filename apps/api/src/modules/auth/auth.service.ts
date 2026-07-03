@@ -65,12 +65,19 @@ export class AuthService {
     return user;
   }
 
+  // Attach the super-admin-assigned module set so the client can show tenant
+  // admins exactly what their platform administrator provisioned.
+  private async withLicensedModules(tenant: any) {
+    const licensedModules = await this.tenantsService.getLicensedModules(tenant.id);
+    return { ...tenant, licensedModules };
+  }
+
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto.email, dto.password, dto.tenantSlug);
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const tokens = await this.generateTokens(user);
     const tenant = await this.tenantsService.findById(user.tenantId);
-    return { ...tokens, tenant };
+    return { ...tokens, tenant: await this.withLicensedModules(tenant) };
   }
 
   // Returns the current user + tenant, used by the client to refresh the
@@ -89,7 +96,7 @@ export class AuthService {
         tenantId: user.tenantId,
         isSuperAdmin: user.isSuperAdmin,
       },
-      tenant,
+      tenant: await this.withLicensedModules(tenant),
     };
   }
 
