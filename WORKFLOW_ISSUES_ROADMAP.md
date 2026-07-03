@@ -167,3 +167,38 @@ test-backed.
 Phase 1 items 1–2 (workflow authz + RBAC scoping) — highest severity, self-contained,
 and covered by focused unit tests. Password reset (item 3) can ship in the same PR as
 the "return 501 + hide UI" option if a full reset flow isn't yet in scope.
+
+---
+
+# IMPLEMENTATION STATUS (all phases complete except M2)
+
+Suite grew from 923 → 960 tests, all passing across 81 suites. Each fix is
+test-backed and pushed to `claude/app-build-setup-ntay5k`.
+
+| Item | Status | Notes |
+|------|--------|-------|
+| C1 workflow authz | ✅ Done | approver enforcement (user/role/manager) + self-approval block + tenant scope; 7 tests |
+| C2 RBAC role scoping | ✅ Done | findById/update/delete tenant-scoped; system roles protected; findAll no cross-tenant leak; 6 tests |
+| C3 password reset | ✅ Done | real hashed-token flow (1h expiry, no enumeration) + account unlock; 4 tests |
+| H1 atomic numbering | ✅ Done | SequenceService (global, INSERT…ON CONFLICT…RETURNING) + ALL 14 count()+1 sites retrofitted; 2 tests; repo-wide scan clean |
+| H2 payroll dup run | ✅ Done | ConflictException on duplicate period+type; 2 tests |
+| H3 ship relieves stock | ✅ Done | AtpService.issueForItem, called per line in shipOrder, throws on shortfall; 2 tests |
+| H4 leave re-check | ✅ Done | availability re-validated at approval; 2 tests |
+| H5 refresh status | ✅ Done | refresh + access-token validate reject non-ACTIVE accounts |
+| M1 super-admin from DB | ✅ Verified/hardened | JwtStrategy already re-resolves from DB; added status check |
+| M3 account unlock | ✅ Done | POST /users/:id/unlock; reset also unlocks |
+| M2 migrations | 📋 Deploy task | needs a live DB to generate; synchronize already gated to dev only |
+| Phase 4 regression net | ✅ Done | static test fails CI on any new tenant-unscoped findOne-by-id; 1 test |
+| UsersController RBAC (follow-up) | ✅ Done | RbacGuard + @RequirePermission on all cross-user routes; me/me-profile stay open; 10 tests |
+
+### H1 — retrofitted sites (all use SequenceService now)
+cto (config + work-order), sourcing (event), controlling (internal order),
+logistics (shipment), inventory-org (transfer), lockbox (batch), service-desk
+(ticket), wht (certificate), rebate (agreement), wms (task), cpq (quote + sales
+order), picking (wave), opm (batch).
+
+### M2 — remaining deploy task
+`synchronize` is gated to `APP_ENV==='development'` (config/database.config.ts).
+For non-dev: generate a baseline with `typeorm migration:generate` against a
+fresh DB, commit it under `src/database/migrations`, and run `migration:run` on
+deploy. Not committed here because generating it accurately requires a live DB.
