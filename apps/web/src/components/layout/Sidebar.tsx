@@ -384,10 +384,12 @@ export const Sidebar = ({ collapsed = false, onToggle }: SidebarProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(['Settings']);
   const { tenant, user } = useAuthStore();
   const { data: myPermissions } = useMyPermissions();
-  const enabledModules = tenant?.settings?.enabledModules || [];
   // Modules the super admin assigned on the license. When known, a tenant user
   // is never shown a module outside this set, even if tenant settings drifted.
   const licensedModules = tenant?.licensedModules;
+  // Modules active for this tenant. Default active: a tenant that has never
+  // customized runs every licensed module, so fall back to the licensed set.
+  const enabledModules = tenant?.settings?.enabledModules ?? licensedModules ?? [];
   const location = useLocation();
 
   const isAdmin = !!user?.isSuperAdmin || ADMIN_MARKERS.some((p) => (myPermissions ?? []).includes(p));

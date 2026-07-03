@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldCheck, Info } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { useTenantSettings, useUpdateTenantSettings } from '../../api/hooks';
+import { useTenantModules, useUpdateTenantModules } from '../../api/hooks';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
-// Catalog of every module label/description. What a tenant can actually run is
-// constrained by the license the platform (super admin) allocated.
+// Catalog of every module label/description. What a tenant can run is bounded by
+// the license the platform (super admin) allocated; the tenant admin chooses
+// which of those licensed modules stay active.
 const MODULE_CATALOG: Record<string, { label: string; description: string; icon: string }> = {
   hr: { label: 'Human Resources', description: 'Employees, attendance, leave management', icon: '👥' },
   finance: { label: 'Finance', description: 'GL, AR, AP, invoicing', icon: '💰' },
@@ -31,42 +32,45 @@ const MODULE_CATALOG: Record<string, { label: string; description: string; icon:
   licensing: { label: 'Licensing', description: 'License management', icon: '🔑' },
 };
 
-const describe = (id: string) =>
-  MODULE_CATALOG[id] ?? { label: id, description: '', icon: '🧩' };
+const describe = (id: string) => MODULE_CATALOG[id] ?? { label: id, description: '', icon: '🧩' };
 
 export default function ModulesSettingsPage() {
-  const { data: tenant, isLoading } = useTenantSettings();
-  const { tenant: authTenant, user } = useAuthStore();
-  const updateSettings = useUpdateTenantSettings();
-  const isSuperAdmin = !!user?.isSuperAdmin;
+  const { data, isLoading } = useTenantModules();
+  const updateModules = useUpdateTenantModules();
+  const { tenant, setTenant } = useAuthStore();
 
-  // Modules the super admin assigned on the license = the ceiling. Fall back to
-  // the auth store (populated at login) so the page works without the
-  // super-admin-only tenant fetch.
-  const licensedModules: string[] =
-    tenant?.licensedModules ?? authTenant?.licensedModules ?? [];
-  const provisionedEnabled: string[] =
-    tenant?.settings?.enabledModules ?? authTenant?.settings?.enabledModules ?? [];
+  const licensedModules: string[] = data?.licensedModules ?? tenant?.licensedModules ?? [];
+  const activeModules: string[] = data?.enabledModules ?? tenant?.settings?.enabledModules ?? licensedModules;
 
   const [enabledModules, setEnabledModules] = useState<string[]>([]);
 
   useEffect(() => {
-    setEnabledModules(provisionedEnabled);
+    setEnabledModules(activeModules);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant, authTenant]);
+  }, [data]);
 
   const toggleModule = (id: string) => {
-    if (!licensedModules.includes(id)) return; // never enable beyond the license
+    if (!licensedModules.includes(id)) return; // can't enable beyond the license
     setEnabledModules((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id],
     );
   };
 
+  const dirty =
+    enabledModules.length !== activeModules.length ||
+    enabledModules.some((m) => !activeModules.includes(m));
+
   const handleSave = async () => {
     try {
-      // Only ever send modules within the licensed set.
       const clamped = enabledModules.filter((m) => licensedModules.includes(m));
-      await updateSettings.mutateAsync({ enabledModules: clamped });
+      const res = await updateModules.mutateAsync(clamped);
+      // Reflect immediately in the sidebar (driven by the auth store).
+      if (tenant) {
+        setTenant({
+          ...tenant,
+          settings: { ...tenant.settings, enabledModules: res.enabledModules },
+        });
+      }
       toast.success('Module settings saved');
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Failed to save settings');
@@ -81,17 +85,15 @@ export default function ModulesSettingsPage() {
     <div className="max-w-2xl">
       <PageHeader
         title="Modules"
-        description="Modules provisioned for your organization by the platform administrator"
+        description="Turn the modules provisioned for your organization on or off"
       />
 
       <div className="mb-4 flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-800">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
         <p>
-          These modules are allocated to your tenant by the platform (super)
-          administrator through your license.{' '}
-          {isSuperAdmin
-            ? 'You can enable or disable any licensed module below; to add modules beyond the license, update the license in Tenant Management.'
-            : 'To add or remove modules, contact your platform administrator.'}
+          These modules were assigned to your organization by the platform
+          administrator. You can switch any of them off for your organization;
+          to add modules beyond your plan, contact your platform administrator.
         </p>
       </div>
 
@@ -125,21 +127,17 @@ export default function ModulesSettingsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={isEnabled ? 'success' : 'default'}>
-                      {isEnabled ? 'Enabled' : 'Disabled'}
+                      {isEnabled ? 'Active' : 'Off'}
                     </Badge>
-                    {isSuperAdmin ? (
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={isEnabled}
-                          onChange={() => toggleModule(id)}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
-                      </label>
-                    ) : (
-                      <Lock className="h-4 w-4 text-gray-300" aria-label="Managed by administrator" />
-                    )}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={isEnabled}
+                        onChange={() => toggleModule(id)}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
+                    </label>
                   </div>
                 </div>
               );
@@ -148,9 +146,9 @@ export default function ModulesSettingsPage() {
         </Card>
       )}
 
-      {isSuperAdmin && licensedModules.length > 0 && (
+      {licensedModules.length > 0 && (
         <div className="mt-4">
-          <Button onClick={handleSave} loading={updateSettings.isPending}>
+          <Button onClick={handleSave} loading={updateModules.isPending} disabled={!dirty}>
             Save Changes
           </Button>
         </div>

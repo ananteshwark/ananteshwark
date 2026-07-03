@@ -22,6 +22,27 @@ export class TenantsService {
     return license?.enabledModules ?? [];
   }
 
+  // What the tenant admin sees on the Modules page: the licensed set (from the
+  // super admin) plus which of those are currently active. Modules are active by
+  // default — a tenant that has never customized runs every licensed module.
+  async getModuleConfig(tenantId: string): Promise<{ licensedModules: string[]; enabledModules: string[] }> {
+    const tenant = await this.findById(tenantId);
+    const licensedModules = await this.getLicensedModules(tenantId);
+    const stored = tenant.settings?.enabledModules;
+    const enabledModules =
+      stored === undefined || stored === null
+        ? licensedModules // default active
+        : stored.filter((m: string) => licensedModules.includes(m));
+    return { licensedModules, enabledModules };
+  }
+
+  // Tenant-admin self-service toggle: persist the active subset of the licensed
+  // modules. updateSettings enforces the license ceiling.
+  async setEnabledModules(tenantId: string, modules: string[]) {
+    await this.updateSettings(tenantId, { enabledModules: modules });
+    return this.getModuleConfig(tenantId);
+  }
+
   async create(dto: CreateTenantDto): Promise<Tenant> {
     const existing = await this.tenantRepository.findOne({ where: { slug: dto.slug } });
     if (existing) throw new ConflictException(`Tenant with slug '${dto.slug}' already exists`);

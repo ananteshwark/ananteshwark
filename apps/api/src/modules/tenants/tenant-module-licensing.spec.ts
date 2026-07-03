@@ -58,4 +58,48 @@ describe('TenantsService — module licensing ceiling', () => {
       expect.objectContaining({ settings: expect.objectContaining({ locale: 'fr', timezone: 'Europe/Paris' }) }),
     );
   });
+
+  describe('getModuleConfig — default active + tenant toggles', () => {
+    it('defaults every licensed module to active when never customized', async () => {
+      const { svc } = buildService(['hr', 'finance', 'payroll'], { id: 't1', settings: {} });
+      const cfg = await svc.getModuleConfig('t1');
+      expect(cfg.licensedModules).toEqual(['hr', 'finance', 'payroll']);
+      expect(cfg.enabledModules).toEqual(['hr', 'finance', 'payroll']);
+    });
+
+    it('honors the tenant admin turning a module off', async () => {
+      const { svc } = buildService(['hr', 'finance', 'payroll'], { id: 't1', settings: { enabledModules: ['hr', 'payroll'] } });
+      const cfg = await svc.getModuleConfig('t1');
+      expect(cfg.enabledModules).toEqual(['hr', 'payroll']);
+    });
+
+    it('drops stored modules no longer covered by the license', async () => {
+      const { svc } = buildService(['hr'], { id: 't1', settings: { enabledModules: ['hr', 'sales'] } });
+      const cfg = await svc.getModuleConfig('t1');
+      expect(cfg.enabledModules).toEqual(['hr']); // sales filtered out
+    });
+
+    it('reports nothing active when no license is allocated', async () => {
+      const { svc } = buildService(null, { id: 't1', settings: {} });
+      const cfg = await svc.getModuleConfig('t1');
+      expect(cfg.licensedModules).toEqual([]);
+      expect(cfg.enabledModules).toEqual([]);
+    });
+  });
+
+  describe('setEnabledModules', () => {
+    it('persists an active subset and returns the fresh config', async () => {
+      const { svc, tenantRepo } = buildService(['hr', 'finance'], { id: 't1', settings: {} });
+      // save reflects the new settings back for the follow-up getModuleConfig read
+      tenantRepo.save.mockImplementation((x: any) => Promise.resolve(x));
+      tenantRepo.findOne.mockImplementation(() => Promise.resolve({ id: 't1', settings: { enabledModules: ['hr'] } }));
+      const cfg = await svc.setEnabledModules('t1', ['hr']);
+      expect(cfg.enabledModules).toEqual(['hr']);
+    });
+
+    it('rejects an active subset containing an unlicensed module', async () => {
+      const { svc } = buildService(['hr'], { id: 't1', settings: {} });
+      await expect(svc.setEnabledModules('t1', ['hr', 'sales'])).rejects.toThrow(BadRequestException);
+    });
+  });
 });

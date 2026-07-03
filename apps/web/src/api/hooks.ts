@@ -222,3 +222,24 @@ export const useUpdateTenantSettings = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tenantSettings'] }),
   });
 };
+
+// Tenant-admin module management: the licensed set (assigned by the super admin)
+// and which of those are currently active for this tenant. Tenant-scoped, so it
+// works for tenant admins (not just super admins).
+export const useTenantModules = () => {
+  const { tenant } = useAuthStore();
+  return useQuery<{ licensedModules: string[]; enabledModules: string[] }>({
+    queryKey: ['tenantModules', tenant?.id],
+    queryFn: () => apiClient.get('/tenant/modules').then((r) => r.data.data),
+    enabled: !!tenant?.id,
+  });
+};
+
+export const useUpdateTenantModules = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (enabledModules: string[]) =>
+      apiClient.patch('/tenant/modules', { enabledModules }).then((r) => r.data.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tenantModules'] }),
+  });
+};
