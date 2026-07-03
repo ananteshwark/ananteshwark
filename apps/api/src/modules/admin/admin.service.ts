@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -151,13 +151,19 @@ export class AdminService {
     const tenant = await this.tenantRepo.findOne({ where: { id } });
     if (!tenant) throw new NotFoundException(`Tenant ${id} not found`);
     tenant.status = status;
+    // Only deactivated tenants may stay hidden — reactivating one reveals it.
+    if (status === TenantStatus.ACTIVE) tenant.hidden = false;
     return this.tenantRepo.save(tenant);
   }
 
   // Hide/unhide a tenant from the management list (soft archive; not a delete).
+  // Only deactivated (suspended) tenants can be hidden.
   async setTenantHidden(id: string, hidden: boolean): Promise<Tenant> {
     const tenant = await this.tenantRepo.findOne({ where: { id } });
     if (!tenant) throw new NotFoundException(`Tenant ${id} not found`);
+    if (hidden && tenant.status !== TenantStatus.SUSPENDED) {
+      throw new BadRequestException('Only deactivated tenants can be hidden. Suspend the tenant first.');
+    }
     tenant.hidden = hidden;
     return this.tenantRepo.save(tenant);
   }

@@ -1,5 +1,6 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { TenantStatus } from '../tenants/entities/tenant.entity';
 
 /**
  * Covers super-admin tenant management added for the tenant page:
@@ -39,11 +40,30 @@ describe('AdminService — tenant management', () => {
   };
 
   // ---- hide / unhide ----
-  it('setTenantHidden hides a tenant', async () => {
-    const { svc, tenantRepo } = build({ tenant: makeTenant() });
+  it('setTenantHidden hides a suspended (deactivated) tenant', async () => {
+    const { svc, tenantRepo } = build({ tenant: makeTenant({ status: TenantStatus.SUSPENDED }) });
     const t = await svc.setTenantHidden('t1', true);
     expect(t.hidden).toBe(true);
     expect(tenantRepo.save).toHaveBeenCalled();
+  });
+
+  it('setTenantHidden rejects hiding an active tenant', async () => {
+    const { svc, tenantRepo } = build({ tenant: makeTenant({ status: TenantStatus.ACTIVE }) });
+    await expect(svc.setTenantHidden('t1', true)).rejects.toThrow(BadRequestException);
+    expect(tenantRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('setTenantHidden allows unhiding regardless of status', async () => {
+    const { svc } = build({ tenant: makeTenant({ status: TenantStatus.ACTIVE, hidden: true }) });
+    const t = await svc.setTenantHidden('t1', false);
+    expect(t.hidden).toBe(false);
+  });
+
+  it('reactivating a tenant auto-unhides it', async () => {
+    const { svc } = build({ tenant: makeTenant({ status: TenantStatus.SUSPENDED, hidden: true }) });
+    const t = await svc.setTenantStatus('t1', TenantStatus.ACTIVE);
+    expect(t.status).toBe(TenantStatus.ACTIVE);
+    expect(t.hidden).toBe(false);
   });
 
   it('setTenantHidden throws for a missing tenant', async () => {

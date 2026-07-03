@@ -301,9 +301,15 @@ export default function TenantsPage() {
                       <button onClick={() => toggleStatus(t)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium ${t.status === 'suspended' ? 'border border-green-200 text-green-700 hover:bg-green-50' : 'border border-red-200 text-red-700 hover:bg-red-50'}`}>
                         {t.status === 'suspended' ? <><CheckCircle className="h-3.5 w-3.5" /> Activate</> : <><Ban className="h-3.5 w-3.5" /> Suspend</>}
                       </button>
-                      <button onClick={() => toggleHidden(t)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50">
-                        {t.hidden ? <><Eye className="h-3.5 w-3.5" /> Unhide</> : <><EyeOff className="h-3.5 w-3.5" /> Hide</>}
-                      </button>
+                      {t.hidden ? (
+                        <button onClick={() => toggleHidden(t)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50">
+                          <Eye className="h-3.5 w-3.5" /> Unhide
+                        </button>
+                      ) : t.status === 'suspended' ? (
+                        <button onClick={() => toggleHidden(t)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50">
+                          <EyeOff className="h-3.5 w-3.5" /> Hide
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
