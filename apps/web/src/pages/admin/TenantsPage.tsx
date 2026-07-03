@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Building2, KeyRound, Ban, CheckCircle, Users } from 'lucide-react';
+import { Plus, X, Building2, KeyRound, Ban, CheckCircle, Users, Mail, ShieldCheck } from 'lucide-react';
 import { adminApi } from '../../api/admin';
 
 const TIERS = ['TRIAL', 'FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE'];
@@ -27,6 +27,12 @@ const LIC_STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700',
   SUSPENDED: 'bg-amber-100 text-amber-700',
   EXPIRED: 'bg-gray-100 text-gray-500',
+};
+const USER_STATUS_COLORS: Record<string, string> = {
+  active: 'bg-green-100 text-green-700',
+  invited: 'bg-blue-100 text-blue-700',
+  inactive: 'bg-gray-100 text-gray-500',
+  locked: 'bg-red-100 text-red-700',
 };
 
 export default function TenantsPage() {
@@ -162,6 +168,7 @@ export default function TenantsPage() {
             <thead className="bg-gray-50 text-xs font-medium text-gray-600 uppercase tracking-wider">
               <tr>
                 <th className="text-left px-4 py-3">Tenant</th>
+                <th className="text-left px-4 py-3">Administrator</th>
                 <th className="text-left px-4 py-3">Slug</th>
                 <th className="text-left px-4 py-3">Status</th>
                 <th className="text-left px-4 py-3">License Tier</th>
@@ -173,12 +180,31 @@ export default function TenantsPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {tenants.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-400">No tenants found</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No tenants found</td></tr>
               ) : tenants.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">{t.name}</div>
                     <div className="text-xs text-gray-400 flex items-center gap-1"><Users className="h-3 w-3" /> {t.userCount} users</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {t.primaryAdmin ? (
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5 font-medium text-gray-800">
+                          <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+                          {t.primaryAdmin.fullName || '—'}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${USER_STATUS_COLORS[t.primaryAdmin.status] ?? 'bg-gray-100 text-gray-600'}`}>{t.primaryAdmin.status}</span>
+                        </div>
+                        <a href={`mailto:${t.primaryAdmin.email}`} className="text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1">
+                          <Mail className="h-3 w-3" /> {t.primaryAdmin.email}
+                        </a>
+                        {t.admins && t.admins.length > 1 && (
+                          <div className="text-[11px] text-gray-400">+{t.admins.length - 1} more admin{t.admins.length - 1 > 1 ? 's' : ''}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">No admin assigned</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{t.slug}</td>
                   <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[t.status] ?? 'bg-gray-100 text-gray-600'}`}>{t.status}</span></td>

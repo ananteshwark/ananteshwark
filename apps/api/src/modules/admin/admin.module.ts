@@ -5,11 +5,12 @@ import { AdminService } from './admin.service';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
 import { TenantLicense } from './entities/tenant-license.entity';
+import { UserRole } from '../rbac/entities/user-role.entity';
 import { UsersModule } from '../users/users.module';
 import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tenant, User, TenantLicense]), UsersModule, RbacModule],
+  imports: [TypeOrmModule.forFeature([Tenant, User, TenantLicense, UserRole]), UsersModule, RbacModule],
   controllers: [AdminController],
   providers: [AdminService],
   exports: [AdminService],

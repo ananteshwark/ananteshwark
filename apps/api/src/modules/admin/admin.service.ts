@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Tenant, TenantStatus } from '../tenants/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
+import { UserRole } from '../rbac/entities/user-role.entity';
 import { TenantLicense, TenantLicenseStatus } from './entities/tenant-license.entity';
 import { CreateTenantDto, UpdateTenantDto, AllocateLicenseDto, UpdateLicenseDto } from './dto/admin.dto';
 import { UsersService } from '../users/users.service';
@@ -18,28 +19,76 @@ export class AdminService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(TenantLicense)
     private readonly licenseRepo: Repository<TenantLicense>,
+    @InjectRepository(UserRole)
+    private readonly userRoleRepo: Repository<UserRole>,
     private readonly usersService: UsersService,
     private readonly rbacService: RbacService,
     private readonly permissionsService: PermissionsService,
   ) {}
+
+  // Trimmed view of a Tenant Admin user, safe to return to the super-admin UI
+  // (no password hashes / secrets — those carry @Exclude but we project explicitly).
+  private toAdminSummary(u: User) {
+    return {
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      fullName: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
+      phone: u.phone ?? null,
+      status: u.status,
+      lastLoginAt: u.lastLoginAt ?? null,
+    };
+  }
+
+  // Resolve the Tenant Admin user(s) for each tenant by joining role assignments
+  // to the "Tenant Admin" system role. Returns a map tenantId -> admin summaries.
+  private async resolveTenantAdmins(tenantIds: string[]): Promise<Map<string, any[]>> {
+    const byTenant = new Map<string, any[]>();
+    if (tenantIds.length === 0) return byTenant;
+    const rows = await this.userRoleRepo
+      .createQueryBuilder('ur')
+      .innerJoinAndSelect('ur.role', 'role')
+      .innerJoinAndSelect('ur.user', 'user')
+      .where('ur.tenantId IN (:...ids)', { ids: tenantIds })
+      .andWhere('role.name = :name', { name: 'Tenant Admin' })
+      .getMany();
+    const seen = new Set<string>();
+    for (const r of rows) {
+      if (!r.user) continue;
+      const key = `${r.tenantId}:${r.userId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const list = byTenant.get(r.tenantId) ?? [];
+      list.push(this.toAdminSummary(r.user));
+      byTenant.set(r.tenantId, list);
+    }
+    return byTenant;
+  }
 
   // ---- Tenants (cross-tenant; super admin only) ----
   async listTenants(): Promise<any[]> {
     const tenants = await this.tenantRepo.find({ order: { createdAt: 'DESC' } });
     if (tenants.length === 0) return [];
     const ids = tenants.map(t => t.id);
-    const [licenses, users] = await Promise.all([
+    const [licenses, users, adminsByTenant] = await Promise.all([
       this.licenseRepo.find({ where: { tenantId: In(ids) } }),
       this.userRepo.find({ where: { tenantId: In(ids) } }),
+      this.resolveTenantAdmins(ids),
     ]);
     const licByTenant = new Map(licenses.map(l => [l.tenantId, l]));
     const userCount = new Map<string, number>();
     users.forEach(u => userCount.set(u.tenantId, (userCount.get(u.tenantId) ?? 0) + 1));
-    return tenants.map(t => ({
-      ...t,
-      license: licByTenant.get(t.id) ?? null,
-      userCount: userCount.get(t.id) ?? 0,
-    }));
+    return tenants.map(t => {
+      const admins = adminsByTenant.get(t.id) ?? [];
+      return {
+        ...t,
+        license: licByTenant.get(t.id) ?? null,
+        userCount: userCount.get(t.id) ?? 0,
+        admins,
+        primaryAdmin: admins[0] ?? null,
+      };
+    });
   }
 
   async getTenant(id: string): Promise<any> {
@@ -47,7 +96,8 @@ export class AdminService {
     if (!tenant) throw new NotFoundException(`Tenant ${id} not found`);
     const license = await this.licenseRepo.findOne({ where: { tenantId: id } });
     const userCount = await this.userRepo.count({ where: { tenantId: id } });
-    return { ...tenant, license: license ?? null, userCount };
+    const admins = (await this.resolveTenantAdmins([id])).get(id) ?? [];
+    return { ...tenant, license: license ?? null, userCount, admins, primaryAdmin: admins[0] ?? null };
   }
 
   async createTenant(dto: CreateTenantDto): Promise<any> {
