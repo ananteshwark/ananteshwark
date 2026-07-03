@@ -87,7 +87,10 @@ describe('SecurityService — Phase 273-276', () => {
 
   it('encryptField/decryptField — round-trips per tenant key', () => {
     const token = service.encryptField('t1', '4111-1111-1111-1234');
-    expect(token).not.toContain('4111');
+    // Random ciphertext can contain any short substring, so assert the full
+    // plaintext is absent rather than a 4-char fragment (was flaky).
+    expect(token).not.toContain('4111-1111-1111-1234');
+    expect(token).not.toBe('4111-1111-1111-1234');
     expect(service.decryptField('t1', token)).toBe('4111-1111-1111-1234');
   });
 
