@@ -82,7 +82,7 @@ export default function ModulesSettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <PageHeader
         title="Modules"
         description="Turn the modules provisioned for your organization on or off"

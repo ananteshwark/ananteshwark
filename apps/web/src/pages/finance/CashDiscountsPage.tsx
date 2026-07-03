@@ -303,7 +303,7 @@ function CalculatorTab() {
   };
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-5 max-w-4xl">
       <form onSubmit={handleCompute} className="grid grid-cols-2 gap-3 text-sm">
         <label className="space-y-1">
           <span className="text-gray-600">Payment Term</span>

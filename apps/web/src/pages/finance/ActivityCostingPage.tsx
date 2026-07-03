@@ -492,7 +492,7 @@ export default function ActivityCostingPage() {
   const [tab, setTab] = useState<Tab>('activityTypes');
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       <div className="mb-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
           <Layers className="w-5 h-5 text-purple-600" />

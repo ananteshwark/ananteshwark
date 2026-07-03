@@ -389,7 +389,7 @@ export default function InternalOrdersPage() {
   const [tab, setTab] = useState<Tab>('orders');
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">CO Controlling</h1>
         <p className="text-gray-500 mt-1">Internal Orders and CO-PA Profitability Analysis</p>

@@ -36,7 +36,7 @@ export default function GeneralSettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <PageHeader
         title="General Settings"
         description="Manage your organization's branding and preferences"

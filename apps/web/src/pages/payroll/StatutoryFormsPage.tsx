@@ -35,7 +35,7 @@ const unwrap = (res: any) => res.data?.data ?? res.data ?? [];
 export default function StatutoryFormsPage() {
   const [tab, setTab] = useState<Tab>('us');
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <h1 className="text-2xl font-semibold text-gray-900 mb-1">Statutory Forms</h1>
       <p className="text-sm text-gray-500 mb-6">
         Year-end and settlement forms — US (W-2 / 1099-NEC / W-3 / SSA), UAE (EOSB &amp; WPS).

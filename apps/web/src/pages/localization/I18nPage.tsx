@@ -42,7 +42,7 @@ function TranslateTab() {
     try { const r = await i18nApi.translate({ ...form, vars }); setResult(r.data?.data ?? r.data); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div className="space-y-3 max-w-4xl">
       <div className="grid grid-cols-3 gap-2">
         <input placeholder="Locale" value={form.locale} onChange={(e) => setForm({ ...form, locale: e.target.value })} className="border rounded px-2 py-1 text-sm" />
         <input placeholder="Namespace" value={form.namespace} onChange={(e) => setForm({ ...form, namespace: e.target.value })} className="border rounded px-2 py-1 text-sm" />
@@ -67,7 +67,7 @@ function FormatTab() {
     try { const r = await i18nApi.format(form); setResult(r.data?.data ?? r.data); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); }
   }
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div className="space-y-3 max-w-4xl">
       <div className="grid grid-cols-4 gap-2 items-end">
         <div><label className="text-xs text-gray-500">Locale</label><input value={form.locale} onChange={(e) => setForm({ ...form, locale: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></div>
         <div><label className="text-xs text-gray-500">Kind</label><select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className="w-full border rounded px-2 py-1 text-sm">{['number', 'currency', 'date'].map((k) => <option key={k}>{k}</option>)}</select></div>

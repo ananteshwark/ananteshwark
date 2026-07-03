@@ -117,7 +117,7 @@ export default function BankFilesPage() {
   const supersededFiles = files.filter((f) => f.status === 'SUPERSEDED');
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <button
         onClick={() => navigate(`/payroll/runs/${id}`)}
         className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"

@@ -14,7 +14,7 @@ const unwrap = (res: any) => res.data?.data ?? res.data ?? [];
 export default function ParallelLedgersPage() {
   const [tab, setTab] = useState<Tab>('ledgers');
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center gap-2 mb-1">
         <Layers className="w-6 h-6 text-indigo-600" />
         <h1 className="text-2xl font-semibold text-gray-900">Parallel Ledgers</h1>

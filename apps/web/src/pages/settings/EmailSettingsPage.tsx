@@ -47,7 +47,7 @@ export default function EmailSettingsPage() {
   const [tab, setTab] = useState<Tab>('smtp');
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900 mb-6">
         <Mail className="w-6 h-6" /> Email Settings
       </h1>

@@ -40,7 +40,7 @@ export default function AssistantPage() {
   }
 
   return (
-    <div className="p-6 space-y-4 max-w-3xl">
+    <div className="p-6 space-y-4 max-w-5xl">
       <div>
         <h1 className="text-2xl font-bold">Digital Assistant</h1>
         <p className="text-gray-500 text-sm mt-1">

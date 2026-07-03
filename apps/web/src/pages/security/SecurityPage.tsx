@@ -93,7 +93,7 @@ function EncryptTab() {
   async function enc() { try { const r = await securityApi.encrypt(value); setToken((r.data?.data ?? r.data).token); setDecrypted(''); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); } }
   async function dec() { try { const r = await securityApi.decrypt(token); setDecrypted((r.data?.data ?? r.data).value); } catch (err: any) { alert(err.response?.data?.message ?? 'Failed'); } }
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div className="space-y-3 max-w-4xl">
       <div className="flex gap-2 items-end">
         <input value={value} onChange={(e) => setValue(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm" />
         <button onClick={enc} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Encrypt</button>

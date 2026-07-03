@@ -75,7 +75,7 @@ function ScanTab() {
     <label className="text-xs text-gray-500">{label}<input value={obj[k]} onChange={(e) => set({ ...obj, [k]: k === 'qty' ? Number(e.target.value) : e.target.value })} className="w-full border rounded px-2 py-1 text-sm" /></label>
   );
   return (
-    <div className="grid grid-cols-2 gap-6 max-w-2xl">
+    <div className="grid grid-cols-2 gap-6 max-w-4xl">
       <div className="border rounded-lg p-3 space-y-2"><p className="text-sm font-semibold">Expected (pick line)</p>{field(expected, setExpected, 'bin', 'Bin')}{field(expected, setExpected, 'item', 'Item')}{field(expected, setExpected, 'qty', 'Qty')}</div>
       <div className="border rounded-lg p-3 space-y-2"><p className="text-sm font-semibold">Scanned</p>{field(scanned, setScanned, 'bin', 'Bin')}{field(scanned, setScanned, 'item', 'Item')}{field(scanned, setScanned, 'qty', 'Qty')}</div>
       <div className="col-span-2"><button onClick={confirm} className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Confirm Scan</button></div>

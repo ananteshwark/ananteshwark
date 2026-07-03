@@ -47,7 +47,7 @@ export default function ToleranceSettingsPage() {
   const LABEL = 'block text-sm font-medium text-gray-700 mb-1';
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-6 max-w-4xl">
       <div className="flex items-center gap-2 mb-1">
         <SlidersHorizontal className="h-5 w-5 text-blue-600" />
         <h1 className="text-2xl font-bold text-gray-900">Invoice Tolerance Settings</h1>
