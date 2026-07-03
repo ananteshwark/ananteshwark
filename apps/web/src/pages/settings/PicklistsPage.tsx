@@ -1,11 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { picklistsApi, Picklist, PicklistOption } from '../../api/picklists';
+import { useAuthStore } from '../../store/authStore';
 
 function unwrap<T>(res: any): T {
   return (res.data?.data ?? res.data) as T;
 }
 
+// Cross-cutting picklist buckets that aren't tied to a licensed business module
+// and must stay visible for every tenant.
+const CROSS_CUTTING_MODULES = new Set(['general', 'common', 'system', 'core', 'platform']);
+
 export default function PicklistsPage() {
+  const { tenant, user } = useAuthStore();
+  // Modules assigned to this tenant (active set, already bounded by the license).
+  const licensedModules = tenant?.licensedModules;
+  const activeModules = tenant?.settings?.enabledModules ?? licensedModules ?? [];
+  const isModuleVisible = (m: string) =>
+    !!user?.isSuperAdmin || CROSS_CUTTING_MODULES.has((m ?? '').toLowerCase()) || activeModules.includes(m);
+
   const [picklists, setPicklists] = useState<Picklist[]>([]);
   const [moduleFilter, setModuleFilter] = useState<string>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -32,12 +44,18 @@ export default function PicklistsPage() {
   }
   useEffect(() => { load(); }, []);
 
-  const modules = useMemo(() => Array.from(new Set(picklists.map((p) => p.module))).sort(), [picklists]);
-  const visible = useMemo(
-    () => picklists.filter((p) => moduleFilter === 'all' || p.module === moduleFilter),
-    [picklists, moduleFilter],
+  // Only picklists belonging to modules assigned to this tenant are shown.
+  const assignedPicklists = useMemo(
+    () => picklists.filter((p) => isModuleVisible(p.module)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [picklists, activeModules, user?.isSuperAdmin],
   );
-  const selected = picklists.find((p) => p.id === selectedId) ?? null;
+  const modules = useMemo(() => Array.from(new Set(assignedPicklists.map((p) => p.module))).sort(), [assignedPicklists]);
+  const visible = useMemo(
+    () => assignedPicklists.filter((p) => moduleFilter === 'all' || p.module === moduleFilter),
+    [assignedPicklists, moduleFilter],
+  );
+  const selected = assignedPicklists.find((p) => p.id === selectedId) ?? null;
 
   async function refreshOne() {
     const all = unwrap<Picklist[]>(await picklistsApi.list());
@@ -114,7 +132,7 @@ export default function PicklistsPage() {
       <div className="flex items-center gap-3">
         <label className="text-sm text-gray-600">Module</label>
         <select value={moduleFilter} onChange={(e) => setModuleFilter(e.target.value)} className="border rounded px-2 py-1 text-sm">
-          <option value="all">All modules ({picklists.length})</option>
+          <option value="all">All modules ({assignedPicklists.length})</option>
           {modules.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
         <button onClick={() => setShowNew((s) => !s)} className="ml-auto bg-blue-600 text-white px-3 py-1.5 rounded text-sm">
