@@ -338,6 +338,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Workflows', path: '/workflows', end: true },
       { label: 'BPM Engine', path: '/workflows/bpm' },
+      { label: 'Automation', path: '/workflows/automation' },
     ],
   },
   { label: 'Mobile', icon: <Smartphone className="h-4 w-4" />, path: '/mobile' },

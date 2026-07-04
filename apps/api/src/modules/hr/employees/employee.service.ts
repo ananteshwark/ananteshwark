@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Employee, EmployeeStatus } from './entities/employee.entity';
@@ -31,6 +31,7 @@ import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/paginat
 import { UsersService } from '../../users/users.service';
 import { RbacService } from '../../rbac/rbac.service';
 import { PermissionsService } from '../../rbac/permissions.service';
+import { AutomationService } from '../../automation/automation.service';
 
 @Injectable()
 export class EmployeeService {
@@ -64,6 +65,7 @@ export class EmployeeService {
     private readonly usersService: UsersService,
     private readonly rbacService: RbacService,
     private readonly permissionsService: PermissionsService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   // ---- Employees ----
@@ -98,6 +100,7 @@ export class EmployeeService {
       }
     }
 
+    await this.automation?.emit(tenantId, 'employee.created', { employeeId: saved.id, employeeCode: saved.employeeCode, email: saved.email, departmentId: saved.departmentId ?? null });
     return saved;
   }
 
@@ -144,14 +147,18 @@ export class EmployeeService {
     const employee = await this.findEmployee(tenantId, id);
     employee.status = EmployeeStatus.TERMINATED;
     employee.dateOfLeaving = dateOfLeaving;
-    return this.employeeRepo.save(employee);
+    const saved = await this.employeeRepo.save(employee);
+    await this.automation?.emit(tenantId, 'employee.terminated', { employeeId: saved.id, employeeCode: saved.employeeCode, dateOfLeaving, reason: 'TERMINATED' });
+    return saved;
   }
 
   async resignEmployee(tenantId: string, id: string, dateOfLeaving: string): Promise<Employee> {
     const employee = await this.findEmployee(tenantId, id);
     employee.status = EmployeeStatus.RESIGNED;
     employee.dateOfLeaving = dateOfLeaving;
-    return this.employeeRepo.save(employee);
+    const saved = await this.employeeRepo.save(employee);
+    await this.automation?.emit(tenantId, 'employee.terminated', { employeeId: saved.id, employeeCode: saved.employeeCode, dateOfLeaving, reason: 'RESIGNED' });
+    return saved;
   }
 
   async getReportees(tenantId: string, employeeId: string): Promise<Employee[]> {

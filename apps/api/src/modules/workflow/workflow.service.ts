@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WorkflowDefinition, WorkflowStep } from './entities/workflow-definition.entity';
 import { WorkflowInstance, WorkflowInstanceStatus } from './entities/workflow-instance.entity';
 import { Employee } from '../hr/employees/entities/employee.entity';
 import { PermissionsService } from '../rbac/permissions.service';
+import { AutomationService } from '../automation/automation.service';
 import { CreateWorkflowDefinitionDto, StartWorkflowDto, ApproveStepDto } from './dto/workflow.dto';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class WorkflowService {
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
     private readonly permissionsService: PermissionsService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   /**
@@ -130,7 +132,16 @@ export class WorkflowService {
       status: firstStep ? WorkflowInstanceStatus.IN_PROGRESS : WorkflowInstanceStatus.APPROVED,
       history: [],
     });
-    return this.instanceRepository.save(instance);
+    const saved = await this.instanceRepository.save(instance);
+    await this.automation?.emit(tenantId, 'workflow.started', {
+      instanceId: saved.id,
+      definitionId: saved.definitionId,
+      definitionName: definition.name,
+      initiatorId,
+      subjectType: saved.subjectType,
+      subjectId: saved.subjectId,
+    });
+    return saved;
   }
 
   async approveStep(
@@ -167,7 +178,18 @@ export class WorkflowService {
       instance.currentStep = null;
     }
 
-    return this.instanceRepository.save(instance);
+    const saved = await this.instanceRepository.save(instance);
+    if (saved.status === WorkflowInstanceStatus.APPROVED) {
+      await this.automation?.emit(tenantId, 'workflow.approved', {
+        instanceId: saved.id,
+        definitionId: saved.definitionId,
+        initiatorId: saved.initiatorId,
+        subjectType: saved.subjectType,
+        subjectId: saved.subjectId,
+        approvedBy: userId,
+      });
+    }
+    return saved;
   }
 
   async rejectStep(
@@ -192,7 +214,17 @@ export class WorkflowService {
     instance.status = WorkflowInstanceStatus.REJECTED;
     instance.currentStep = null;
 
-    return this.instanceRepository.save(instance);
+    const saved = await this.instanceRepository.save(instance);
+    await this.automation?.emit(tenantId, 'workflow.rejected', {
+      instanceId: saved.id,
+      definitionId: saved.definitionId,
+      initiatorId: saved.initiatorId,
+      subjectType: saved.subjectType,
+      subjectId: saved.subjectId,
+      rejectedBy: userId,
+      comment: dto.comment ?? null,
+    });
+    return saved;
   }
 
   async getMyPendingApprovals(userId: string, tenantId: string): Promise<WorkflowInstance[]> {

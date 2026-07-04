@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -31,6 +32,7 @@ import { Account } from '../../finance/gl/entities/account.entity';
 import { JournalSource } from '../../finance/gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../../finance/finance.constants';
 import { CreatePayrollRunDto } from './dto/run.dto';
+import { AutomationService } from '../../automation/automation.service';
 import {
   PaginationDto,
   PaginatedResponseDto,
@@ -59,6 +61,7 @@ export class RunService {
     private readonly glService: GlService,
     private readonly payrollGlService: PayrollGlService,
     private readonly dataSource: DataSource,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -261,6 +264,8 @@ export class RunService {
       run.processedAt = new Date();
       return manager.save(run);
     });
+
+    await this.automation?.emit(tenantId, 'payroll.run.completed', { runId: processed.id, payPeriodYear: processed.payPeriodYear, payPeriodMonth: processed.payPeriodMonth, employeeCount: processed.employeeCount, totalNet: Number(processed.totalNet) });
 
     // Additively detect & attach retro-payroll arrears as ARREARS earning lines.
     // Best-effort: guarded so an arrears failure never breaks an existing run.

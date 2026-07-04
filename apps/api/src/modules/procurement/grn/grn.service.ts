@@ -20,6 +20,8 @@ import { JournalSource } from '../../finance/gl/entities/journal-entry.entity';
 import { DEFAULT_ACCOUNT_CODES } from '../../finance/finance.constants';
 import { GrirService } from '../../finance/grir/grir.service';
 import { InventoryService } from '../../inventory/inventory.service';
+import { Optional } from '@nestjs/common';
+import { AutomationService } from '../../automation/automation.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -37,6 +39,7 @@ export class GrnService {
     private readonly dataSource: DataSource,
     private readonly grirService: GrirService,
     private readonly inventoryService: InventoryService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -198,7 +201,9 @@ export class GrnService {
       console.warn('Post-confirm inventory/GR-IR processing failed:', e.message);
     }
 
-    return this.findOne(tenantId, id);
+    const confirmed = await this.findOne(tenantId, id);
+    await this.automation?.emit(tenantId, 'grn.confirmed', { grnId: confirmed.id, grnNumber: confirmed.grnNumber, poId: confirmed.poId, vendorId: confirmed.vendorId });
+    return confirmed;
   }
 
   private async threeWayMatchInternal(

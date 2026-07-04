@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -8,6 +8,7 @@ import {
 } from './entities/service-ticket.entity';
 import { SlaPolicy } from './entities/sla-policy.entity';
 import { TicketComment } from './entities/ticket-comment.entity';
+import { AutomationService } from '../automation/automation.service';
 
 const DEFAULT_SLA: Record<TicketPriority, { response: number; resolution: number }> = {
   [TicketPriority.LOW]: { response: 480, resolution: 2880 },
@@ -25,6 +26,7 @@ export class ServiceTicketService {
     private readonly slaRepo: Repository<SlaPolicy>,
     @InjectRepository(TicketComment)
     private readonly commentRepo: Repository<TicketComment>,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   // ─── Ticket numbering ─────────────────────────────────────────
@@ -71,7 +73,9 @@ export class ServiceTicketService {
       slaResponseDueAt: new Date(now + response * 60_000),
       slaResolutionDueAt: new Date(now + resolution * 60_000),
     });
-    return this.ticketRepo.save(entity);
+    const saved = await this.ticketRepo.save(entity);
+    await this.automation?.emit(tenantId, 'ticket.created', { ticketId: saved.id, ticketNumber: saved.ticketNumber, priority: saved.priority, customerId: saved.customerId ?? null, subject: saved.subject });
+    return saved;
   }
 
   async listTickets(
@@ -141,7 +145,11 @@ export class ServiceTicketService {
     }
     ticket.status = status;
     this.recomputeBreach(ticket);
-    return this.ticketRepo.save(ticket);
+    const saved = await this.ticketRepo.save(ticket);
+    if (status === TicketStatus.RESOLVED) {
+      await this.automation?.emit(tenantId, 'ticket.resolved', { ticketId: saved.id, ticketNumber: saved.ticketNumber, slaBreached: saved.slaBreached });
+    }
+    return saved;
   }
 
   async addComment(

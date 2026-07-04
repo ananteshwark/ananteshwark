@@ -1,5 +1,5 @@
 import {
-  Injectable, NotFoundException, ConflictException, BadRequestException,
+  Injectable, NotFoundException, ConflictException, BadRequestException, Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,6 +16,7 @@ import { GlService } from '../finance/gl/gl.service';
 import { IcBillingService } from '../finance/intercompany/ic-billing.service';
 import { CreditService } from './credit.service';
 import { AtpService } from './atp.service';
+import { AutomationService } from '../automation/automation.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -35,6 +36,7 @@ export class SalesService {
     private readonly icBillingService: IcBillingService,
     private readonly creditService: CreditService,
     private readonly atpService: AtpService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   // ---- Order number sequence ----
@@ -183,6 +185,7 @@ export class SalesService {
     order.status = SalesOrderStatus.CONFIRMED;
     const saved = await this.orderRepo.save(order);
     if (atpWarnings.length) (saved as any).atpWarnings = atpWarnings;
+    await this.automation?.emit(tenantId, 'sales_order.confirmed', { orderId: saved.id, orderNumber: saved.orderNumber, customerId: saved.customerId, total: Number(saved.total) });
     return saved;
   }
 
@@ -221,7 +224,9 @@ export class SalesService {
       ? FulfilmentStatus.PARTIAL
       : FulfilmentStatus.PENDING;
 
-    return this.orderRepo.save(order);
+    const shipped = await this.orderRepo.save(order);
+    await this.automation?.emit(tenantId, 'sales_order.shipped', { orderId: shipped.id, orderNumber: shipped.orderNumber, customerId: shipped.customerId, fulfilmentStatus: shipped.fulfilmentStatus });
+    return shipped;
   }
 
   async completeOrder(tenantId: string, id: string, userId: string): Promise<SalesOrder> {
@@ -279,7 +284,9 @@ export class SalesService {
 
     order.status = SalesOrderStatus.COMPLETED;
     order.fulfilmentStatus = FulfilmentStatus.FULFILLED;
-    return this.orderRepo.save(order);
+    const completed = await this.orderRepo.save(order);
+    await this.automation?.emit(tenantId, 'sales_order.completed', { orderId: completed.id, orderNumber: completed.orderNumber, customerId: completed.customerId, total: Number(completed.total), arInvoiceId: completed.arInvoiceId ?? null });
+    return completed;
   }
 
   async cancelOrder(tenantId: string, id: string): Promise<SalesOrder> {

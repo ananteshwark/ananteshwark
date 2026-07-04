@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +12,7 @@ import { ExpenseLine } from './entities/expense-line.entity';
 import { ExpensePolicy } from './entities/expense-policy.entity';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { GlService } from '../finance/gl/gl.service';
+import { AutomationService } from '../automation/automation.service';
 import { JournalSource } from '../finance/gl/entities/journal-entry.entity';
 
 @Injectable()
@@ -25,6 +27,7 @@ export class ExpensesService {
     @InjectRepository(ExpensePolicy)
     private readonly policyRepo: Repository<ExpensePolicy>,
     private readonly glService: GlService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   // ─── Categories ───────────────────────────────────────────────
@@ -171,14 +174,18 @@ export class ExpensesService {
   }
 
   async submitClaim(tenantId: string, id: string): Promise<ExpenseClaim> {
-    return this.transitionClaim(tenantId, id, ExpenseClaimStatus.DRAFT, ExpenseClaimStatus.SUBMITTED);
+    const claim = await this.transitionClaim(tenantId, id, ExpenseClaimStatus.DRAFT, ExpenseClaimStatus.SUBMITTED);
+    await this.automation?.emit(tenantId, 'expense.submitted', { claimId: claim.id, claimNumber: claim.claimNumber, employeeId: claim.employeeId, totalAmount: Number(claim.totalAmount) });
+    return claim;
   }
 
   async approveClaim(tenantId: string, id: string, approvedById: string): Promise<ExpenseClaim> {
-    return this.transitionClaim(tenantId, id, ExpenseClaimStatus.SUBMITTED, ExpenseClaimStatus.APPROVED, {
+    const claim = await this.transitionClaim(tenantId, id, ExpenseClaimStatus.SUBMITTED, ExpenseClaimStatus.APPROVED, {
       approvedById,
       approvedAt: new Date(),
     });
+    await this.automation?.emit(tenantId, 'expense.approved', { claimId: claim.id, claimNumber: claim.claimNumber, employeeId: claim.employeeId, totalAmount: Number(claim.totalAmount), approvedById });
+    return claim;
   }
 
   async rejectClaim(
@@ -187,11 +194,13 @@ export class ExpensesService {
     approvedById: string,
     reason: string,
   ): Promise<ExpenseClaim> {
-    return this.transitionClaim(tenantId, id, ExpenseClaimStatus.SUBMITTED, ExpenseClaimStatus.REJECTED, {
+    const claim = await this.transitionClaim(tenantId, id, ExpenseClaimStatus.SUBMITTED, ExpenseClaimStatus.REJECTED, {
       approvedById,
       approvedAt: new Date(),
       rejectionReason: reason,
     });
+    await this.automation?.emit(tenantId, 'expense.rejected', { claimId: claim.id, claimNumber: claim.claimNumber, employeeId: claim.employeeId, reason });
+    return claim;
   }
 
   async markPaid(tenantId: string, id: string, userId: string): Promise<ExpenseClaim> {
@@ -225,7 +234,9 @@ export class ExpensesService {
 
     claim.status = ExpenseClaimStatus.PAID;
     claim.paidAt = new Date();
-    return this.claimRepo.save(claim);
+    const paid = await this.claimRepo.save(claim);
+    await this.automation?.emit(tenantId, 'expense.paid', { claimId: paid.id, claimNumber: paid.claimNumber, employeeId: paid.employeeId, totalAmount: Number(paid.totalAmount) });
+    return paid;
   }
 
   // ─── Policies ─────────────────────────────────────────────────

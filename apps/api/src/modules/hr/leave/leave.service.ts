@@ -7,6 +7,7 @@ import { LeaveApplication, LeaveApplicationStatus } from './entities/leave-appli
 import { LeaveAccrualLog, AccrualSource } from './entities/leave-accrual-log.entity';
 import { Employee } from '../employees/entities/employee.entity';
 import { EmailService } from '../../email/email.service';
+import { AutomationService } from '../../automation/automation.service';
 import { CreateLeaveTypeDto, UpdateLeaveTypeDto, ApplyLeaveDto } from './dto/leave.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 
@@ -26,6 +27,8 @@ export class LeaveService {
     private readonly employeeRepo?: Repository<Employee>,
     @Optional()
     private readonly emailService?: EmailService,
+    @Optional()
+    private readonly automation?: AutomationService,
   ) {}
 
   /** Fire-and-forget leave notification email; never throws. */
@@ -142,7 +145,9 @@ export class LeaveService {
     }
 
     const application = this.applicationRepo.create({ ...dto, tenantId, status: LeaveApplicationStatus.SUBMITTED, appliedAt: new Date() });
-    return this.applicationRepo.save(application);
+    const saved = await this.applicationRepo.save(application);
+    await this.automation?.emit(tenantId, 'leave.submitted', { applicationId: saved.id, employeeId: saved.employeeId, leaveTypeId: saved.leaveTypeId, fromDate: saved.fromDate, toDate: saved.toDate, days: saved.days });
+    return saved;
   }
 
   async approveLeave(tenantId: string, id: string, reviewerId: string, remarks?: string): Promise<LeaveApplication> {
@@ -176,6 +181,7 @@ export class LeaveService {
     application.reviewRemarks = remarks ?? null;
     const saved = await this.applicationRepo.save(application);
     await this.notifyLeave(tenantId, saved, 'LEAVE_APPROVED', remarks);
+    await this.automation?.emit(tenantId, 'leave.approved', { applicationId: saved.id, employeeId: saved.employeeId, days: saved.days, reviewedById: reviewerId });
     return saved;
   }
 
@@ -188,6 +194,7 @@ export class LeaveService {
     application.reviewRemarks = remarks ?? null;
     const saved = await this.applicationRepo.save(application);
     await this.notifyLeave(tenantId, saved, 'LEAVE_REJECTED', remarks);
+    await this.automation?.emit(tenantId, 'leave.rejected', { applicationId: saved.id, employeeId: saved.employeeId, days: saved.days, reviewedById: reviewerId, remarks: remarks ?? null });
     return saved;
   }
 

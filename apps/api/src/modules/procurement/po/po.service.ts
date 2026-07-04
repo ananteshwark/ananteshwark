@@ -15,6 +15,8 @@ import { InfoRecordService } from '../info-record/info-record.service';
 import { BudgetService } from '../../finance/budget/budget.service';
 import { OutlineAgreementService } from '../outline-agreement/outline-agreement.service';
 import { OutlineAgreementType } from '../outline-agreement/entities/outline-agreement.entity';
+import { Optional } from '@nestjs/common';
+import { AutomationService } from '../../automation/automation.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -28,6 +30,7 @@ export class PoService {
     private readonly infoRecordService: InfoRecordService,
     private readonly budgetService: BudgetService,
     private readonly outlineAgreementService: OutlineAgreementService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   /**
@@ -236,6 +239,7 @@ export class PoService {
     po.approvedById = approverId;
     po.approvedAt = new Date();
     await this.poRepo.save(po);
+    await this.automation?.emit(tenantId, 'po.approved', { poId: po.id, poNumber: po.poNumber, vendorId: po.vendorId, total: Number(po.total), approvedById: approverId });
     return this.findOne(tenantId, id);
   }
 

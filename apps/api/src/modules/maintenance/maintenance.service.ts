@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { Equipment } from './entities/equipment.entity';
@@ -10,6 +10,7 @@ import {
   CreateMaintenanceOrderDto, CompleteMaintenanceOrderDto, CreateBreakdownNotificationDto,
 } from './dto/maintenance.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { AutomationService } from '../automation/automation.service';
 
 @Injectable()
 export class MaintenanceService {
@@ -18,6 +19,7 @@ export class MaintenanceService {
     @InjectRepository(MaintenancePlan) private readonly planRepo: Repository<MaintenancePlan>,
     @InjectRepository(MaintenanceOrder) private readonly orderRepo: Repository<MaintenanceOrder>,
     @InjectRepository(BreakdownNotification) private readonly breakdownRepo: Repository<BreakdownNotification>,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   // ---- Equipment ----
@@ -118,7 +120,9 @@ export class MaintenanceService {
 
   // ---- Breakdown Notifications ----
   async createBreakdownNotification(tenantId: string, dto: CreateBreakdownNotificationDto, reportedById: string): Promise<BreakdownNotification> {
-    return this.breakdownRepo.save(this.breakdownRepo.create({ ...dto, tenantId, reportedById }));
+    const saved = await this.breakdownRepo.save(this.breakdownRepo.create({ ...dto, tenantId, reportedById }));
+    await this.automation?.emit(tenantId, 'maintenance.breakdown_reported', { notificationId: saved.id, equipmentId: saved.equipmentId, description: saved.description, reportedById });
+    return saved;
   }
 
   async listBreakdownNotifications(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<BreakdownNotification>> {

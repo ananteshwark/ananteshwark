@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { DunningLevel } from './entities/dunning-level.entity';
@@ -9,6 +9,7 @@ import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/paginat
 import { Invoice, InvoiceStatus } from '../ar/entities/invoice.entity';
 import { Customer } from '../ar/entities/customer.entity';
 import { CollectionsService } from '../collections/collections.service';
+import { AutomationService } from '../../automation/automation.service';
 
 @Injectable()
 export class DunningService {
@@ -20,6 +21,7 @@ export class DunningService {
     @InjectRepository(Invoice) private readonly invoiceRepo: Repository<Invoice>,
     @InjectRepository(Customer) private readonly customerRepo: Repository<Customer>,
     private readonly collectionsService: CollectionsService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   // ---- Dunning Levels ----
@@ -121,7 +123,9 @@ export class DunningService {
     }
     await this.letterRepo.save(letters);
     run.status = DunningRunStatus.SENT;
-    return this.runRepo.save(run);
+    const sent = await this.runRepo.save(run);
+    await this.automation?.emit(tenantId, 'dunning.sent', { runId: sent.id, customerCount: sent.customerCount, totalOverdue: Number(sent.totalOverdue) });
+    return sent;
   }
 
   async listRuns(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<DunningRun>> {

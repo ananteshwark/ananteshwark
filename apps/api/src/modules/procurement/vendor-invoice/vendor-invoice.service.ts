@@ -24,6 +24,7 @@ import { PoLine } from '../po/entities/po-line.entity';
 import { Grn } from '../grn/entities/grn.entity';
 import { GrnLine } from '../grn/entities/grn-line.entity';
 import { GrirService } from '../../finance/grir/grir.service';
+import { AutomationService } from '../../automation/automation.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -45,6 +46,7 @@ export class VendorInvoiceService {
     @InjectRepository(GrnLine)
     private readonly grnLineRepo: Repository<GrnLine>,
     @Optional() private readonly grirService?: GrirService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -298,6 +300,7 @@ export class VendorInvoiceService {
       invoice.blockReason = `Variance exceeds tolerance: price ${priceVariance}% (max ${Number(
         policy.pricePercentTolerance,
       )}%), qty ${qtyVariance}% (max ${Number(policy.qtyPercentTolerance)}%)`;
+      await this.automation?.emit(tenantId, 'vendor_invoice.blocked', { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, vendorId: invoice.vendorId, total: Number(invoice.total), blockReason: invoice.blockReason });
     } else {
       // No PO to match against
       invoice.matchStatus = MatchStatus.DISCREPANCY;
@@ -371,6 +374,7 @@ export class VendorInvoiceService {
     }
     invoice.status = VendorInvoiceStatus.APPROVED;
     await this.invoiceRepo.save(invoice);
+    await this.automation?.emit(tenantId, 'vendor_invoice.approved', { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, vendorId: invoice.vendorId, total: Number(invoice.total) });
 
     // Create IV entry in GR/IR clearing and attempt auto-match
     if (this.grirService) {
@@ -409,6 +413,7 @@ export class VendorInvoiceService {
     invoice.paidAmount = round2(invoice.paidAmount + amount);
     if (invoice.paidAmount >= invoice.total) {
       invoice.status = VendorInvoiceStatus.PAID;
+      await this.automation?.emit(tenantId, 'vendor_invoice.paid', { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, vendorId: invoice.vendorId, total: Number(invoice.total) });
     } else {
       invoice.status = VendorInvoiceStatus.PARTIALLY_PAID;
     }

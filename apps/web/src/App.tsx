@@ -14,6 +14,7 @@ import InviteUserPage from './pages/users/InviteUserPage';
 import RolesPage from './pages/roles/RolesPage';
 import WorkflowPage from './pages/workflow/WorkflowPage';
 import BpmPage from './pages/workflow/BpmPage';
+import AutomationPage from './pages/workflows/AutomationPage';
 import MobilePage from './pages/mobile/MobilePage';
 import AssistantPage from './pages/assistant/AssistantPage';
 import PrivacyPage from './pages/privacy/PrivacyPage';
@@ -209,6 +210,7 @@ export default function App() {
         <Route path="roles" element={<RolesPage />} />
         <Route path="workflows" element={<WorkflowPage />} />
         <Route path="workflows/bpm" element={<BpmPage />} />
+        <Route path="workflows/automation" element={<AutomationPage />} />
         <Route path="mobile" element={<MobilePage />} />
         <Route path="assistant" element={<AssistantPage />} />
         <Route path="delegations" element={<DelegationPage />} />

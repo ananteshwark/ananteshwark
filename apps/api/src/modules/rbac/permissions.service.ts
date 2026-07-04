@@ -53,6 +53,7 @@ export const ALL_PERMISSIONS = [
   // Settings
   'settings:general:read', 'settings:general:update',
   'settings:modules:read', 'settings:modules:update',
+  'automation:rules:read', 'automation:rules:manage',
   // Talent module
   'talent:ats:read', 'talent:ats:manage', 'talent:ats:hire',
   'talent:onboarding:read', 'talent:onboarding:manage',

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,6 +10,7 @@ import { PurchaseRequisition, RequisitionStatus } from './entities/purchase-requ
 import { RequisitionLine } from './entities/requisition-line.entity';
 import { CreateRequisitionDto, UpdateRequisitionDto } from './dto/requisition.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { AutomationService } from '../../automation/automation.service';
 
 @Injectable()
 export class RequisitionService {
@@ -17,6 +19,7 @@ export class RequisitionService {
     private readonly reqRepo: Repository<PurchaseRequisition>,
     @InjectRepository(RequisitionLine)
     private readonly lineRepo: Repository<RequisitionLine>,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
@@ -162,6 +165,7 @@ export class RequisitionService {
     req.approvedById = approverId;
     req.approvedAt = new Date();
     await this.reqRepo.save(req);
+    await this.automation?.emit(tenantId, 'requisition.approved', { requisitionId: req.id, reqNumber: req.reqNumber, totalAmount: Number(req.totalAmount), approvedById: approverId });
     return this.findOne(tenantId, id);
   }
 

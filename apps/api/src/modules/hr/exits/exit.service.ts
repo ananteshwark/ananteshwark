@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,6 +20,7 @@ import {
   Employee,
   EmployeeStatus,
 } from '../employees/entities/employee.entity';
+import { AutomationService } from '../../automation/automation.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -41,6 +43,7 @@ export class ExitService {
     private readonly fnfRepo: Repository<FnfSettlement>,
     @InjectRepository(Employee)
     private readonly employeeRepo: Repository<Employee>,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
 
   async list(tenantId: string, status?: string): Promise<any[]> {
@@ -126,6 +129,7 @@ export class ExitService {
     );
     await this.checklistRepo.save(items);
 
+    await this.automation?.emit(tenantId, 'exit.initiated', { exitRequestId: saved.id, employeeId: saved.employeeId, lastWorkingDate: saved.lastWorkingDate, reason: saved.reason });
     return this.getOne(tenantId, saved.id);
   }
 
@@ -278,6 +282,7 @@ export class ExitService {
     }
     fnf.status = FnfStatus.APPROVED;
     await this.fnfRepo.save(fnf);
+    await this.automation?.emit(tenantId, 'exit.fnf_approved', { exitRequestId, netAmount: Number(fnf.netAmount) });
 
     // Move exit to SETTLED once F&F approved.
     const exit = await this.exitRepo.findOne({
