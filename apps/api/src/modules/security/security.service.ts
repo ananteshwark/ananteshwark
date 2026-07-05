@@ -75,6 +75,14 @@ export class SecurityService {
     return { secret, otpauthUri: `otpauth://totp/ERP:${userId}?secret=${secret}&issuer=ERP` };
   }
 
+  /** The enrollment that gates login: TOTP, verified by the user, active. */
+  async getActiveTotpEnrollment(tenantId: string, userId: string): Promise<MfaEnrollment | null> {
+    const row = await this.mfaRepo.findOne({ where: { tenantId, userId } });
+    return row && row.method === MfaMethod.TOTP && row.verified && row.isActive && row.totpSecret
+      ? row
+      : null;
+  }
+
   async verifyEnrollment(tenantId: string, userId: string, code: string, timeMs: number): Promise<{ verified: boolean }> {
     const row = await this.mfaRepo.findOne({ where: { tenantId, userId } });
     if (!row?.totpSecret) throw new NotFoundException('No MFA enrollment');

@@ -8,6 +8,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ChangePasswordDto,
+  MfaVerifyDto,
 } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -24,6 +25,13 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Returns access and refresh tokens' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Public()
+  @Post('mfa/verify')
+  @ApiOperation({ summary: 'Complete an MFA login with a TOTP code' })
+  verifyMfa(@Body() dto: MfaVerifyDto) {
+    return this.authService.verifyMfa(dto.mfaToken, dto.code);
   }
 
   @Public()

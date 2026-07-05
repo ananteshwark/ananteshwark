@@ -94,6 +94,9 @@ import { QrModule } from './modules/platform/qr/qr.module';
 import { EdiModule } from './modules/platform/edi/edi.module';
 import { PlanningModule } from './modules/planning/planning.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { MetricsModule } from './common/metrics/metrics.module';
 import { getDatabaseConfig } from './config/database.config';
 
 @Module({
@@ -186,6 +189,7 @@ import { getDatabaseConfig } from './config/database.config';
     SettingsModule,
     PicklistModule,
     SequenceModule,
+    MetricsModule,
     AutomationModule,
     EngagementModule,
     HelpdeskModule,
@@ -211,6 +215,8 @@ import { getDatabaseConfig } from './config/database.config';
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
+    // Hardening + tracing run on every route, including health and auth.
+    consumer.apply(SecurityHeadersMiddleware, RequestContextMiddleware).forRoutes('*');
     consumer
       .apply(TenantMiddleware)
       .exclude(

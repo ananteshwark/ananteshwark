@@ -1,0 +1,24 @@
+import 'reflect-metadata';
+import { DataSource } from 'typeorm';
+
+/**
+ * CLI DataSource for TypeORM migrations (`npm run migration:*`).
+ *
+ * Entities are loaded by glob so the CLI sees the same schema the app
+ * registers via forFeature()/autoLoadEntities. Runtime migration execution is
+ * configured separately in src/config/database.config.ts (migrationsRun is
+ * enabled when APP_ENV=production).
+ */
+const isCompiled = __filename.endsWith('.js');
+
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  url: process.env.DATABASE_URL,
+  entities: [isCompiled ? 'dist/**/*.entity.js' : 'src/**/*.entity.ts'],
+  migrations: [isCompiled ? 'dist/database/migrations/*.js' : 'src/database/migrations/*.ts'],
+  migrationsTableName: 'typeorm_migrations',
+  synchronize: false,
+  logging: ['error', 'migration'],
+});
+
+export default AppDataSource;

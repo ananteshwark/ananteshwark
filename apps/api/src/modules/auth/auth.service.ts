@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +13,7 @@ import * as bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'crypto';
 import { User, UserStatus } from '../users/entities/user.entity';
 import { TenantsService } from '../tenants/tenants.service';
+import { SecurityService } from '../security/security.service';
 import { TenantPlan } from '../tenants/entities/tenant.entity';
 import {
   LoginDto,
@@ -30,6 +32,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly tenantsService: TenantsService,
+    @Optional() private readonly securityService?: SecurityService,
   ) {}
 
   async validateUser(email: string, password: string, tenantSlug?: string) {
@@ -75,9 +78,49 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto.email, dto.password, dto.tenantSlug);
     if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    // A verified TOTP enrollment turns the password check into step one of
+    // two: no tokens are issued until the code is verified.
+    const enrollment = await this.securityService?.getActiveTotpEnrollment(user.tenantId, user.id);
+    if (enrollment) {
+      const mfaToken = this.jwtService.sign(
+        { sub: user.id, tenantId: user.tenantId, typ: 'mfa' },
+        { expiresIn: '5m' },
+      );
+      return { mfaRequired: true, mfaToken };
+    }
+
+    return this.issueSession(user);
+  }
+
+  private async issueSession(user: User) {
     const tokens = await this.generateTokens(user);
     const tenant = await this.tenantsService.findById(user.tenantId);
     return { ...tokens, tenant: await this.withLicensedModules(tenant) };
+  }
+
+  /** Step two of an MFA login: exchange the short-lived challenge token plus
+   *  a valid TOTP code for a real session. */
+  async verifyMfa(mfaToken: string, code: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(mfaToken);
+    } catch {
+      throw new UnauthorizedException('MFA challenge expired — sign in again');
+    }
+    if (payload?.typ !== 'mfa') throw new UnauthorizedException('Invalid MFA token');
+
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub, tenantId: payload.tenantId },
+    });
+    if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException();
+
+    const enrollment = await this.securityService?.getActiveTotpEnrollment(user.tenantId, user.id);
+    if (!enrollment?.totpSecret) throw new UnauthorizedException('No MFA enrollment');
+    if (!this.securityService!.verifyTotp(enrollment.totpSecret, code, Date.now())) {
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+    return this.issueSession(user);
   }
 
   // Returns the current user + tenant, used by the client to refresh the

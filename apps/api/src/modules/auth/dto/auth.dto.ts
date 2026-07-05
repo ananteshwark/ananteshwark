@@ -77,3 +77,8 @@ export class ChangePasswordDto {
   @MinLength(8)
   newPassword: string;
 }
+
+export class MfaVerifyDto {
+  mfaToken: string;
+  code: string;
+}

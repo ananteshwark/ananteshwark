@@ -27,8 +27,12 @@ export const getDatabaseConfig = (config: ConfigService): TypeOrmModuleOptions =
   // Pull in every entity registered via TypeOrmModule.forFeature() across all
   // feature modules so synchronize can create their tables too.
   autoLoadEntities: true,
+  // Development iterates via synchronize; production evolves the schema ONLY
+  // through versioned migrations (the baseline migration adopts schemas that
+  // were previously created by synchronize).
   synchronize: config.get('APP_ENV') === 'development',
   logging: config.get('APP_ENV') === 'development',
-  migrations: ['dist/database/migrations/*.js'],
-  migrationsRun: false,
+  migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
+  migrationsTableName: 'typeorm_migrations',
+  migrationsRun: config.get('APP_ENV') === 'production',
 });
