@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { procurementApi } from '../../api/procurement';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -189,6 +190,7 @@ function NewRequisitionDialog({ onClose, onSaved, editing }: { onClose: () => vo
 }
 
 export default function RequisitionsPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
@@ -231,6 +233,31 @@ export default function RequisitionsPage() {
     try {
       const res = await procurementApi.getRequisition(id);
       setEditing(res.data?.data ?? res.data);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Failed to load requisition');
+    }
+  };
+
+  // Flow the approved PR (title + lines) into a new purchase order.
+  const createPoFromPr = async (req: any) => {
+    try {
+      const res = await procurementApi.getRequisition(req.id);
+      const full = res.data?.data ?? res.data;
+      navigate('/procurement/purchase-orders', {
+        state: {
+          prefill: {
+            source: `${full.reqNumber} — ${full.title}`,
+            notes: `Created from requisition ${full.reqNumber}`,
+            lines: (full.lines || []).map((l: any) => ({
+              description: l.description,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice ?? 0,
+              uom: l.uom || 'EA',
+              taxRate: 0,
+            })),
+          },
+        },
+      });
     } catch (e: any) {
       alert(e.response?.data?.message || 'Failed to load requisition');
     }
@@ -335,6 +362,9 @@ export default function RequisitionsPage() {
                             <button onClick={() => handleAction('approve', req.id)} className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100">Approve</button>
                             <button onClick={() => handleAction('reject', req.id)} className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100">Reject</button>
                           </>
+                        )}
+                        {req.status === 'APPROVED' && (
+                          <button onClick={() => createPoFromPr(req)} className="text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded hover:bg-purple-100">Create PO</button>
                         )}
                         {['DRAFT', 'SUBMITTED'].includes(req.status) && (
                           <button onClick={() => handleAction('cancel', req.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">Cancel</button>

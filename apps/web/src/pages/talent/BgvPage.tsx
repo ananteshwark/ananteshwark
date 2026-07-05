@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, X, ShieldCheck, Ban } from 'lucide-react';
 import { bgvApi } from '../../api/bgv';
+import { useHandoff } from '../../hooks/useHandoff';
 
 const CHECK_TYPES = ['IDENTITY', 'ADDRESS', 'EDUCATION', 'EMPLOYMENT', 'CRIMINAL', 'REFERENCE', 'CREDIT'];
 const CHECK_OUTCOMES = ['IN_PROGRESS', 'CLEAR', 'DISCREPANCY', 'FAILED'];
@@ -27,8 +28,13 @@ const CHECK_STATUS_COLORS: Record<string, string> = {
   FAILED: 'bg-red-100 text-red-700',
 };
 
-function InitiateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [form, setForm] = useState({ subjectType: 'APPLICANT', subjectId: '', subjectName: '', packageName: '' });
+function InitiateModal({ onClose, onDone, prefill }: { onClose: () => void; onDone: () => void; prefill?: any }) {
+  const [form, setForm] = useState({
+    subjectType: prefill?.subjectType || 'APPLICANT',
+    subjectId: prefill?.subjectId || '',
+    subjectName: prefill?.subjectName || '',
+    packageName: '',
+  });
   const [checks, setChecks] = useState<string[]>(['IDENTITY', 'EDUCATION', 'EMPLOYMENT']);
   const [saving, setSaving] = useState(false);
 
@@ -162,10 +168,11 @@ function CaseDrawer({ caseId, onClose, onChanged }: { caseId: string; onClose: (
 }
 
 export default function BgvPage() {
+  const handoff = useHandoff();
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
-  const [showInitiate, setShowInitiate] = useState(false);
+  const [showInitiate, setShowInitiate] = useState(!!handoff);
   const [openCase, setOpenCase] = useState<string | null>(null);
 
   const load = () => {
@@ -232,7 +239,7 @@ export default function BgvPage() {
         )}
       </div>
 
-      {showInitiate && <InitiateModal onClose={() => setShowInitiate(false)} onDone={() => { setShowInitiate(false); load(); }} />}
+      {showInitiate && <InitiateModal prefill={handoff} onClose={() => setShowInitiate(false)} onDone={() => { setShowInitiate(false); load(); }} />}
       {openCase && <CaseDrawer caseId={openCase} onClose={() => setOpenCase(null)} onChanged={load} />}
     </div>
   );

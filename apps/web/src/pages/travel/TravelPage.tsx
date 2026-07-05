@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Plane, Send, CheckCircle, XCircle, Flag, Ban } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, X, Plane, Send, CheckCircle, XCircle, Flag, Ban, Receipt } from 'lucide-react';
 import { travelApi } from '../../api/travel';
 import { hrApi } from '../../api/hr';
 
@@ -118,6 +119,7 @@ function NewTripModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
 }
 
 export default function TravelPage() {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -217,6 +219,18 @@ export default function TravelPage() {
                         <button onClick={() => act(t.id, () => travelApi.complete(t.id))} disabled={acting === t.id}
                           className="text-blue-600 hover:text-blue-800 p-1" title="Mark completed">
                           <Flag className="h-4 w-4" />
+                        </button>
+                      )}
+                      {['APPROVED', 'COMPLETED'].includes(t.status) && (
+                        <button onClick={() => navigate('/expenses', {
+                          state: { prefill: {
+                            title: `Trip ${t.tripNumber}: ${t.origin} → ${t.destination}`,
+                            travelRequestId: t.id,
+                            travelStatus: t.status,
+                            source: t.tripNumber,
+                          } },
+                        })} className="text-amber-600 hover:text-amber-800 p-1" title="File expense claim">
+                          <Receipt className="h-4 w-4" />
                         </button>
                       )}
                       {['DRAFT', 'SUBMITTED', 'APPROVED'].includes(t.status) && (

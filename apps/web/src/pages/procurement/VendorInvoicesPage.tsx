@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { procurementApi } from '../../api/procurement';
+import { useHandoff } from '../../hooks/useHandoff';
 import { financeApi } from '../../api/finance';
 import { Plus, CheckCircle2, XCircle, AlertTriangle, ScanLine, CreditCard } from 'lucide-react';
 import CurrencySelect from '../../components/ui/CurrencySelect';
@@ -21,20 +22,22 @@ const MATCH_COLORS: Record<string, string> = {
   DISCREPANCY: 'bg-red-100 text-red-700',
 };
 
-function NewInvoiceDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewInvoiceDialog({ onClose, onSaved, prefill }: { onClose: () => void; onSaved: () => void; prefill?: any }) {
   const [vendors, setVendors] = useState<any[]>([]);
   const [pos, setPos] = useState<any[]>([]);
   const [form, setForm] = useState({
-    vendorId: '',
-    vendorName: '',
+    vendorId: prefill?.vendorId || '',
+    vendorName: prefill?.vendorName || '',
     vendorInvoiceRef: '',
-    poId: '',
-    grnId: '',
+    poId: prefill?.poId || '',
+    grnId: prefill?.grnId || '',
     invoiceDate: new Date().toISOString().slice(0, 10),
     dueDate: '',
-    currency: 'INR',
-    notes: '',
-    lines: [{ description: '', itemCode: '', quantity: 1, unitPrice: 0, uom: 'EA', taxRate: 0 }],
+    currency: prefill?.currency || 'INR',
+    notes: prefill?.source ? `Created from ${prefill.source}` : '',
+    lines: (prefill?.lines?.length
+      ? prefill.lines
+      : [{ description: '', itemCode: '', quantity: 1, unitPrice: 0, uom: 'EA', taxRate: 0 }]) as any[],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -307,9 +310,10 @@ function InvoiceDetail({ invoice, onClose, onChanged }: { invoice: any; onClose:
 }
 
 export default function VendorInvoicesPage() {
+  const handoff = useHandoff();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(!!handoff);
   const [selected, setSelected] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -382,7 +386,7 @@ export default function VendorInvoicesPage() {
       )}
 
       {selected && <InvoiceDetail invoice={selected} onClose={() => setSelected(null)} onChanged={loadData} />}
-      {showNew && <NewInvoiceDialog onClose={() => setShowNew(false)} onSaved={loadData} />}
+      {showNew && <NewInvoiceDialog prefill={handoff} onClose={() => setShowNew(false)} onSaved={loadData} />}
     </div>
   );
 }

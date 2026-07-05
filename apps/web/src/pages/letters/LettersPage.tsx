@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, X, FileText, Eye, Stamp, Undo2, Wand2 } from 'lucide-react';
 import { lettersApi } from '../../api/letters';
+import { useHandoff } from '../../hooks/useHandoff';
 import { hrApi } from '../../api/hr';
 
 const LETTER_TYPES = ['OFFER', 'APPOINTMENT', 'CONFIRMATION', 'INCREMENT', 'PROMOTION', 'TRANSFER', 'RELIEVING', 'EXPERIENCE', 'ADDRESS_PROOF', 'WARNING', 'CUSTOM'];
@@ -72,10 +73,10 @@ function TemplateModal({ editing, onClose, onDone }: { editing?: any; onClose: (
   );
 }
 
-function GenerateModal({ templates, onClose, onDone }: { templates: any[]; onClose: () => void; onDone: () => void }) {
+function GenerateModal({ templates, onClose, onDone, prefill }: { templates: any[]; onClose: () => void; onDone: () => void; prefill?: any }) {
   const [employees, setEmployees] = useState<any[]>([]);
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '');
-  const [employeeId, setEmployeeId] = useState('');
+  const [employeeId, setEmployeeId] = useState(prefill?.employeeId ?? '');
   const [customJson, setCustomJson] = useState('{}');
   const [saving, setSaving] = useState(false);
 
@@ -156,13 +157,14 @@ function LetterViewer({ letter, onClose }: { letter: any; onClose: () => void })
 }
 
 export default function LettersPage() {
+  const handoff = useHandoff();
   const [tab, setTab] = useState<'issued' | 'templates'>('issued');
   const [templates, setTemplates] = useState<any[]>([]);
   const [issued, setIssued] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTemplate, setShowTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [showGenerate, setShowGenerate] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(!!handoff);
   const [viewing, setViewing] = useState<any>(null);
 
   const load = () => {
@@ -289,7 +291,7 @@ export default function LettersPage() {
           onDone={() => { setShowTemplate(false); load(); }} />
       )}
       {showGenerate && (
-        <GenerateModal templates={templates} onClose={() => setShowGenerate(false)}
+        <GenerateModal templates={templates} prefill={handoff} onClose={() => setShowGenerate(false)}
           onDone={() => { setShowGenerate(false); setTab('issued'); load(); }} />
       )}
       {viewing && <LetterViewer letter={viewing} onClose={() => setViewing(null)} />}

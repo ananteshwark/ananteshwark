@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, CheckCircle, Truck, PackageCheck, X, ArrowRight, Pencil } from 'lucide-react';
 import { salesApi } from '../../api/sales';
 
@@ -154,6 +155,7 @@ function CreateOrderModal({ editing, onClose, onCreated }: { editing?: any; onCl
 }
 
 function OrderDetailPanel({ order, onClose, onUpdated }: { order: any; onClose: () => void; onUpdated: () => void }) {
+  const navigate = useNavigate();
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -235,6 +237,16 @@ function OrderDetailPanel({ order, onClose, onUpdated }: { order: any; onClose: 
               className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg"
             >
               <Truck className="h-4 w-4" /> Mark Shipped
+            </button>
+          )}
+          {(order.status === 'CONFIRMED' || order.status === 'IN_PROGRESS') && (
+            <button
+              onClick={() => navigate('/sales/deliveries', {
+                state: { prefill: { salesOrderId: order.id, source: order.orderNumber } },
+              })}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-purple-300 text-purple-700 rounded-lg"
+            >
+              <ArrowRight className="h-4 w-4" /> Create Delivery
             </button>
           )}
           {order.status === 'SHIPPED' && (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useHandoff } from '../../hooks/useHandoff';
 import { Plus, X, Truck, PackageCheck, ClipboardCheck, Send, Ban } from 'lucide-react';
 import { deliveriesApi } from '../../api/deliveries';
 import { salesApi } from '../../api/sales';
@@ -30,9 +31,9 @@ interface LineForm {
   warehouseId: string;
 }
 
-function NewDeliveryModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewDeliveryModal({ onClose, onSaved, prefill }: { onClose: () => void; onSaved: () => void; prefill?: any }) {
   const [orders, setOrders] = useState<any[]>([]);
-  const [salesOrderId, setSalesOrderId] = useState('');
+  const [salesOrderId, setSalesOrderId] = useState(prefill?.salesOrderId || '');
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
   const [warehouseId, setWarehouseId] = useState('');
   const [lines, setLines] = useState<LineForm[]>([]);
@@ -283,9 +284,10 @@ function GoodsIssueModal({ delivery, onClose, onIssued }: { delivery: any; onClo
 }
 
 export default function DeliveriesPage() {
+  const handoff = useHandoff();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(!!handoff);
   const [issuing, setIssuing] = useState<any>(null);
   const [podFor, setPodFor] = useState<any>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -389,7 +391,7 @@ export default function DeliveriesPage() {
         )}
       </div>
 
-      {showNew && <NewDeliveryModal onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load(); }} />}
+      {showNew && <NewDeliveryModal prefill={handoff} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load(); }} />}
       {issuing && <GoodsIssueModal delivery={issuing} onClose={() => setIssuing(null)} onIssued={() => { setIssuing(null); load(); }} />}
       {podFor && <PodModal delivery={podFor} onClose={() => setPodFor(null)} onConfirmed={() => { setPodFor(null); load(); }} />}
     </div>

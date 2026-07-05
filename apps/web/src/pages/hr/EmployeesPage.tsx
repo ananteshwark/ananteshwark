@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, X, Search, Upload, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { hrApi } from '../../api/hr';
 import { settingsApi } from '../../api/settings';
@@ -90,6 +91,7 @@ function downloadTemplate(bus: any[], depts: any[], fns: any[], desigs: any[], l
 }
 
 export default function EmployeesPage() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [legalEntities, setLegalEntities] = useState<any[]>([]);
   const [businessUnits, setBusinessUnits] = useState<any[]>([]);
@@ -398,6 +400,9 @@ export default function EmployeesPage() {
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button onClick={() => startEdit(emp)} className="text-xs px-2.5 py-1 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Edit</button>
+                      <button onClick={() => navigate('/engagement/letters', {
+                        state: { prefill: { employeeId: emp.id, employeeName: `${emp.firstName} ${emp.lastName}`.trim() } },
+                      })} className="text-xs px-2.5 py-1 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium ml-1">Letter</button>
                     </td>
                   </tr>
                 ))

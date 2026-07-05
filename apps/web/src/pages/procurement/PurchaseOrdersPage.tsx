@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { procurementApi } from '../../api/procurement';
+import { useHandoff } from '../../hooks/useHandoff';
 import { financeApi } from '../../api/finance';
 import { Plus } from 'lucide-react';
 import CurrencySelect from '../../components/ui/CurrencySelect';
@@ -17,7 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-700',
 };
 
-function NewPoDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function NewPoDialog({ onClose, onSaved, prefill }: { onClose: () => void; onSaved: () => void; prefill?: any }) {
   const [vendors, setVendors] = useState<any[]>([]);
   const [form, setForm] = useState({
     vendorId: '',
@@ -25,8 +27,10 @@ function NewPoDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
     poDate: new Date().toISOString().slice(0, 10),
     deliveryDate: '',
     currency: 'INR',
-    notes: '',
-    lines: [{ description: '', quantity: 1, unitPrice: 0, uom: 'EA', taxRate: 0 }],
+    notes: prefill?.notes || '',
+    lines: (prefill?.lines?.length
+      ? prefill.lines
+      : [{ description: '', quantity: 1, unitPrice: 0, uom: 'EA', taxRate: 0 }]) as any[],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -68,6 +72,9 @@ function NewPoDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b"><h2 className="text-lg font-semibold">New Purchase Order</h2></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {prefill?.source && (
+            <div className="text-sm bg-purple-50 text-purple-700 p-3 rounded-lg">Prefilled from {prefill.source}</div>
+          )}
           {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
@@ -117,10 +124,45 @@ function NewPoDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
 }
 
 export default function PurchaseOrdersPage() {
+  const navigate = useNavigate();
+  const handoff = useHandoff();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(!!handoff);
   const [selected, setSelected] = useState<any>(null);
+
+  // Flow this PO into a goods receipt.
+  const receivePo = (po: any) =>
+    navigate('/procurement/grn', { state: { prefill: { poId: po.id, source: po.poNumber } } });
+
+  // Flow this PO (vendor + lines) into a vendor invoice.
+  const invoicePo = async (po: any) => {
+    try {
+      const res = await procurementApi.getPurchaseOrder(po.id);
+      const full = res.data?.data ?? res.data;
+      navigate('/procurement/vendor-invoices', {
+        state: {
+          prefill: {
+            source: full.poNumber,
+            poId: full.id,
+            vendorId: full.vendorId,
+            vendorName: full.vendorName,
+            currency: full.currency || 'INR',
+            lines: (full.lines || []).map((l: any) => ({
+              description: l.description,
+              itemCode: l.itemCode || '',
+              quantity: l.quantity,
+              unitPrice: l.unitPrice ?? 0,
+              uom: l.uom || 'EA',
+              taxRate: l.taxRate ?? 0,
+            })),
+          },
+        },
+      });
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Failed to load PO');
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -209,6 +251,8 @@ export default function PurchaseOrdersPage() {
                       {po.status === 'PENDING_APPROVAL' && <button onClick={() => handleAction('reject-approval', po.id)} className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100">Reject</button>}
                       {po.status === 'APPROVED' && <button onClick={() => handleAction('release', po.id)} className="text-xs px-2 py-1 bg-cyan-50 text-cyan-700 rounded hover:bg-cyan-100">Release</button>}
                       {['RELEASED', 'APPROVED'].includes(po.status) && <button onClick={() => handleAction('send', po.id)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Send</button>}
+                      {['APPROVED', 'RELEASED', 'SENT', 'PARTIALLY_RECEIVED'].includes(po.status) && <button onClick={() => receivePo(po)} className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100">Receive</button>}
+                      {['PARTIALLY_RECEIVED', 'RECEIVED'].includes(po.status) && <button onClick={() => invoicePo(po)} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100">Invoice</button>}
                       {['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'RELEASED', 'SENT'].includes(po.status) && <button onClick={() => handleAction('cancel', po.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">Cancel</button>}
                     </div>
                   </td>
@@ -256,7 +300,7 @@ export default function PurchaseOrdersPage() {
         </div>
       )}
 
-      {showNew && <NewPoDialog onClose={() => setShowNew(false)} onSaved={loadData} />}
+      {showNew && <NewPoDialog prefill={handoff} onClose={() => setShowNew(false)} onSaved={loadData} />}
     </div>
   );
 }

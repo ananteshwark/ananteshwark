@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { expensesApi } from '../../api/expenses';
+import { travelApi } from '../../api/travel';
+import { useHandoff } from '../../hooks/useHandoff';
 
 type Tab = 'my-claims' | 'approvals' | 'categories';
 
 export default function ExpensesPage() {
+  const handoff = useHandoff();
   const [activeTab, setActiveTab] = useState<Tab>('my-claims');
   const [claims, setClaims] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [form, setForm] = useState({ title: '', claimDate: new Date().toISOString().slice(0, 10), currency: 'INR' });
+  const [showNew, setShowNew] = useState(!!handoff);
+  const [form, setForm] = useState({ title: handoff?.title || '', claimDate: new Date().toISOString().slice(0, 10), currency: 'INR' });
   const [expenseLines, setExpenseLines] = useState([{ categoryId: '', description: '', amount: '', receiptUrl: '' }]);
 
   const fetchClaims = () => {
@@ -51,7 +54,12 @@ export default function ExpensesPage() {
           amount: Number(l.amount),
           receiptUrl: l.receiptUrl || undefined,
         }));
-      await expensesApi.createClaim({ ...form, lines: validLines });
+      const res = await expensesApi.createClaim({ ...form, lines: validLines });
+      // A claim filed from a travel request completes the trip and links back.
+      if (handoff?.travelRequestId && handoff?.travelStatus === 'APPROVED') {
+        const claim = res.data?.data ?? res.data;
+        try { await travelApi.complete(handoff.travelRequestId, claim?.id); } catch { /* trip already closed */ }
+      }
       setShowNew(false);
       setExpenseLines([{ categoryId: '', description: '', amount: '', receiptUrl: '' }]);
       fetchClaims();

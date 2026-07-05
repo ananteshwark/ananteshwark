@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { talentApi } from '../../api/talent';
 import { Plus, Briefcase, Users, ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -121,6 +122,7 @@ function FunnelView({ jobId }: { jobId: string }) {
 }
 
 export default function AtsPage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<'jobs' | 'applicants'>('jobs');
   const [jobs, setJobs] = useState<any[]>([]);
   const [applicants, setApplicants] = useState<any[]>([]);
@@ -260,6 +262,15 @@ export default function AtsPage() {
                       </td>
                       <td className="px-4 py-3 text-gray-500">{a.applicationDate}</td>
                       <td className="px-4 py-3">
+                        {['SHORTLISTED', 'INTERVIEW_SCHEDULED', 'OFFER_MADE', 'HIRED'].includes(a.status) && (
+                          <button onClick={() => navigate('/talent/bgv', {
+                            state: { prefill: {
+                              subjectType: 'APPLICANT',
+                              subjectId: a.id,
+                              subjectName: `${a.firstName} ${a.lastName}`.trim(),
+                            } },
+                          })} className="text-xs text-indigo-600 hover:underline mr-3">Start BGV</button>
+                        )}
                         {a.status === 'NEW' && (
                           <button onClick={async () => { await talentApi.shortlistApplicant(a.id); loadApplicants(); }} className="text-xs text-blue-600 hover:underline mr-3">Shortlist</button>
                         )}

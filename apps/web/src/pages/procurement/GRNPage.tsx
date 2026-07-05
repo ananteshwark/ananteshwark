@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { procurementApi } from '../../api/procurement';
+import { useHandoff } from '../../hooks/useHandoff';
 import { Plus } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -8,8 +10,8 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-700',
 };
 
-function NewGrnDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [poId, setPoId] = useState('');
+function NewGrnDialog({ onClose, onSaved, prefill }: { onClose: () => void; onSaved: () => void; prefill?: any }) {
+  const [poId, setPoId] = useState(prefill?.poId || '');
   const [poDetail, setPoDetail] = useState<any>(null);
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
@@ -17,10 +19,11 @@ function NewGrnDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const loadPo = async () => {
-    if (!poId) return;
+  const loadPo = async (id?: string) => {
+    const target = id ?? poId;
+    if (!target) return;
     try {
-      const res = await procurementApi.getPurchaseOrder(poId);
+      const res = await procurementApi.getPurchaseOrder(target);
       const po = res.data?.data ?? res.data;
       setPoDetail(po);
       setLines(
@@ -37,6 +40,9 @@ function NewGrnDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
       setError('PO not found');
     }
   };
+
+  // A handed-off PO loads immediately — the receipt lines flow from it.
+  useEffect(() => { if (prefill?.poId) loadPo(prefill.poId); }, []);
 
   const updateLine = (i: number, field: string, value: any) =>
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
@@ -79,7 +85,7 @@ function NewGrnDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               value={poId}
               onChange={(e) => setPoId(e.target.value)}
             />
-            <button type="button" onClick={loadPo} className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">Load PO</button>
+            <button type="button" onClick={() => loadPo()} className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">Load PO</button>
           </div>
           {poDetail && (
             <div className="text-sm bg-gray-50 p-3 rounded-lg">
@@ -140,10 +146,42 @@ function NewGrnDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 }
 
 export default function GRNPage() {
+  const navigate = useNavigate();
+  const handoff = useHandoff();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(!!handoff);
   const [matchResult, setMatchResult] = useState<any>(null);
+
+  // Flow the received goods (PO vendor + lines, this GRN) into a vendor invoice.
+  const invoiceGrn = async (grn: any) => {
+    try {
+      const res = await procurementApi.getPurchaseOrder(grn.poId);
+      const po = res.data?.data ?? res.data;
+      navigate('/procurement/vendor-invoices', {
+        state: {
+          prefill: {
+            source: `${grn.grnNumber} (${po.poNumber})`,
+            poId: po.id,
+            grnId: grn.id,
+            vendorId: po.vendorId,
+            vendorName: po.vendorName,
+            currency: po.currency || 'INR',
+            lines: (po.lines || []).map((l: any) => ({
+              description: l.description,
+              itemCode: l.itemCode || '',
+              quantity: l.quantityReceived || l.quantity,
+              unitPrice: l.unitPrice ?? 0,
+              uom: l.uom || 'EA',
+              taxRate: l.taxRate ?? 0,
+            })),
+          },
+        },
+      });
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Failed to load PO for invoicing');
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -226,6 +264,9 @@ export default function GRNPage() {
                           <button onClick={() => handleCancel(grn.id)} className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">Cancel</button>
                         </>
                       )}
+                      {grn.status === 'CONFIRMED' && (
+                        <button onClick={() => invoiceGrn(grn)} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100">Create Invoice</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -263,7 +304,7 @@ export default function GRNPage() {
         </div>
       )}
 
-      {showNew && <NewGrnDialog onClose={() => setShowNew(false)} onSaved={loadData} />}
+      {showNew && <NewGrnDialog prefill={handoff} onClose={() => setShowNew(false)} onSaved={loadData} />}
     </div>
   );
 }
