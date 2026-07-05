@@ -60,6 +60,27 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
 
   // Contracts (scheduled sweep)
   { event: 'contract.expiring', label: 'Contract expiring within 30 days (scheduled sweep)', module: 'contracts' },
+
+  // Engagement (surveys, recognition, company feed)
+  { event: 'survey.published', label: 'Survey published', module: 'hr' },
+  { event: 'survey.closed', label: 'Survey closed', module: 'hr' },
+  { event: 'recognition.given', label: 'Recognition given', module: 'hr' },
+  { event: 'feed.announcement_posted', label: 'Company announcement posted', module: 'hr' },
+
+  // HR helpdesk
+  { event: 'hr_case.created', label: 'HR helpdesk case created', module: 'hr' },
+  { event: 'hr_case.resolved', label: 'HR helpdesk case resolved', module: 'hr' },
+
+  // Travel
+  { event: 'travel.submitted', label: 'Travel request submitted', module: 'expenses' },
+  { event: 'travel.approved', label: 'Travel request approved', module: 'expenses' },
+  { event: 'travel.rejected', label: 'Travel request rejected', module: 'expenses' },
+
+  // HR letters
+  { event: 'letter.issued', label: 'HR letter issued', module: 'hr' },
+
+  // Background verification
+  { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 ];
 
 export const AUTOMATION_EVENT_KEYS = new Set(AUTOMATION_EVENTS.map((e) => e.event));

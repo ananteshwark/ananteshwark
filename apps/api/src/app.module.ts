@@ -79,6 +79,11 @@ import { SettingsModule } from './modules/settings/field-config.module';
 import { PicklistModule } from './modules/settings/picklists/picklist.module';
 import { SequenceModule } from './common/sequence/sequence.module';
 import { AutomationModule } from './modules/automation/automation.module';
+import { EngagementModule } from './modules/engagement/engagement.module';
+import { HelpdeskModule } from './modules/helpdesk/helpdesk.module';
+import { TravelModule } from './modules/travel/travel.module';
+import { LettersModule } from './modules/letters/letters.module';
+import { BgvModule } from './modules/bgv/bgv.module';
 import { DmsModule } from './modules/dms/dms.module';
 import { EmailModule } from './modules/email/email.module';
 import { SearchModule } from './modules/search/search.module';
@@ -182,6 +187,11 @@ import { getDatabaseConfig } from './config/database.config';
     PicklistModule,
     SequenceModule,
     AutomationModule,
+    EngagementModule,
+    HelpdeskModule,
+    TravelModule,
+    LettersModule,
+    BgvModule,
     DmsModule,
     EmailModule,
     SearchModule,

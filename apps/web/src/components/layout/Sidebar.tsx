@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   LayoutDashboard,
+  Sparkles,
   Users,
   Shield,
   GitBranch,
@@ -89,6 +90,18 @@ const navItems: NavItem[] = [
       { label: 'Skills & Intelligence', path: '/hr/skills' },
       { label: 'Headcount Budgeting', path: '/hr/headcount' },
       { label: 'Time & Labor', path: '/hr/time-labor' },
+    ],
+  },
+  {
+    label: 'Employee Experience',
+    icon: <Sparkles className="h-4 w-4" />,
+    module: 'hr',
+    children: [
+      { label: 'Company Feed', path: '/engagement/feed' },
+      { label: 'Recognition', path: '/engagement/recognition' },
+      { label: 'Surveys & Pulse', path: '/engagement/surveys' },
+      { label: 'HR Helpdesk', path: '/engagement/helpdesk' },
+      { label: 'HR Letters', path: '/engagement/letters' },
     ],
   },
   {
@@ -185,6 +198,7 @@ const navItems: NavItem[] = [
       { label: 'Performance', path: '/talent/performance' },
       { label: 'Appraisal', path: '/talent/appraisal' },
       { label: 'Succession', path: '/talent/succession' },
+      { label: 'Background Verification', path: '/talent/bgv' },
     ],
   },
   {
@@ -212,7 +226,13 @@ const navItems: NavItem[] = [
       { label: 'Capital & CIP', path: '/projects/capital' },
     ],
   },
-  { label: 'Expenses', icon: <Receipt className="h-4 w-4" />, path: '/expenses', module: 'expenses' },
+  {
+    label: 'Expenses', icon: <Receipt className="h-4 w-4" />, module: 'expenses',
+    children: [
+      { label: 'Expense Claims', path: '/expenses' },
+      { label: 'Travel Requests', path: '/expenses/travel' },
+    ],
+  },
   {
     label: 'CRM',
     icon: <Users2 className="h-4 w-4" />,

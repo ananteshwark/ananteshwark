@@ -15,6 +15,13 @@ import RolesPage from './pages/roles/RolesPage';
 import WorkflowPage from './pages/workflow/WorkflowPage';
 import BpmPage from './pages/workflow/BpmPage';
 import AutomationPage from './pages/workflows/AutomationPage';
+import FeedPage from './pages/engagement/FeedPage';
+import RecognitionPage from './pages/engagement/RecognitionPage';
+import SurveysPage from './pages/engagement/SurveysPage';
+import HelpdeskPage from './pages/helpdesk/HelpdeskPage';
+import TravelPage from './pages/travel/TravelPage';
+import LettersPage from './pages/letters/LettersPage';
+import BgvPage from './pages/talent/BgvPage';
 import MobilePage from './pages/mobile/MobilePage';
 import AssistantPage from './pages/assistant/AssistantPage';
 import PrivacyPage from './pages/privacy/PrivacyPage';
@@ -245,6 +252,11 @@ export default function App() {
         <Route path="hr/exits" element={<ExitManagementPage />} />
         <Route path="hr/skills" element={<SkillsPage />} />
         <Route path="hr/headcount" element={<HeadcountPage />} />
+        <Route path="engagement/feed" element={<FeedPage />} />
+        <Route path="engagement/recognition" element={<RecognitionPage />} />
+        <Route path="engagement/surveys" element={<SurveysPage />} />
+        <Route path="engagement/helpdesk" element={<HelpdeskPage />} />
+        <Route path="engagement/letters" element={<LettersPage />} />
         <Route path="hr/time-labor" element={<TimeLaborPage />} />
         <Route path="hr/dependents" element={<DependentsNomineesPage />} />
         <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
@@ -318,6 +330,7 @@ export default function App() {
         <Route path="talent/performance" element={<PerformancePage />} />
         <Route path="talent/appraisal" element={<AppraisalPage />} />
         <Route path="talent/succession" element={<SuccessionPage />} />
+        <Route path="talent/bgv" element={<BgvPage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="inventory/valuation" element={<StockValuationPage />} />
         <Route path="inventory/special-procurement" element={<SpecialProcurementPage />} />
@@ -332,6 +345,7 @@ export default function App() {
         <Route path="projects/evm" element={<EvmPage />} />
         <Route path="projects/capital" element={<CapitalPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
+        <Route path="expenses/travel" element={<TravelPage />} />
         <Route path="crm" element={<CrmPage />} />
         <Route path="crm/tickets" element={<ServiceTicketsPage />} />
         <Route path="crm/sla" element={<SlaPoliciesPage />} />

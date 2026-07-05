@@ -129,6 +129,16 @@ export const ALL_PERMISSIONS = [
   'platform.customfields.read', 'platform.customfields.write',
   'platform.sso.read', 'platform.sso.write',
   'platform.webhooks.read', 'platform.webhooks.write',
+  // Employee experience — engagement (surveys, recognition, feed), helpdesk, letters
+  'hr:surveys:read', 'hr:surveys:manage',
+  'hr:recognition:read', 'hr:recognition:manage',
+  'hr:feed:read', 'hr:feed:manage',
+  'hr:helpdesk:read', 'hr:helpdesk:manage',
+  'hr:letters:read', 'hr:letters:manage',
+  // Travel management (part of travel & expense)
+  'expenses:travel:read', 'expenses:travel:create', 'expenses:travel:approve',
+  // Background verification
+  'talent:bgv:read', 'talent:bgv:manage',
 ];
 
 export const SYSTEM_ROLES = {
@@ -148,6 +158,8 @@ export const SYSTEM_ROLES = {
       'workflow:instances:read',
       'procurement:requisitions:read',
       'procurement:requisitions:create',
+      'expenses:travel:read',
+      'expenses:travel:approve',
     ],
   },
   FINANCE_MANAGER: {
@@ -185,6 +197,12 @@ export const SYSTEM_ROLES = {
       'talent:performance:submit',
       'talent:ats:read',
       'talent:learning:read',
+      'hr:surveys:read',
+      'hr:recognition:read',
+      'hr:feed:read',
+      'hr:helpdesk:read',
+      'expenses:travel:read',
+      'expenses:travel:create',
     ],
   },
   RECRUITER: {
