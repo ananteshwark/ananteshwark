@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index, VersionColumn } from 'typeorm';
 import { decimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 export enum SalesOrderStatus {
@@ -56,4 +56,9 @@ export class SalesOrder {
 
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
+
+  // Optimistic concurrency counter: clients echo it back on update;
+  // a stale value is rejected with 409 instead of last-write-wins.
+  @VersionColumn({ default: 1 })
+  version: number;
 }

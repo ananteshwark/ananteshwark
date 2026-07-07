@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index, VersionColumn } from 'typeorm';
 
 export enum Gender {
   MALE = 'MALE',
@@ -213,4 +213,9 @@ export class Employee {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Optimistic concurrency counter: clients echo it back on update;
+  // a stale value is rejected with 409 instead of last-write-wins.
+  @VersionColumn({ default: 1 })
+  version: number;
 }

@@ -1,6 +1,7 @@
 import {
   Injectable, NotFoundException, ConflictException, BadRequestException, Optional,
 } from '@nestjs/common';
+import { assertVersion } from '../../common/concurrency/optimistic-lock';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SalesOrder, SalesOrderStatus, FulfilmentStatus } from './entities/sales-order.entity';
@@ -141,6 +142,7 @@ export class SalesService {
 
   async updateOrder(tenantId: string, id: string, dto: UpdateSalesOrderDto): Promise<SalesOrder> {
     const order = await this.findOrder(tenantId, id);
+    assertVersion(order, (dto as any).version, 'sales order');
     if (order.status !== SalesOrderStatus.DRAFT) {
       throw new BadRequestException('Only DRAFT orders can be updated');
     }

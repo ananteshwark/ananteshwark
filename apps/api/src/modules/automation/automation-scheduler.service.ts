@@ -1,4 +1,6 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { LeaseService } from '../../common/leases/lease.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, Not, Repository } from 'typeorm';
 import { AutomationService } from './automation.service';
@@ -25,6 +27,8 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
   private timer: ReturnType<typeof setInterval> | null = null;
   private kickoff: ReturnType<typeof setTimeout> | null = null;
   private readonly alertedContracts = new Set<string>();
+  // Identifies this process in the leader-election lease.
+  private readonly instanceId = randomUUID();
 
   constructor(
     private readonly automation: AutomationService,
@@ -34,17 +38,32 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
     private readonly ticketRepo: Repository<ServiceTicket>,
     @InjectRepository(Contract)
     private readonly contractRepo: Repository<Contract>,
+    @Optional() private readonly leases?: LeaseService,
   ) {}
 
   onModuleInit() {
     if (process.env.JEST_WORKER_ID || process.env.APP_ENV === 'test') return;
-    this.kickoff = setTimeout(() => this.sweepNow().catch(() => undefined), 30_000);
-    this.timer = setInterval(() => this.sweepNow().catch(() => undefined), HOUR_MS);
+    this.kickoff = setTimeout(() => this.sweepIfLeader().catch(() => undefined), 30_000);
+    this.timer = setInterval(() => this.sweepIfLeader().catch(() => undefined), HOUR_MS);
   }
 
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
     if (this.kickoff) clearTimeout(this.kickoff);
+  }
+
+  /**
+   * Timer path: only the instance holding the lease sweeps, so a scaled-out
+   * deployment fires each event exactly once per tick. The lease TTL (90 min)
+   * outlives the hourly renewal, so a crashed leader is replaced within one
+   * tick. Manual sweeps via the API bypass election on purpose.
+   */
+  async sweepIfLeader(): Promise<{ overdueInvoices: number; slaBreaches: number; expiringContracts: number } | null> {
+    if (this.leases) {
+      const isLeader = await this.leases.tryAcquire('automation-sweeps', this.instanceId, 90 * 60_000);
+      if (!isLeader) return null;
+    }
+    return this.sweepNow();
   }
 
   async sweepNow(): Promise<{ overdueInvoices: number; slaBreaches: number; expiringContracts: number }> {

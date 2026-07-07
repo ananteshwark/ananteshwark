@@ -27,6 +27,7 @@ import {
   CreateLocationDto, UpdateLocationDto,
   OrgLevelConfigItemDto,
 } from './dto/employee.dto';
+import { assertVersion } from '../../../common/concurrency/optimistic-lock';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 import { UsersService } from '../../users/users.service';
 import { RbacService } from '../../rbac/rbac.service';
@@ -139,7 +140,9 @@ export class EmployeeService {
 
   async updateEmployee(tenantId: string, id: string, dto: UpdateEmployeeDto): Promise<Employee> {
     const employee = await this.findEmployee(tenantId, id);
-    Object.assign(employee, dto);
+    assertVersion(employee, (dto as any).version, 'employee');
+    const { version: _v, ...fields } = dto as any;
+    Object.assign(employee, fields);
     return this.employeeRepo.save(employee);
   }
 

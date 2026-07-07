@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index, VersionColumn } from 'typeorm';
 import { decimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 export enum ExpenseClaimStatus {
@@ -29,4 +29,9 @@ export class ExpenseClaim {
   @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true }) journalEntryId: string | null;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
+
+  // Optimistic concurrency counter: clients echo it back on update;
+  // a stale value is rejected with 409 instead of last-write-wins.
+  @VersionColumn({ default: 1 })
+  version: number;
 }

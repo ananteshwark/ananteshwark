@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { assertVersion } from '../../../common/concurrency/optimistic-lock';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PurchaseOrder, PoStatus } from './entities/purchase-order.entity';
@@ -215,6 +216,7 @@ export class PoService {
   async updatePo(tenantId: string, id: string, dto: UpdatePoDto): Promise<any> {
     const po = await this.poRepo.findOne({ where: { id, tenantId } });
     if (!po) throw new NotFoundException(`Purchase Order ${id} not found`);
+    assertVersion(po, (dto as any).version, 'purchase order');
     if (po.status !== PoStatus.DRAFT) throw new BadRequestException('Only DRAFT POs can be updated');
     if (dto.deliveryDate !== undefined) po.deliveryDate = dto.deliveryDate;
     if (dto.notes !== undefined) po.notes = dto.notes;

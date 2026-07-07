@@ -97,6 +97,8 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { MetricsModule } from './common/metrics/metrics.module';
+import { LeasesModule } from './common/leases/leases.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { getDatabaseConfig } from './config/database.config';
 
 @Module({
@@ -190,6 +192,8 @@ import { getDatabaseConfig } from './config/database.config';
     PicklistModule,
     SequenceModule,
     MetricsModule,
+    LeasesModule,
+    IdempotencyModule,
     AutomationModule,
     EngagementModule,
     HelpdeskModule,
