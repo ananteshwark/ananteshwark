@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   Res,
+  Query,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -70,6 +71,26 @@ export class PaymentRunController {
   @ApiOperation({ summary: 'Post a payment run (records vendor payments)' })
   postRun(@CurrentUser() user: any, @Param('id') id: string) {
     return this.paymentRunService.postRun(user.tenantId, id, user.id);
+  }
+
+  @Get(':id/pain001')
+  @RequirePermission('finance:ap:read')
+  @ApiOperation({ summary: 'Download an ISO 20022 pain.001 credit-transfer file for a payment run' })
+  async pain001(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Query('debtorName') debtorName?: string,
+    @Query('debtorIban') debtorIban?: string,
+    @Query('debtorBic') debtorBic?: string,
+    @Query('currency') currency?: string,
+  ) {
+    const xml = await this.paymentRunService.generatePain001(user.tenantId, id, {
+      debtorName, debtorIban, debtorBic, currency,
+    });
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', `attachment; filename="pain001-${id}.xml"`);
+    res.send(xml);
   }
 
   @Get(':id/bank-file')

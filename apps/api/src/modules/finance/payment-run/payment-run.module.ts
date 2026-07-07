@@ -5,6 +5,7 @@ import { PaymentRunItem } from './entities/payment-run-item.entity';
 import { Bill } from '../ap/entities/bill.entity';
 import { Vendor } from '../ap/entities/vendor.entity';
 import { PaymentRunService } from './payment-run.service';
+import { Iso20022Service } from './iso20022.service';
 import { PaymentRunController } from './payment-run.controller';
 import { ApModule } from '../ap/ap.module';
 import { CashDiscountModule } from '../cash-discount/cash-discount.module';
@@ -18,7 +19,7 @@ import { RbacModule } from '../../rbac/rbac.module';
     RbacModule,
   ],
   controllers: [PaymentRunController],
-  providers: [PaymentRunService],
+  providers: [PaymentRunService, Iso20022Service],
   exports: [PaymentRunService],
 })
 export class PaymentRunModule {}

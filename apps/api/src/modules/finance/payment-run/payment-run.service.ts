@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
+import { Iso20022Service } from './iso20022.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { PaymentRun, PaymentRunStatus } from './entities/payment-run.entity';
@@ -33,6 +34,7 @@ export class PaymentRunService {
     private readonly apService: ApService,
     private readonly cashDiscountService: CashDiscountService,
     private readonly apHoldService: ApHoldService,
+    @Optional() private readonly iso20022?: Iso20022Service,
   ) {}
 
   async createProposal(
@@ -305,6 +307,62 @@ export class PaymentRunService {
     await this.runRepo.save(run);
 
     return { run, paymentsCreated, totalPosted, totalDiscount };
+  }
+
+  /** ISO 20022 pain.001 credit-transfer file — one transaction per vendor. */
+  async generatePain001(
+    tenantId: string,
+    runId: string,
+    opts: { debtorName?: string; debtorIban?: string; debtorBic?: string; currency?: string } = {},
+  ): Promise<string> {
+    if (!this.iso20022) throw new BadRequestException('ISO 20022 export is not enabled');
+    const run = await this.runRepo.findOne({ where: { id: runId, tenantId } });
+    if (!run) throw new NotFoundException(`Payment run ${runId} not found`);
+    const items = await this.itemRepo.find({
+      where: { tenantId, paymentRunId: runId, included: true },
+      order: { vendorName: 'ASC' },
+    });
+    const vendors = await this.vendorRepo.find({ where: { tenantId } });
+    const vendorMap = new Map(vendors.map((v) => [v.id, v]));
+
+    // One credit transfer per vendor: amounts summed, bill numbers joined
+    // into the remittance line.
+    const byVendor = new Map<string, { name: string; amount: number; vendorId: string; bills: string[] }>();
+    for (const i of items) {
+      const cur = byVendor.get(i.vendorId) || { name: i.vendorName, amount: 0, vendorId: i.vendorId, bills: [] };
+      cur.amount = round2(cur.amount + Number(i.amount));
+      if (i.billNumber) cur.bills.push(i.billNumber);
+      byVendor.set(i.vendorId, cur);
+    }
+
+    const payments = Array.from(byVendor.values()).map((v, idx) => {
+      const vendor = vendorMap.get(v.vendorId);
+      return {
+        endToEndId: `${runId.slice(0, 8)}-${String(idx + 1).padStart(4, '0')}`,
+        amount: v.amount,
+        creditorName: v.name,
+        creditorIban: vendor?.iban ?? null,
+        creditorAccountNumber: vendor?.bankAccountNumber ?? null,
+        creditorBic: vendor?.swift ?? null,
+        creditorClearingCode: vendor?.bankIfsc ?? null,
+        remittance: v.bills.join(', '),
+      };
+    });
+
+    return this.iso20022.buildPain001({
+      msgId: `PAIN001-${runId.slice(0, 8).toUpperCase()}`,
+      createdAt: new Date(),
+      initiatingParty: opts.debtorName || 'ERP Payment Run',
+      executionDate: run.postingDate || run.runDate,
+      currency: opts.currency || 'INR',
+      debtor: {
+        name: opts.debtorName || 'ERP Payment Run',
+        iban: opts.debtorIban ?? null,
+        accountNumber: run.bankAccountId ?? null,
+        bic: opts.debtorBic ?? null,
+      },
+      payments,
+    });
   }
 
   async generateBankFile(tenantId: string, runId: string): Promise<string> {
