@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { parseCamt053 } from './camt053.parser';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -37,6 +38,34 @@ export class BankImportService {
     @InjectRepository(CustomerReceipt)
     private readonly customerReceiptRepo: Repository<CustomerReceipt>,
   ) {}
+
+  /** ISO 20022 camt.053 statement import — parses entries and reuses the
+   *  CSV pipeline so dedupe and auto-matching behave identically. */
+  async importCamt053(
+    tenantId: string,
+    bankAccountId: string,
+    fileName: string,
+    xml: string,
+  ): Promise<{ import: BankStatementImport; transactionCount: number }> {
+    let parsed;
+    try {
+      parsed = parseCamt053(xml);
+    } catch (e: any) {
+      throw new BadRequestException(e.message);
+    }
+    if (!parsed.entries.length) throw new BadRequestException('Statement contains no bookable entries');
+    return this.importCsv(
+      tenantId,
+      bankAccountId,
+      fileName || `camt053-${parsed.statementId ?? 'statement'}.xml`,
+      parsed.entries.map((e) => ({
+        date: e.date,
+        description: e.description ?? '',
+        reference: e.reference ?? undefined,
+        amount: e.amount,
+      })),
+    );
+  }
 
   async importCsv(
     tenantId: string,

@@ -94,6 +94,7 @@ import { QrModule } from './modules/platform/qr/qr.module';
 import { EdiModule } from './modules/platform/edi/edi.module';
 import { PlanningModule } from './modules/planning/planning.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
+import { LandedCostModule } from './modules/procurement/landed-cost/landed-cost.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
@@ -202,6 +203,7 @@ import { getDatabaseConfig } from './config/database.config';
     LettersModule,
     BgvModule,
     ComplianceModule,
+    LandedCostModule,
     DmsModule,
     EmailModule,
     SearchModule,

@@ -110,6 +110,21 @@ export class BankController {
 
   // -------------------- Statement Import --------------------
 
+  @Post('imports/camt053')
+  @RequirePermission('finance:bank:create')
+  @ApiOperation({ summary: 'Import an ISO 20022 camt.053 bank statement (XML)' })
+  importCamt053(
+    @CurrentUser() user: any,
+    @Body() body: { bankAccountId: string; fileName?: string; xml: string },
+  ) {
+    return this.bankImportService.importCamt053(
+      user.tenantId,
+      body.bankAccountId,
+      body.fileName ?? '',
+      body.xml,
+    );
+  }
+
   @Post('imports')
   @RequirePermission('finance:bank:create')
   @ApiOperation({ summary: 'Import a parsed bank statement (JSON rows)' })
