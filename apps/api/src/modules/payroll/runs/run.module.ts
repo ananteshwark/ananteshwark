@@ -16,6 +16,7 @@ import { StatutoryModule } from '../statutory/statutory.module';
 import { RetroPayrollModule } from '../retro/retro-payroll.module';
 import { GlModule } from '../../finance/gl/gl.module';
 import { RbacModule } from '../../rbac/rbac.module';
+import { LocalizationModule } from '../../localization/localization.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { RbacModule } from '../../rbac/rbac.module';
     RetroPayrollModule,
     GlModule,
     RbacModule,
+    LocalizationModule,
   ],
   controllers: [RunController, PayrollGlController],
   providers: [RunService, BankFileService, PayrollGlService],

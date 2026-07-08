@@ -152,6 +152,10 @@ export class Employee {
   bankBranch: string | null;
 
   // ── Employment ────────────────────────────────────────────────────────────
+  // Which statutory country pack applies to this employee's payroll.
+  @Column({ name: 'payroll_country', length: 2, default: 'IN' })
+  payrollCountry: string;
+
   @Column({ name: 'date_of_joining', type: 'date' })
   dateOfJoining: string;
 

@@ -25,6 +25,7 @@ import { EmployeeSalary } from '../components/entities/employee-salary.entity';
 import { PayComponentType } from '../components/entities/pay-component.entity';
 import { ComponentService } from '../components/component.service';
 import { StatutoryService } from '../statutory/statutory.service';
+import { LocalizationRegistry } from '../../localization/localization.registry';
 import { RetroPayrollService } from '../retro/retro-payroll.service';
 import { GlService } from '../../finance/gl/gl.service';
 import { PayrollGlService } from '../payroll-gl.service';
@@ -62,6 +63,7 @@ export class RunService {
     private readonly payrollGlService: PayrollGlService,
     private readonly dataSource: DataSource,
     @Optional() private readonly automation?: AutomationService,
+    @Optional() private readonly localizationRegistry?: LocalizationRegistry,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -195,9 +197,29 @@ export class RunService {
           earnings.push({ code: c.code, name: c.name, amount });
         }
 
-        // Statutory deductions
+        // Statutory deductions — resolved by the employee's payroll country.
+        // Non-India employees route through the localization pack registry
+        // (US: federal brackets + FICA; AE: GPSSA + gratuity accrual); India
+        // keeps the config-driven PF/ESI/PT/TDS path below.
         const deductions: PayslipLineItem[] = [];
         const employerContribs: PayslipLineItem[] = [];
+
+        const payrollCountry = ((emp as any).payrollCountry || 'IN').toUpperCase();
+        const countryPack = payrollCountry !== 'IN' ? this.localizationRegistry?.get(payrollCountry) : undefined;
+        if (countryPack) {
+          const statutory = countryPack.calculateStatutory({
+            grossMonthly: gross,
+            basicMonthly: basic,
+            annualTaxableIncome: round2(gross * 12),
+            country: payrollCountry,
+          });
+          for (const d of statutory.employeeDeductions) {
+            if (d.amount > 0) deductions.push({ code: d.code, name: d.name, amount: round2(d.amount) });
+          }
+          for (const c of statutory.employerContributions) {
+            if (c.amount > 0) employerContribs.push({ code: c.code, name: c.name, amount: round2(c.amount) });
+          }
+        } else {
 
         const pf = await this.statutoryService.calculatePF(tenantId, basic);
         if (pf.employee > 0) {
@@ -221,6 +243,7 @@ export class RunService {
         const tds = await this.statutoryService.calculateTDS(tenantId, annualProjected);
         if (tds.monthly > 0) {
           deductions.push({ code: 'TDS', name: 'Income Tax (TDS)', amount: tds.monthly });
+        }
         }
 
         const totalDed = round2(deductions.reduce((s, d) => s + d.amount, 0));
