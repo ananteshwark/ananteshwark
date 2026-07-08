@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
+import { TenantExportService } from './tenant-export.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../../common/guards/super-admin.guard';
 import {
@@ -18,7 +19,9 @@ import { TenantStatus } from '../tenants/entities/tenant.entity';
 @UseGuards(JwtAuthGuard, SuperAdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService,
+    private readonly tenantExportService: TenantExportService,
+  ) {}
 
   // ---- Tenants ----
   @Get('tenants')
@@ -26,6 +29,18 @@ export class AdminController {
   @ApiQuery({ name: 'includeHidden', required: false, type: Boolean })
   listTenants(@Query('includeHidden') includeHidden?: string) {
     return this.adminService.listTenants(includeHidden === 'true');
+  }
+
+  @Get('tenants/:id/export')
+  @ApiOperation({ summary: 'Full portable export of a tenant (every tenant-scoped table)' })
+  exportTenant(@Param('id') id: string) {
+    return this.tenantExportService.export(id);
+  }
+
+  @Get('tenants/:id/export/summary')
+  @ApiOperation({ summary: 'Row counts per table for a tenant export' })
+  exportSummary(@Param('id') id: string) {
+    return this.tenantExportService.summary(id);
   }
 
   @Get('tenants/:id')
