@@ -29,6 +29,13 @@ export class PredictiveController {
   @ApiOperation({ summary: 'Compute demand-forecast accuracy (MAPE) and bias' })
   demandAccuracy(@CurrentUser() _u: any, @Body() b: { series: any[] }) { return this.service.demandForecastAccuracy(b.series ?? []); }
 
+  @Post('attrition/refresh')
+  @RequirePermission('analytics:manage')
+  @ApiOperation({ summary: 'Recompute attrition risk for all active employees' })
+  refreshAttrition(@CurrentUser() user: any) {
+    return this.service.scoreAttrition(user.tenantId);
+  }
+
   @Get('top')
   @RequirePermission('analytics:read')
   @ApiQuery({ name: 'model', required: true, enum: PredictiveModel })
