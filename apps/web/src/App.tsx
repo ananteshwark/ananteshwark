@@ -15,6 +15,7 @@ import RolesPage from './pages/roles/RolesPage';
 import WorkflowPage from './pages/workflow/WorkflowPage';
 import BpmPage from './pages/workflow/BpmPage';
 import AutomationPage from './pages/workflows/AutomationPage';
+import AnomaliesPage from './pages/analytics/AnomaliesPage';
 import FeedPage from './pages/engagement/FeedPage';
 import RecognitionPage from './pages/engagement/RecognitionPage';
 import SurveysPage from './pages/engagement/SurveysPage';
@@ -389,6 +390,7 @@ export default function App() {
         <Route path="benefits/comp-workbench" element={<CompWorkbenchPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="analytics/cross" element={<CrossAnalyticsPage />} />
+        <Route path="analytics/anomalies" element={<AnomaliesPage />} />
         <Route path="analytics/bi" element={<BiPage />} />
         <Route path="platform" element={<PlatformPage />} />
         <Route path="licensing" element={<LicensingPage />} />
