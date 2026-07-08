@@ -81,6 +81,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
 
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
+
+  // Workforce rostering
+  { event: 'roster.published', label: 'Shift roster published', module: 'hr' },
 ];
 
 export const AUTOMATION_EVENT_KEYS = new Set(AUTOMATION_EVENTS.map((e) => e.event));
