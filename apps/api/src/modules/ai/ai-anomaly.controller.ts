@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../common/guards/rbac.guard';
@@ -19,6 +19,13 @@ export class AiAnomalyController {
   scan(@CurrentUser() user: any, @Query('modules') modules?: string) {
     const filter = modules ? modules.split(',').map((m) => m.trim()).filter(Boolean) : undefined;
     return this.service.scan(user.tenantId, filter);
+  }
+
+  @Post('scan-async')
+  @RequirePermission('analytics:manage')
+  @ApiOperation({ summary: 'Queue a durable background scan; findings emit anomaly.detected' })
+  scheduleScan(@CurrentUser() user: any) {
+    return this.service.scheduleScan(user.tenantId);
   }
 
   @Get('coverage')

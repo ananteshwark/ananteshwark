@@ -27,6 +27,14 @@ describe('CopilotService — planner', () => {
     expect(copilot.plan('show me sales orders by month')!.params.dataset).toBe('sales_orders');
   });
 
+  it('plans anomaly scans, with and without a module filter', () => {
+    expect(copilot.plan('Any anomalies this week?')).toEqual({
+      action: 'find_anomalies', params: { module: null },
+    });
+    expect(copilot.plan('show anomalies in finance')!.params.module).toBe('finance');
+    expect(copilot.plan('find outliers in payroll')!.params.module).toBe('payroll');
+  });
+
   it('returns null (→ graceful fallback) for anything else', () => {
     expect(copilot.plan('what is the meaning of life')).toBeNull();
   });
@@ -85,6 +93,36 @@ describe('CopilotService — execution', () => {
     const result = await copilot.execute('t1', user, 'how many expenses');
     expect(semantic.run).toHaveBeenCalledWith('t1', { dataset: 'expenses', dimensions: [], measures: ['count'] });
     expect(result.message).toContain('42');
+  });
+
+  it('narrates anomaly scan results with counts and top findings', async () => {
+    const anomalies: any = {
+      scan: jest.fn().mockResolvedValue({
+        findings: [
+          { module: 'finance', check: 'JOURNAL_DUPLICATE_REFERENCE', severity: 'HIGH', title: 'Duplicate reference JE-9' },
+          { module: 'expenses', check: 'AMOUNT_OUTLIER', severity: 'MEDIUM', title: 'Claim EXP-BIG is 9x baseline' },
+        ],
+        summary: { finance: 1, expenses: 1 },
+      }),
+    };
+    const copilot = new CopilotService(undefined, undefined, undefined, undefined, anomalies);
+    const result = await copilot.execute('t1', user, 'any anomalies this week?');
+    expect(anomalies.scan).toHaveBeenCalledWith('t1', undefined);
+    expect(result.message).toContain('2 anomalies');
+    expect(result.message).toContain('1 high severity');
+    expect(result.message).toContain('Duplicate reference JE-9');
+
+    await copilot.execute('t1', user, 'show anomalies in finance');
+    expect(anomalies.scan).toHaveBeenLastCalledWith('t1', ['finance']);
+  });
+
+  it('reports a clean bill of health when the scan finds nothing', async () => {
+    const anomalies: any = { scan: jest.fn().mockResolvedValue({ findings: [], summary: {} }) };
+    const copilot = new CopilotService(undefined, undefined, undefined, undefined, anomalies);
+    const result = await copilot.execute('t1', user, 'any anomalies?');
+    expect(result.understood).toBe(true);
+    expect(result.result).toEqual({ totalFindings: 0 });
+    expect(result.message).toContain('no anomalies');
   });
 
   it('degrades gracefully when a target module is not wired', async () => {

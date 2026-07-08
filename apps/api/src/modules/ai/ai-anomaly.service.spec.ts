@@ -115,6 +115,61 @@ describe('AiAnomalyService — per-module detectors', () => {
     expect(findings[0]).toMatchObject({ module: 'finance', check: 'JOURNAL_DUPLICATE_REFERENCE', severity: 'HIGH' });
   });
 
+  it('scanAndNotify emits anomaly.detected only when findings exist', async () => {
+    const automation = { emit: jest.fn().mockResolvedValue(undefined) };
+    const dupeClaims = [
+      { id: 'd1', claimNumber: 'EXP-D1', employeeId: 'e2', totalAmount: 500, claimDate: '2026-06-21' },
+      { id: 'd2', claimNumber: 'EXP-D2', employeeId: 'e2', totalAmount: 500, claimDate: '2026-06-21' },
+    ];
+    const service = new AiAnomalyService(
+      mockRepo(dupeClaims) as any, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+      automation as any,
+    );
+    const result = await service.scanAndNotify('t1');
+    expect(result.findings.length).toBeGreaterThan(0);
+    expect(automation.emit).toHaveBeenCalledWith('t1', 'anomaly.detected', expect.objectContaining({
+      totalFindings: result.findings.length,
+      highSeverity: expect.any(Number),
+      topFindings: expect.arrayContaining([expect.stringContaining('EXP-D1')]),
+    }));
+
+    automation.emit.mockClear();
+    const quiet = new AiAnomalyService(
+      mockRepo([]) as any, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+      automation as any,
+    );
+    await quiet.scanAndNotify('t1');
+    expect(automation.emit).not.toHaveBeenCalled();
+  });
+
+  it('registers a durable job handler and schedules scans through the queue', async () => {
+    const handlers: Record<string, (payload: any) => Promise<void>> = {};
+    const jobs = {
+      registerHandler: jest.fn((type: string, fn: any) => { handlers[type] = fn; }),
+      enqueue: jest.fn().mockResolvedValue({ id: 'job-1', type: 'ai-anomaly-scan' }),
+    };
+    const service = new AiAnomalyService(
+      mockRepo([]) as any, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+      undefined, jobs as any,
+    );
+    expect(jobs.registerHandler).toHaveBeenCalledWith('ai-anomaly-scan', expect.any(Function));
+
+    const job = await service.scheduleScan('t1');
+    expect(job.id).toBe('job-1');
+    expect(jobs.enqueue).toHaveBeenCalledWith('ai-anomaly-scan', { tenantId: 't1' }, { tenantId: 't1', runAt: undefined });
+
+    const scanSpy = jest.spyOn(service, 'scanAndNotify').mockResolvedValue({} as any);
+    await handlers['ai-anomaly-scan']({ tenantId: 't9' });
+    expect(scanSpy).toHaveBeenCalledWith('t9');
+    await handlers['ai-anomaly-scan']({});          // no tenant → no scan
+    expect(scanSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('scheduleScan fails loudly when the jobs queue is not wired', async () => {
+    const service = new AiAnomalyService(mockRepo([]) as any);
+    await expect(service.scheduleScan('t1')).rejects.toThrow('Durable jobs');
+  });
+
   it('a failing detector never breaks the scan; coverage reflects wiring', async () => {
     const broken = { find: jest.fn().mockRejectedValue(new Error('db down')) };
     const service = new AiAnomalyService(broken as any);

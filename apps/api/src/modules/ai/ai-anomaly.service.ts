@@ -9,6 +9,8 @@ import { Invoice } from '../finance/ar/entities/invoice.entity';
 import { Payslip } from '../payroll/runs/entities/payslip.entity';
 import { ServiceTicket } from '../crm/entities/service-ticket.entity';
 import { JournalAnomalyService } from '../finance/close/journal-anomaly.service';
+import { AutomationService } from '../automation/automation.service';
+import { JobsService } from '../../common/jobs/jobs.service';
 import { groupBy, groupOutliers, duplicateGroups, spikeRatio, round2 } from './anomaly-stats';
 
 export type Severity = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -46,7 +48,36 @@ export class AiAnomalyService {
     @Optional() @InjectRepository(Payslip) private readonly payslipRepo?: Repository<Payslip>,
     @Optional() @InjectRepository(ServiceTicket) private readonly ticketRepo?: Repository<ServiceTicket>,
     @Optional() private readonly journalAnomalies?: JournalAnomalyService,
-  ) {}
+    @Optional() private readonly automation?: AutomationService,
+    @Optional() private readonly jobs?: JobsService,
+  ) {
+    // Durable scan: any instance can pick the job up; results flow to the
+    // automation engine so tenants get notified instead of polling the page.
+    this.jobs?.registerHandler('ai-anomaly-scan', async (payload) => {
+      if (payload?.tenantId) await this.scanAndNotify(payload.tenantId);
+    });
+  }
+
+  /** Enqueue a durable background scan for a tenant. */
+  async scheduleScan(tenantId: string, runAt?: Date) {
+    if (!this.jobs) throw new Error('Durable jobs are not available in this deployment');
+    return this.jobs.enqueue('ai-anomaly-scan', { tenantId }, { tenantId, runAt });
+  }
+
+  /** Run the full scan and emit anomaly.detected when anything surfaces. */
+  async scanAndNotify(tenantId: string) {
+    const result = await this.scan(tenantId);
+    if (result.findings.length) {
+      const high = result.findings.filter((f) => f.severity === 'HIGH').length;
+      await this.automation?.emit(tenantId, 'anomaly.detected', {
+        totalFindings: result.findings.length,
+        highSeverity: high,
+        byModule: result.summary,
+        topFindings: result.findings.slice(0, 5).map((f) => `${f.severity} [${f.module}] ${f.title}`),
+      });
+    }
+    return result;
+  }
 
   coverage() {
     return [

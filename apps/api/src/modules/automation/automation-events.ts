@@ -84,6 +84,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
 
   // Workforce rostering
   { event: 'roster.published', label: 'Shift roster published', module: 'hr' },
+
+  // AI anomaly layer
+  { event: 'anomaly.detected', label: 'AI anomaly scan found issues', module: 'analytics' },
 ];
 
 export const AUTOMATION_EVENT_KEYS = new Set(AUTOMATION_EVENTS.map((e) => e.event));

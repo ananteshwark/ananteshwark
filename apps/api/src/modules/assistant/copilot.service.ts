@@ -5,6 +5,7 @@ import { Employee } from '../hr/employees/entities/employee.entity';
 import { HelpdeskService } from '../helpdesk/helpdesk.service';
 import { RecognitionService } from '../engagement/recognition.service';
 import { SemanticService } from '../analytics/semantic/semantic.service';
+import { AiAnomalyService } from '../ai/ai-anomaly.service';
 import { HrCaseCategory } from '../helpdesk/entities/hr-case.entity';
 
 export interface CopilotPlan {
@@ -46,6 +47,7 @@ export class CopilotService {
     @Optional() private readonly helpdesk?: HelpdeskService,
     @Optional() private readonly recognition?: RecognitionService,
     @Optional() private readonly semantic?: SemanticService,
+    @Optional() private readonly anomalies?: AiAnomalyService,
   ) {}
 
   /** Registry of what the copilot can do — surfaced to the UI as suggestions. */
@@ -54,6 +56,7 @@ export class CopilotService {
       { action: 'raise_hr_case', example: 'Raise an HR case about my March payslip missing' },
       { action: 'give_recognition', example: 'Recognize Asha Rao for closing the audit early' },
       { action: 'run_query', example: 'Show expenses by status' },
+      { action: 'find_anomalies', example: 'Any anomalies this week?' },
     ];
   }
 
@@ -83,6 +86,17 @@ export class CopilotService {
           subject: caseMatch[2].trim(),
           category: kind === 'grievance' || kind === 'complaint' ? HrCaseCategory.GRIEVANCE : HrCaseCategory.OTHER,
         },
+      };
+    }
+
+    // find_anomalies: "any anomalies (this week)?", "show anomalies in finance", "find outliers"
+    const anomalyMatch = text.match(
+      /(?:any|show|list|find|detect|scan for)\s+(?:me\s+)?(?:recent\s+)?(?:anomalies|outliers|irregularities|suspicious activity)(?:\s+in\s+([a-z]+))?/i,
+    );
+    if (anomalyMatch) {
+      return {
+        action: 'find_anomalies',
+        params: { module: anomalyMatch[1]?.trim().toLowerCase() ?? null },
       };
     }
 
@@ -194,6 +208,36 @@ export class CopilotService {
           message: dimension
             ? `Here is ${def.label.toLowerCase()} by ${dimension}:`
             : `Total ${def.label.toLowerCase()}: ${rows[0]?.count ?? 0}.`,
+        };
+      }
+
+      case 'find_anomalies': {
+        if (!this.anomalies) return this.unavailable(plan, 'AI anomaly');
+        const module = plan.params.module;
+        const scan = await this.anomalies.scan(tenantId, module ? [module] : undefined);
+        if (!scan.findings.length) {
+          return {
+            understood: true,
+            action: plan.action,
+            params: plan.params,
+            result: { totalFindings: 0 },
+            message: module
+              ? `Good news — no anomalies detected in ${module}.`
+              : 'Good news — no anomalies detected across the scanned modules.',
+          };
+        }
+        const high = scan.findings.filter((f) => f.severity === 'HIGH').length;
+        const top = scan.findings.slice(0, 3).map((f) => `${f.severity} [${f.module}] ${f.title}`);
+        return {
+          understood: true,
+          action: plan.action,
+          params: plan.params,
+          result: { totalFindings: scan.findings.length, highSeverity: high, findings: scan.findings.slice(0, 10) },
+          message:
+            `Found ${scan.findings.length} anomal${scan.findings.length === 1 ? 'y' : 'ies'}` +
+            (high ? ` (${high} high severity)` : '') +
+            (module ? ` in ${module}` : '') +
+            `. Top: ${top.join(' · ')}. Full detail is on the AI Anomalies page.`,
         };
       }
 

@@ -9,6 +9,7 @@ import { Employee } from '../hr/employees/entities/employee.entity';
 import { HelpdeskModule } from '../helpdesk/helpdesk.module';
 import { EngagementModule } from '../engagement/engagement.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     HelpdeskModule,
     EngagementModule,
     AnalyticsModule,
+    AiModule,
     RbacModule,
   ],
   controllers: [AssistantController],
