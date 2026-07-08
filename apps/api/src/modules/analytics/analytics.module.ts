@@ -8,6 +8,9 @@ import { AnalyticsService } from './analytics.service';
 import { AnalyticsController } from './analytics.controller';
 import { CrossAnalyticsService } from './cross-analytics.service';
 import { CrossAnalyticsController } from './cross-analytics.controller';
+import { SavedQuery } from './semantic/saved-query.entity';
+import { SemanticService } from './semantic/semantic.service';
+import { SemanticController } from './semantic/semantic.controller';
 import { RbacModule } from '../rbac/rbac.module';
 // Cross-module entities aggregated by CrossAnalyticsService (read-only)
 import { Employee } from '../hr/employees/entities/employee.entity';
@@ -28,6 +31,7 @@ import { JournalLine } from '../finance/gl/entities/journal-line.entity';
       ReportSchedule,
       Budget,
       KpiDefinition,
+      SavedQuery,
       // cross-module (read-only)
       Employee,
       JobPosting,
@@ -42,8 +46,8 @@ import { JournalLine } from '../finance/gl/entities/journal-line.entity';
     ]),
     RbacModule,
   ],
-  controllers: [AnalyticsController, CrossAnalyticsController],
-  providers: [AnalyticsService, CrossAnalyticsService],
-  exports: [AnalyticsService, CrossAnalyticsService],
+  controllers: [AnalyticsController, CrossAnalyticsController, SemanticController],
+  providers: [AnalyticsService, CrossAnalyticsService, SemanticService],
+  exports: [AnalyticsService, CrossAnalyticsService, SemanticService],
 })
 export class AnalyticsModule {}
