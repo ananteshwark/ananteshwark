@@ -1,0 +1,225 @@
+import { Injectable, Optional } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, ILike } from 'typeorm';
+import { Employee } from '../hr/employees/entities/employee.entity';
+import { HelpdeskService } from '../helpdesk/helpdesk.service';
+import { RecognitionService } from '../engagement/recognition.service';
+import { SemanticService } from '../analytics/semantic/semantic.service';
+import { HrCaseCategory } from '../helpdesk/entities/hr-case.entity';
+
+export interface CopilotPlan {
+  action: string;
+  params: Record<string, any>;
+}
+
+export interface CopilotResult {
+  understood: boolean;
+  action?: string;
+  params?: Record<string, any>;
+  message: string;
+  result?: any;
+}
+
+const DATASET_ALIASES: Record<string, string> = {
+  expenses: 'expenses', 'expense claims': 'expenses', claims: 'expenses',
+  'sales orders': 'sales_orders', orders: 'sales_orders', sales: 'sales_orders',
+  invoices: 'ar_invoices', 'ar invoices': 'ar_invoices',
+  'purchase orders': 'purchase_orders', pos: 'purchase_orders',
+  employees: 'employees', headcount: 'employees',
+  tickets: 'tickets', 'service tickets': 'tickets',
+};
+
+/**
+ * Task-completing copilot: turns a natural-language command into a concrete
+ * action against real services (raise an HR case, give recognition, run an
+ * analytics query), or falls back to the Q&A assistant.
+ *
+ * The planner is deliberately rule-based and deterministic. `plan()` is the
+ * single seam where an LLM-backed planner (e.g. the Claude API emitting the
+ * same {action, params} shape via tool use) can replace the regexes without
+ * touching any executor.
+ */
+@Injectable()
+export class CopilotService {
+  constructor(
+    @Optional() @InjectRepository(Employee) private readonly employeeRepo?: Repository<Employee>,
+    @Optional() private readonly helpdesk?: HelpdeskService,
+    @Optional() private readonly recognition?: RecognitionService,
+    @Optional() private readonly semantic?: SemanticService,
+  ) {}
+
+  /** Registry of what the copilot can do — surfaced to the UI as suggestions. */
+  capabilities() {
+    return [
+      { action: 'raise_hr_case', example: 'Raise an HR case about my March payslip missing' },
+      { action: 'give_recognition', example: 'Recognize Asha Rao for closing the audit early' },
+      { action: 'run_query', example: 'Show expenses by status' },
+    ];
+  }
+
+  plan(message: string): CopilotPlan | null {
+    const text = (message ?? '').trim();
+
+    // give_recognition: "recognize/appreciate/kudos to NAME for MESSAGE"
+    const recognitionMatch = text.match(
+      /(?:recogni[sz]e|appreciate|kudos to|give kudos to)\s+([A-Za-z][A-Za-z .'-]*?)\s+for\s+(.+)/i,
+    );
+    if (recognitionMatch) {
+      return {
+        action: 'give_recognition',
+        params: { name: recognitionMatch[1].trim(), message: recognitionMatch[2].trim() },
+      };
+    }
+
+    // raise_hr_case: "raise/open/file an hr case/ticket/complaint/grievance about SUBJECT"
+    const caseMatch = text.match(
+      /(?:raise|open|file|create|log)\s+(?:an?\s+)?(?:hr\s+)?(case|ticket|complaint|grievance|issue)\s*(?:about|for|regarding|:)?\s*(.+)/i,
+    );
+    if (caseMatch) {
+      const kind = caseMatch[1].toLowerCase();
+      return {
+        action: 'raise_hr_case',
+        params: {
+          subject: caseMatch[2].trim(),
+          category: kind === 'grievance' || kind === 'complaint' ? HrCaseCategory.GRIEVANCE : HrCaseCategory.OTHER,
+        },
+      };
+    }
+
+    // run_query: "show/list/count DATASET [by DIMENSION]"
+    const queryMatch = text.match(
+      /(?:show|list|count|how many)\s+(?:me\s+)?([a-z ]+?)(?:\s+by\s+([a-z_ ]+))?\s*$/i,
+    );
+    if (queryMatch) {
+      const dataset = DATASET_ALIASES[queryMatch[1].trim().toLowerCase()];
+      if (dataset) {
+        return {
+          action: 'run_query',
+          params: { dataset, dimension: queryMatch[2]?.trim().toLowerCase() ?? null },
+        };
+      }
+    }
+
+    return null;
+  }
+
+  async execute(
+    tenantId: string,
+    user: { id: string; name: string },
+    message: string,
+  ): Promise<CopilotResult> {
+    const plan = this.plan(message);
+    if (!plan) {
+      return {
+        understood: false,
+        message:
+          'I could not map that to an action. Try: ' +
+          this.capabilities().map((c) => `"${c.example}"`).join(' · '),
+      };
+    }
+
+    switch (plan.action) {
+      case 'raise_hr_case': {
+        if (!this.helpdesk) return this.unavailable(plan, 'HR helpdesk');
+        const hrCase = await this.helpdesk.createCase(tenantId, user.id, {
+          subject: plan.params.subject,
+          description: `Raised via assistant: "${message}"`,
+          category: plan.params.category,
+        });
+        return {
+          understood: true,
+          action: plan.action,
+          params: plan.params,
+          result: { caseId: hrCase.id, caseNumber: hrCase.caseNumber },
+          message: `Done — HR case ${hrCase.caseNumber} raised: "${hrCase.subject}". The HR team has been queued.`,
+        };
+      }
+
+      case 'give_recognition': {
+        if (!this.recognition || !this.employeeRepo) return this.unavailable(plan, 'recognition');
+        const employee = await this.findEmployeeByName(tenantId, plan.params.name);
+        if (!employee) {
+          return {
+            understood: true,
+            action: plan.action,
+            params: plan.params,
+            message: `I couldn't find an employee named "${plan.params.name}". Try their full name as it appears in HR.`,
+          };
+        }
+        const badges = await this.recognition.listBadges(tenantId, true);
+        if (!badges.length) {
+          return {
+            understood: true,
+            action: plan.action,
+            params: plan.params,
+            message: 'No active recognition badges are configured yet — add one on the Recognition page first.',
+          };
+        }
+        const toName = [employee.firstName, employee.lastName].filter(Boolean).join(' ');
+        const saved = await this.recognition.give(tenantId, { userId: user.id, name: user.name }, {
+          badgeId: badges[0].id,
+          toEmployeeId: employee.id,
+          toName,
+          message: plan.params.message,
+        });
+        return {
+          understood: true,
+          action: plan.action,
+          params: plan.params,
+          result: { recognitionId: saved.id, badge: saved.badgeName },
+          message: `🎉 Recognized ${toName} with "${saved.badgeName}" — it's on the recognition wall.`,
+        };
+      }
+
+      case 'run_query': {
+        if (!this.semantic) return this.unavailable(plan, 'analytics');
+        const dataset = plan.params.dataset;
+        const datasets = this.semantic.listDatasets();
+        const def = datasets.find((d) => d.key === dataset)!;
+        const dimension = plan.params.dimension && def.dimensions.some((d: any) => d.key === plan.params.dimension)
+          ? plan.params.dimension
+          : plan.params.dimension === 'month' && def.hasDateColumn
+            ? 'month'
+            : null;
+        const { rows } = await this.semantic.run(tenantId, {
+          dataset,
+          dimensions: dimension ? [dimension] : [],
+          measures: ['count'],
+        });
+        return {
+          understood: true,
+          action: plan.action,
+          params: { dataset, dimension },
+          result: { rows },
+          message: dimension
+            ? `Here is ${def.label.toLowerCase()} by ${dimension}:`
+            : `Total ${def.label.toLowerCase()}: ${rows[0]?.count ?? 0}.`,
+        };
+      }
+
+      default:
+        return { understood: false, message: 'Unknown action.' };
+    }
+  }
+
+  private unavailable(plan: CopilotPlan, what: string): CopilotResult {
+    return {
+      understood: true,
+      action: plan.action,
+      params: plan.params,
+      message: `I understood the request, but the ${what} module is not available in this deployment.`,
+    };
+  }
+
+  private async findEmployeeByName(tenantId: string, name: string): Promise<Employee | null> {
+    const parts = name.trim().split(/\s+/);
+    // Try first+last, then first name only.
+    if (parts.length >= 2) {
+      const hit = await this.employeeRepo!.findOne({
+        where: { tenantId, firstName: ILike(parts[0]), lastName: ILike(parts.slice(1).join(' ')) } as any,
+      });
+      if (hit) return hit;
+    }
+    return this.employeeRepo!.findOne({ where: { tenantId, firstName: ILike(parts[0]) } as any });
+  }
+}

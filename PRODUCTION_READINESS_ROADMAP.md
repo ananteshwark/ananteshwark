@@ -60,7 +60,7 @@ deployment on. **Status column reflects work done in this enhancement pass.**
 
 ## 4. P2 — Differentiators (build after P0/P1)
 
-- **AI copilots per module** (assistant module exists as chat; peers ship task-completing agents: "create a PO from this email").
+- **AI copilots per module** (assistant module exists as chat; peers ship task-completing agents: "create a PO from this email"). ✅ **Phase 1 BUILT** — `POST /assistant/copilot` turns natural-language commands into executed actions against real services: raise an HR case (grievances auto-confidential), give recognition (employee lookup + first active badge → wall), run semantic queries ("show expenses by status"); deterministic rule-based planner with a single `plan()` seam where an LLM planner (Claude tool-use emitting the same {action, params}) plugs in; unknown commands return capability examples; missing modules degrade gracefully.
 - **Org network analysis / attrition prediction** (DarwinBox Talent Intelligence). ✅ **Attrition scoring BUILT** — `POST /analytics/predictive/attrition/refresh` scores every active employee from signals already in the HCM data (1–3-year tenure churn window, career stagnation ≥24 months without a role change, leave spikes in the last 90 days) with transparent factor contributions, persisted under the ATTRITION_RISK model and ranked by risk. ONA remains open.
 - **Mobile offline** (mobile module is API-side; peers ship offline-first apps with sync).
 - **Marketplace/app store** for tenant extensions (extensibility module is the seed).
