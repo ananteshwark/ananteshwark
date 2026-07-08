@@ -64,7 +64,7 @@ deployment on. **Status column reflects work done in this enhancement pass.**
 - **Org network analysis / attrition prediction** (DarwinBox Talent Intelligence).
 - **Mobile offline** (mobile module is API-side; peers ship offline-first apps with sync).
 - **Marketplace/app store** for tenant extensions (extensibility module is the seed).
-- **Continuous close / anomaly detection on journals** (S/4 "continuous accounting").
+- **Continuous close / anomaly detection on journals** (S/4 "continuous accounting"). ✅ **BUILT** — `GET /finance/close/anomalies?from&to` screens every posted journal in the window: duplicate reference+amount (HIGH), per-account 3σ amount outliers (HIGH), large round manual totals (MEDIUM), rarely-used accounts (MEDIUM), weekend manual postings (LOW); severity-ranked with per-check summary.
 
 ## 5. Sequencing recommendation
 

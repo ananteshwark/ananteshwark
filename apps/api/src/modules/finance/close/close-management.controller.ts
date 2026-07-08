@@ -4,6 +4,7 @@ import { CloseManagementService } from './close-management.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
+import { JournalAnomalyService } from './journal-anomaly.service';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { CloseTaskStatus } from './entities/close-task.entity';
 
@@ -12,9 +13,20 @@ import { CloseTaskStatus } from './entities/close-task.entity';
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('finance/close')
 export class CloseManagementController {
-  constructor(private readonly service: CloseManagementService) {}
+  constructor(private readonly service: CloseManagementService,
+    private readonly anomalyService: JournalAnomalyService,) {}
 
   // ─── Ph-131: tasks ────────────────────────────────────────────────
+  @Get('anomalies')
+  @RequirePermission('finance:periods:manage')
+  scanAnomalies(
+    @CurrentUser() user: any,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.anomalyService.scan(user.tenantId, from, to);
+  }
+
   @Get('tasks')
   @RequirePermission('finance:periods:manage')
   @ApiQuery({ name: 'periodId', required: false })
