@@ -102,6 +102,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
 import { MetricsModule } from './common/metrics/metrics.module';
 import { LeasesModule } from './common/leases/leases.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
+import { JobsModule } from './common/jobs/jobs.module';
 import { getDatabaseConfig } from './config/database.config';
 
 @Module({
@@ -197,6 +198,7 @@ import { getDatabaseConfig } from './config/database.config';
     MetricsModule,
     LeasesModule,
     IdempotencyModule,
+    JobsModule,
     AutomationModule,
     EngagementModule,
     HelpdeskModule,
