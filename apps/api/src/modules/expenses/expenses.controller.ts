@@ -105,6 +105,52 @@ export class ExpensesController {
     return this.service.markPaid(user.tenantId, id, user.id);
   }
 
+  @Post('claims/:id/split')
+  @RequirePermission('expenses:claims:create')
+  @ApiOperation({ summary: 'Split a DRAFT claim with colleagues (shares in percent)' })
+  splitClaim(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { splits: Array<{ employeeId: string; sharePct: number }> }) {
+    return this.service.splitClaim(user.tenantId, id, body?.splits ?? []);
+  }
+
+  @Post('claims/:id/advance-offset')
+  @RequirePermission('expenses:claims:approve')
+  @ApiOperation({ summary: 'Deduct a paid advance from an approved claim before payout' })
+  applyAdvanceOffset(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { advanceId: string; amount: number }) {
+    return this.service.applyAdvanceOffset(user.tenantId, id, body);
+  }
+
+  // ─── Rate cards ───────────────────────────────────────────────
+
+  @Get('rates')
+  @RequirePermission('expenses:claims:read')
+  @ApiOperation({ summary: 'List per-diem / mileage rate cards' })
+  listRates(@CurrentUser() user: any, @Query('rateType') rateType?: string) {
+    return this.service.listRates(user.tenantId, rateType as any);
+  }
+
+  @Post('rates')
+  @RequirePermission('expenses:claims:approve')
+  @ApiOperation({ summary: 'Create a per-diem / mileage rate card' })
+  createRate(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.createRate(user.tenantId, dto);
+  }
+
+  // ─── Budgets ──────────────────────────────────────────────────
+
+  @Get('budgets/status')
+  @RequirePermission('expenses:claims:read')
+  @ApiOperation({ summary: 'Budget consumption for a year with threshold alerts' })
+  budgetStatus(@CurrentUser() user: any, @Query('year') year?: string) {
+    return this.service.budgetStatus(user.tenantId, year ? parseInt(year) : new Date().getFullYear());
+  }
+
+  @Post('budgets')
+  @RequirePermission('expenses:claims:approve')
+  @ApiOperation({ summary: 'Create a category spend budget' })
+  createBudget(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.createBudget(user.tenantId, dto);
+  }
+
   // ─── Policies ─────────────────────────────────────────────────
 
   @Get('policies')

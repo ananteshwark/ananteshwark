@@ -8,12 +8,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExpenseCategory } from './entities/expense-category.entity';
 import { ExpenseClaim, ExpenseClaimStatus } from './entities/expense-claim.entity';
-import { ExpenseLine } from './entities/expense-line.entity';
+import { ExpenseLine, ExpenseLineType } from './entities/expense-line.entity';
 import { ExpensePolicy } from './entities/expense-policy.entity';
+import { ExpenseRate, ExpenseRateType } from './entities/expense-rate.entity';
+import { ExpenseBudget } from './entities/expense-budget.entity';
+import { Employee } from '../hr/employees/entities/employee.entity';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { GlService } from '../finance/gl/gl.service';
 import { AutomationService } from '../automation/automation.service';
 import { JournalSource } from '../finance/gl/entities/journal-entry.entity';
+
+const round2 = (n: number) => Math.round(Number(n) * 100) / 100;
 
 @Injectable()
 export class ExpensesService {
@@ -28,6 +33,12 @@ export class ExpensesService {
     private readonly policyRepo: Repository<ExpensePolicy>,
     private readonly glService: GlService,
     @Optional() private readonly automation?: AutomationService,
+    @Optional() @InjectRepository(ExpenseRate)
+    private readonly rateRepo?: Repository<ExpenseRate>,
+    @Optional() @InjectRepository(ExpenseBudget)
+    private readonly budgetRepo?: Repository<ExpenseBudget>,
+    @Optional() @InjectRepository(Employee)
+    private readonly employeeRepo?: Repository<Employee>,
   ) {}
 
   // ─── Categories ───────────────────────────────────────────────
@@ -79,6 +90,33 @@ export class ExpensesService {
 
   // ─── Claims ───────────────────────────────────────────────────
 
+  /**
+   * Resolve the amount of a computed line: per-diem and mileage lines carry a
+   * rate reference + quantity (days / km); the amount is rate × quantity.
+   */
+  private async resolveLineAmount(tenantId: string, l: any): Promise<{ amount: number; lineType: ExpenseLineType; quantity: number | null; rateId: string | null }> {
+    const lineType: ExpenseLineType = l.lineType ?? ExpenseLineType.GENERAL;
+    if (lineType === ExpenseLineType.GENERAL) {
+      return { amount: parseFloat(l.amount) || 0, lineType, quantity: null, rateId: null };
+    }
+    if (!this.rateRepo) throw new BadRequestException('Rate cards are not available in this deployment');
+    if (!l.rateId || !(Number(l.quantity) > 0)) {
+      throw new BadRequestException(`${lineType} lines need a rateId and a positive quantity`);
+    }
+    const rate = await this.rateRepo.findOne({ where: { id: l.rateId, tenantId, isActive: true } });
+    if (!rate) throw new NotFoundException(`Expense rate ${l.rateId} not found`);
+    const expected = lineType === ExpenseLineType.PER_DIEM ? ExpenseRateType.PER_DIEM : ExpenseRateType.MILEAGE;
+    if (rate.rateType !== expected) {
+      throw new BadRequestException(`Rate "${rate.name}" is a ${rate.rateType} rate — expected ${expected}`);
+    }
+    return {
+      amount: round2(Number(rate.rate) * Number(l.quantity)),
+      lineType,
+      quantity: Number(l.quantity),
+      rateId: rate.id,
+    };
+  }
+
   async createClaim(
     tenantId: string,
     employeeId: string,
@@ -86,10 +124,12 @@ export class ExpensesService {
   ): Promise<ExpenseClaim & { lines: ExpenseLine[] }> {
     const claimNumber = await this.nextClaimNumber(tenantId);
     const lines: any[] = dto.lines ?? [];
-    const totalAmount = lines.reduce(
-      (sum: number, l: any) => sum + (parseFloat(l.amount) || 0),
-      0,
-    );
+    const resolved = [] as Array<{ raw: any; amount: number; lineType: ExpenseLineType; quantity: number | null; rateId: string | null }>;
+    for (const l of lines) {
+      const r = await this.resolveLineAmount(tenantId, l);
+      resolved.push({ raw: l, ...r });
+    }
+    const totalAmount = round2(resolved.reduce((sum, r) => sum + r.amount, 0));
 
     const claim = this.claimRepo.create({
       tenantId,
@@ -103,20 +143,23 @@ export class ExpensesService {
     });
     const saved = await this.claimRepo.save(claim);
 
-    const lineEntities = lines.map((l: any, idx: number) =>
+    const lineEntities = resolved.map((r, idx) =>
       this.lineRepo.create({
         tenantId,
         claimId: saved.id,
         lineNumber: idx + 1,
-        categoryId: l.categoryId ?? null,
-        description: l.description,
-        expenseDate: l.expenseDate,
-        amount: l.amount,
-        currency: l.currency ?? dto.currency ?? 'INR',
-        receiptUrl: l.receiptUrl ?? null,
-        taxAmount: l.taxAmount ?? 0,
-        projectId: l.projectId ?? null,
-        notes: l.notes ?? null,
+        categoryId: r.raw.categoryId ?? null,
+        description: r.raw.description,
+        expenseDate: r.raw.expenseDate,
+        amount: r.amount,
+        currency: r.raw.currency ?? dto.currency ?? 'INR',
+        receiptUrl: r.raw.receiptUrl ?? null,
+        taxAmount: r.raw.taxAmount ?? 0,
+        projectId: r.raw.projectId ?? null,
+        notes: r.raw.notes ?? null,
+        lineType: r.lineType,
+        quantity: r.quantity,
+        rateId: r.rateId,
       }),
     );
     await this.lineRepo.save(lineEntities);
@@ -173,7 +216,54 @@ export class ExpensesService {
     return this.claimRepo.save(claim);
   }
 
+  /**
+   * Policy gate at submission: the first active policy whose appliesTo
+   * matches the claimant (empty lists match everyone) enforces its claim cap
+   * and per-category line limits.
+   */
+  private async enforcePolicy(tenantId: string, claim: ExpenseClaim & { lines?: ExpenseLine[] }): Promise<void> {
+    const policies = await this.policyRepo.find({ where: { tenantId, isActive: true } });
+    if (!policies.length) return;
+
+    let employee: Employee | null = null;
+    if (this.employeeRepo) {
+      employee = await this.employeeRepo.findOne({ where: { id: claim.employeeId, tenantId } as any }).catch(() => null);
+    }
+    const matches = (p: ExpensePolicy) => {
+      const scope = p.appliesTo;
+      if (!scope) return true;
+      if (scope.departments?.length && (!employee || !scope.departments.includes(employee.departmentId ?? ''))) return false;
+      if (scope.designations?.length && (!employee || !scope.designations.includes(employee.designationId ?? ''))) return false;
+      return true;
+    };
+    const policy = policies.find(matches);
+    if (!policy) return;
+
+    if (policy.maxClaimAmount != null && Number(claim.totalAmount) > Number(policy.maxClaimAmount)) {
+      throw new BadRequestException(
+        `Claim total ${claim.totalAmount} exceeds the ${policy.name} limit of ${policy.maxClaimAmount}`,
+      );
+    }
+    const limits = new Map((policy.categoryLimits ?? []).map((cl: any) => [cl.categoryId, Number(cl.maxAmount)]));
+    if (limits.size) {
+      const lines = claim.lines ?? (await this.lineRepo.find({ where: { claimId: claim.id, tenantId } }));
+      for (const line of lines) {
+        const cap = line.categoryId ? limits.get(line.categoryId) : undefined;
+        if (cap != null && Number(line.amount) > cap) {
+          throw new BadRequestException(
+            `Line ${line.lineNumber} (${line.description}) exceeds the category limit of ${cap} under ${policy.name}`,
+          );
+        }
+      }
+    }
+  }
+
   async submitClaim(tenantId: string, id: string): Promise<ExpenseClaim> {
+    const current = await this.findClaim(tenantId, id);
+    if (current.status !== ExpenseClaimStatus.DRAFT) {
+      throw new BadRequestException(`Cannot transition from ${current.status} to ${ExpenseClaimStatus.SUBMITTED}`);
+    }
+    await this.enforcePolicy(tenantId, current);
     const claim = await this.transitionClaim(tenantId, id, ExpenseClaimStatus.DRAFT, ExpenseClaimStatus.SUBMITTED);
     await this.automation?.emit(tenantId, 'expense.submitted', { claimId: claim.id, claimNumber: claim.claimNumber, employeeId: claim.employeeId, totalAmount: Number(claim.totalAmount) });
     return claim;
@@ -185,7 +275,25 @@ export class ExpensesService {
       approvedAt: new Date(),
     });
     await this.automation?.emit(tenantId, 'expense.approved', { claimId: claim.id, claimNumber: claim.claimNumber, employeeId: claim.employeeId, totalAmount: Number(claim.totalAmount), approvedById });
+    await this.checkBudgetAlerts(tenantId, new Date(claim.claimDate).getFullYear()).catch(() => undefined);
     return claim;
+  }
+
+  /** Emit expense.budget_alert for budgets whose consumption crossed their threshold. */
+  private async checkBudgetAlerts(tenantId: string, year: number): Promise<void> {
+    if (!this.budgetRepo || !this.automation) return;
+    const status = await this.budgetStatus(tenantId, year);
+    for (const row of status.filter((r) => r.alert)) {
+      await this.automation.emit(tenantId, 'expense.budget_alert', {
+        budgetId: row.budgetId,
+        categoryId: row.categoryId,
+        year,
+        amount: row.amount,
+        consumed: row.consumed,
+        consumedPct: row.consumedPct,
+        thresholdPct: row.thresholdPct,
+      });
+    }
   }
 
   async rejectClaim(
@@ -201,6 +309,93 @@ export class ExpensesService {
     });
     await this.automation?.emit(tenantId, 'expense.rejected', { claimId: claim.id, claimNumber: claim.claimNumber, employeeId: claim.employeeId, reason });
     return claim;
+  }
+
+  // ─── Split, advance offset ────────────────────────────────────
+
+  /**
+   * Split a DRAFT claim with colleagues: each split share becomes a DRAFT
+   * claim owned by that colleague (lines scaled proportionally, provenance
+   * recorded); the original keeps the remainder.
+   */
+  async splitClaim(
+    tenantId: string,
+    id: string,
+    splits: Array<{ employeeId: string; sharePct: number }>,
+  ): Promise<{ original: ExpenseClaim; created: ExpenseClaim[] }> {
+    const claim = await this.findClaim(tenantId, id);
+    if (claim.status !== ExpenseClaimStatus.DRAFT) {
+      throw new BadRequestException('Only DRAFT claims can be split');
+    }
+    const shares = (splits ?? []).filter((s) => s.employeeId && Number(s.sharePct) > 0);
+    if (!shares.length) throw new BadRequestException('At least one split share is required');
+    const totalPct = shares.reduce((s, x) => s + Number(x.sharePct), 0);
+    if (totalPct >= 100) throw new BadRequestException('Split shares must total less than 100% — the owner keeps the remainder');
+
+    const created: ExpenseClaim[] = [];
+    for (const share of shares) {
+      const fraction = Number(share.sharePct) / 100;
+      const claimNumber = await this.nextClaimNumber(tenantId);
+      const copy = await this.claimRepo.save(this.claimRepo.create({
+        tenantId,
+        employeeId: share.employeeId,
+        claimNumber,
+        title: `${claim.title} (split ${share.sharePct}%)`,
+        claimDate: claim.claimDate,
+        currency: claim.currency,
+        status: ExpenseClaimStatus.DRAFT,
+        totalAmount: round2(Number(claim.totalAmount) * fraction),
+        splitFromClaimId: claim.id,
+      }));
+      await this.lineRepo.save(claim.lines.map((l) => this.lineRepo.create({
+        tenantId,
+        claimId: copy.id,
+        lineNumber: l.lineNumber,
+        categoryId: l.categoryId,
+        description: l.description,
+        expenseDate: l.expenseDate,
+        amount: round2(Number(l.amount) * fraction),
+        currency: l.currency,
+        taxAmount: round2(Number(l.taxAmount) * fraction),
+        projectId: l.projectId,
+        notes: `Split ${share.sharePct}% of ${claim.claimNumber}`,
+        lineType: l.lineType,
+      })));
+      created.push(copy);
+    }
+
+    // Scale the original down to its remaining share.
+    const remainder = (100 - totalPct) / 100;
+    for (const l of claim.lines) {
+      l.amount = round2(Number(l.amount) * remainder);
+      l.taxAmount = round2(Number(l.taxAmount) * remainder);
+      await this.lineRepo.save(l);
+    }
+    const originalRow = await this.claimRepo.findOne({ where: { id: claim.id, tenantId } });
+    originalRow!.totalAmount = round2(Number(claim.totalAmount) * remainder);
+    const original = await this.claimRepo.save(originalRow!);
+    return { original, created };
+  }
+
+  /** Record an advance offset on an APPROVED claim; payout nets it off. */
+  async applyAdvanceOffset(
+    tenantId: string,
+    id: string,
+    dto: { advanceId: string; amount: number },
+  ): Promise<ExpenseClaim> {
+    const claim = await this.claimRepo.findOne({ where: { id, tenantId } });
+    if (!claim) throw new NotFoundException(`Expense claim ${id} not found`);
+    if (claim.status !== ExpenseClaimStatus.APPROVED) {
+      throw new BadRequestException('Advance offsets apply to APPROVED claims before payment');
+    }
+    const amount = Number(dto.amount);
+    if (!(amount > 0)) throw new BadRequestException('Offset amount must be positive');
+    if (amount > Number(claim.totalAmount)) {
+      throw new BadRequestException(`Offset ${amount} exceeds the claim total ${claim.totalAmount}`);
+    }
+    claim.advanceId = dto.advanceId;
+    claim.advanceDeduction = amount;
+    return this.claimRepo.save(claim);
   }
 
   async markPaid(tenantId: string, id: string, userId: string): Promise<ExpenseClaim> {
@@ -235,7 +430,12 @@ export class ExpensesService {
     claim.status = ExpenseClaimStatus.PAID;
     claim.paidAt = new Date();
     const paid = await this.claimRepo.save(claim);
-    await this.automation?.emit(tenantId, 'expense.paid', { claimId: paid.id, claimNumber: paid.claimNumber, employeeId: paid.employeeId, totalAmount: Number(paid.totalAmount) });
+    await this.automation?.emit(tenantId, 'expense.paid', {
+      claimId: paid.id, claimNumber: paid.claimNumber, employeeId: paid.employeeId,
+      totalAmount: Number(paid.totalAmount),
+      advanceDeduction: Number(paid.advanceDeduction ?? 0),
+      netPaid: round2(Number(paid.totalAmount) - Number(paid.advanceDeduction ?? 0)),
+    });
     return paid;
   }
 
@@ -255,5 +455,72 @@ export class ExpensesService {
     if (!policy) throw new NotFoundException(`Expense policy ${id} not found`);
     Object.assign(policy, dto);
     return this.policyRepo.save(policy);
+  }
+
+  // ─── Rate cards (per-diem / mileage) ──────────────────────────
+
+  async createRate(tenantId: string, dto: Partial<ExpenseRate>): Promise<ExpenseRate> {
+    if (!this.rateRepo) throw new BadRequestException('Rate cards are not available in this deployment');
+    if (!dto.name?.trim() || !dto.classifier?.trim() || !(Number(dto.rate) > 0)) {
+      throw new BadRequestException('name, classifier and a positive rate are required');
+    }
+    if (!dto.rateType || !Object.values(ExpenseRateType).includes(dto.rateType)) {
+      throw new BadRequestException(`rateType must be one of ${Object.values(ExpenseRateType).join(', ')}`);
+    }
+    return this.rateRepo.save(this.rateRepo.create({ ...dto, tenantId }));
+  }
+
+  async listRates(tenantId: string, rateType?: ExpenseRateType): Promise<ExpenseRate[]> {
+    if (!this.rateRepo) return [];
+    const where: any = { tenantId, isActive: true };
+    if (rateType) where.rateType = rateType;
+    return this.rateRepo.find({ where, order: { name: 'ASC' } });
+  }
+
+  // ─── Budgets ──────────────────────────────────────────────────
+
+  async createBudget(tenantId: string, dto: Partial<ExpenseBudget>): Promise<ExpenseBudget> {
+    if (!this.budgetRepo) throw new BadRequestException('Expense budgets are not available in this deployment');
+    if (!dto.year || !(Number(dto.amount) > 0)) {
+      throw new BadRequestException('year and a positive amount are required');
+    }
+    return this.budgetRepo.save(this.budgetRepo.create({ ...dto, tenantId }));
+  }
+
+  /**
+   * Consumption per budget: sum of APPROVED/PAID claim lines in the budget's
+   * category (or all lines for the all-categories budget) for the year.
+   */
+  async budgetStatus(tenantId: string, year: number): Promise<Array<{
+    budgetId: string; categoryId: string | null; amount: number;
+    consumed: number; consumedPct: number; thresholdPct: number; alert: boolean;
+  }>> {
+    if (!this.budgetRepo) return [];
+    const budgets = await this.budgetRepo.find({ where: { tenantId, year, isActive: true } });
+    if (!budgets.length) return [];
+
+    const rows = [];
+    for (const b of budgets) {
+      const qb = this.lineRepo.createQueryBuilder('l')
+        .innerJoin(ExpenseClaim, 'c', 'c.id = l.claim_id')
+        .select('COALESCE(SUM(l.amount), 0)', 'sum')
+        .where('l.tenant_id = :tenantId', { tenantId })
+        .andWhere('c.status IN (:...statuses)', { statuses: [ExpenseClaimStatus.APPROVED, ExpenseClaimStatus.PAID] })
+        .andWhere('l.expense_date BETWEEN :from AND :to', { from: `${year}-01-01`, to: `${year}-12-31` });
+      if (b.categoryId) qb.andWhere('l.category_id = :cat', { cat: b.categoryId });
+      const raw = await qb.getRawOne<{ sum: string }>();
+      const consumed = round2(Number(raw?.sum ?? 0));
+      const consumedPct = Number(b.amount) > 0 ? Math.round((consumed / Number(b.amount)) * 100) : 0;
+      rows.push({
+        budgetId: b.id,
+        categoryId: b.categoryId,
+        amount: Number(b.amount),
+        consumed,
+        consumedPct,
+        thresholdPct: b.alertThresholdPct,
+        alert: consumedPct >= b.alertThresholdPct,
+      });
+    }
+    return rows;
   }
 }

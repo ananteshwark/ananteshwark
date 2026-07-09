@@ -8,6 +8,11 @@ export class ExpensePolicy {
   @Column({ length: 200 }) name: string;
   @Column({ name: 'category_limits', type: 'jsonb', default: [] }) categoryLimits: any[];
   @Column({ name: 'requires_approval_above', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer }) requiresApprovalAbove: number | null;
+  // Restrict who the policy applies to; empty/absent lists match everyone.
+  @Column({ name: 'applies_to', type: 'jsonb', nullable: true })
+  appliesTo: { departments?: string[]; designations?: string[] } | null;
+  @Column({ name: 'max_claim_amount', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer })
+  maxClaimAmount: number | null;
   @Column({ name: 'is_active', default: true }) isActive: boolean;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

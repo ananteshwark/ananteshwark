@@ -27,6 +27,12 @@ export class ExpenseClaim {
   @Column({ name: 'paid_at', type: 'timestamp', nullable: true }) paidAt: Date | null;
   @Column({ name: 'rejection_reason', type: 'text', nullable: true }) rejectionReason: string | null;
   @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true }) journalEntryId: string | null;
+  // Split provenance: claims carved out for colleagues point at the original.
+  @Column({ name: 'split_from_claim_id', type: 'uuid', nullable: true }) splitFromClaimId: string | null;
+  // Advance settlement: deduction applied before payout (net = total - deduction).
+  @Column({ name: 'advance_id', type: 'varchar', nullable: true }) advanceId: string | null;
+  @Column({ name: 'advance_deduction', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
+  advanceDeduction: number;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 

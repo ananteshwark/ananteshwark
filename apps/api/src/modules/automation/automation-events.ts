@@ -30,6 +30,7 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'expense.approved', label: 'Expense claim approved', module: 'expenses' },
   { event: 'expense.rejected', label: 'Expense claim rejected', module: 'expenses' },
   { event: 'expense.paid', label: 'Expense claim paid', module: 'expenses' },
+  { event: 'expense.budget_alert', label: 'Expense budget threshold crossed', module: 'expenses' },
 
   // Procurement
   { event: 'requisition.approved', label: 'Purchase requisition approved', module: 'procurement' },
