@@ -1,15 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
-  LandedCostDoc, LandedCostStatus, AllocationBasis, LandedCharge, LandedAllocation,
+  LandedCostDoc, LandedCostStatus, AllocationBasis, LandedCharge, LandedAllocation, ValuationPushRow,
 } from './landed-cost.entity';
 import { Grn } from '../grn/entities/grn.entity';
 import { GrnLine } from '../grn/entities/grn-line.entity';
 import { PoLine } from '../po/entities/po-line.entity';
+import { Item } from '../../inventory/entities/item.entity';
+import { StockBalance } from '../../inventory/entities/stock-balance.entity';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 
 const round2 = (n: number) => Math.round(Number(n) * 100) / 100;
+const round4 = (n: number) => Math.round(Number(n) * 10000) / 10000;
 
 @Injectable()
 export class LandedCostService {
@@ -18,6 +21,8 @@ export class LandedCostService {
     @InjectRepository(Grn) private readonly grnRepo: Repository<Grn>,
     @InjectRepository(GrnLine) private readonly grnLineRepo: Repository<GrnLine>,
     @InjectRepository(PoLine) private readonly poLineRepo: Repository<PoLine>,
+    @Optional() @InjectRepository(Item) private readonly itemRepo?: Repository<Item>,
+    @Optional() @InjectRepository(StockBalance) private readonly balanceRepo?: Repository<StockBalance>,
   ) {}
 
   private async nextDocNumber(tenantId: string): Promise<string> {
@@ -39,7 +44,7 @@ export class LandedCostService {
    * allocations always add up to the charge total exactly.
    */
   allocate(
-    lines: Array<{ grnLineId: string; description: string; quantityAccepted: number; unitPrice: number }>,
+    lines: Array<{ grnLineId: string; description: string; quantityAccepted: number; unitPrice: number; itemCode?: string | null }>,
     totalCharges: number,
     basis: AllocationBasis,
   ): LandedAllocation[] {
@@ -67,6 +72,7 @@ export class LandedCostService {
         basisValue: basisOf(l),
         allocatedAmount: allocated,
         unitCostDelta: round2(allocated / Number(l.quantityAccepted)),
+        itemCode: l.itemCode ?? null,
       };
     });
   }
@@ -95,6 +101,7 @@ export class LandedCostService {
           description: (poLine as any)?.description ?? `Line ${(l as any).lineNumber}`,
           quantityAccepted: Number((l as any).quantityAccepted),
           unitPrice: Number((poLine as any)?.unitPrice ?? 0),
+          itemCode: (poLine as any)?.itemCode ?? null,
         };
       }),
       totalCharges,
@@ -132,15 +139,64 @@ export class LandedCostService {
     return doc;
   }
 
-  /** Posting freezes the allocation. (Valuation-layer push is the documented follow-up.) */
+  /**
+   * Posting freezes the allocation and pushes it into stock valuation: each
+   * line's allocated charge is absorbed into the item's moving average across
+   * its on-hand balances. Charges that can't be absorbed (unknown item, zero
+   * on-hand) are reported as expensed instead of silently dropped.
+   */
   async post(tenantId: string, id: string): Promise<LandedCostDoc> {
     const doc = await this.findOne(tenantId, id);
     if (doc.status !== LandedCostStatus.DRAFT) {
       throw new BadRequestException(`Only DRAFT documents can be posted (current: ${doc.status})`);
     }
+    doc.valuationResult = await this.pushToValuation(tenantId, doc.allocations);
     doc.status = LandedCostStatus.POSTED;
     doc.postedAt = new Date();
     return this.docRepo.save(doc);
+  }
+
+  private async pushToValuation(tenantId: string, allocations: LandedAllocation[]): Promise<ValuationPushRow[] | null> {
+    if (!this.itemRepo || !this.balanceRepo) return null; // valuation layer not wired in this deployment
+    const rows: ValuationPushRow[] = [];
+    for (const alloc of allocations) {
+      const amount = Number(alloc.allocatedAmount);
+      if (!alloc.itemCode) {
+        rows.push({ grnLineId: alloc.grnLineId, itemCode: null, applied: 0, expensed: amount, reason: 'PO line has no item code' });
+        continue;
+      }
+      const item = await this.itemRepo.findOne({ where: { tenantId, code: alloc.itemCode } as any });
+      if (!item) {
+        rows.push({ grnLineId: alloc.grnLineId, itemCode: alloc.itemCode, applied: 0, expensed: amount, reason: `No item master for code ${alloc.itemCode}` });
+        continue;
+      }
+      const balances = await this.balanceRepo.find({ where: { tenantId, itemId: item.id } as any });
+      const onHand = balances.reduce((s, b) => s + Number(b.qtyOnHand), 0);
+      if (onHand <= 0) {
+        rows.push({ grnLineId: alloc.grnLineId, itemCode: alloc.itemCode, applied: 0, expensed: amount, reason: 'No stock on hand to absorb the charge' });
+        continue;
+      }
+      // Spread over balances proportional to on-hand qty; the moving average
+      // rises by (share / qty) per warehouse, so total value rises by exactly
+      // the allocated amount.
+      let appliedSoFar = 0;
+      const withStock = balances.filter((b) => Number(b.qtyOnHand) > 0);
+      for (let i = 0; i < withStock.length; i++) {
+        const b = withStock[i];
+        const isLast = i === withStock.length - 1;
+        const share = isLast ? round2(amount - appliedSoFar) : round2((Number(b.qtyOnHand) / onHand) * amount);
+        appliedSoFar = round2(appliedSoFar + share);
+        const qty = Number(b.qtyOnHand);
+        const newAvg = round4((qty * Number(b.avgCost) + share) / qty);
+        b.avgCost = newAvg;
+        b.unitCost = newAvg;
+        b.totalCost = round4(qty * newAvg);
+        b.totalValue = round2(qty * newAvg);
+        await this.balanceRepo.save(b);
+      }
+      rows.push({ grnLineId: alloc.grnLineId, itemCode: alloc.itemCode, applied: amount, expensed: 0 });
+    }
+    return rows;
   }
 
   async cancel(tenantId: string, id: string): Promise<LandedCostDoc> {

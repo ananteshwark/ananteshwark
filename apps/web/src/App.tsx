@@ -31,6 +31,7 @@ import IntegrationPage from './pages/integration/IntegrationPage';
 import I18nPage from './pages/localization/I18nPage';
 import GrcPage from './pages/grc/GrcPage';
 import ExtensibilityPage from './pages/extensibility/ExtensibilityPage';
+import MarketplacePage from './pages/settings/MarketplacePage';
 import DelegationPage from './pages/delegation/DelegationPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import AuditPage from './pages/audit/AuditPage';
@@ -240,6 +241,7 @@ export default function App() {
         <Route path="settings/i18n" element={<I18nPage />} />
         <Route path="settings/grc" element={<GrcPage />} />
         <Route path="settings/extensibility" element={<ExtensibilityPage />} />
+        <Route path="settings/marketplace" element={<MarketplacePage />} />
         <Route path="settings/tax-codes" element={<TaxCodesPage />} />
         <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="hr/employees" element={<EmployeesPage />} />

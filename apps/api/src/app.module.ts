@@ -63,6 +63,8 @@ import { BiModule } from './modules/analytics/bi/bi.module';
 import { PredictiveModule } from './modules/analytics/predictive/predictive.module';
 import { BpmModule } from './modules/workflow/bpm/bpm.module';
 import { MobileModule } from './modules/mobile/mobile.module';
+import { SyncModule } from './modules/sync/sync.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { SecurityModule } from './modules/security/security.module';
@@ -181,6 +183,8 @@ import { getDatabaseConfig } from './config/database.config';
     PredictiveModule,
     BpmModule,
     MobileModule,
+    SyncModule,
+    MarketplaceModule,
     AssistantModule,
     PrivacyModule,
     SecurityModule,

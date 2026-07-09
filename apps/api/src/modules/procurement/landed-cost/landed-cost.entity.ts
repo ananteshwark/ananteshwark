@@ -27,6 +27,15 @@ export interface LandedAllocation {
   basisValue: number;       // line value or quantity depending on basis
   allocatedAmount: number;  // share of total charges
   unitCostDelta: number;    // allocatedAmount / quantityAccepted
+  itemCode?: string | null; // resolved from the PO line so posting can hit valuation
+}
+
+export interface ValuationPushRow {
+  grnLineId: string;
+  itemCode: string | null;
+  applied: number;   // absorbed into stock balances (moving average raised)
+  expensed: number;  // could not be absorbed — no stock on hand / unknown item
+  reason?: string;
 }
 
 /**
@@ -51,6 +60,8 @@ export class LandedCostDoc {
   @Column({ name: 'total_charges', type: 'numeric', precision: 18, scale: 2, default: 0, transformer: decimalTransformer })
   totalCharges: number;
   @Column({ type: 'jsonb', default: () => "'[]'" }) allocations: LandedAllocation[];
+  // Outcome of pushing the allocation into stock valuation at posting time.
+  @Column({ name: 'valuation_result', type: 'jsonb', nullable: true }) valuationResult: ValuationPushRow[] | null;
   @Column({ name: 'posted_at', type: 'timestamptz', nullable: true }) postedAt: Date | null;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

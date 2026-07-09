@@ -102,9 +102,69 @@ describe('LandedCostService', () => {
     const posted = await service.post('t1', 'd1');
     expect(posted.status).toBe(LandedCostStatus.POSTED);
     expect(posted.postedAt).toBeInstanceOf(Date);
+    expect(posted.valuationResult).toBeNull(); // valuation repos not wired in this construction
 
     docRepo.findOne.mockResolvedValue({ id: 'd1', tenantId: 't1', status: LandedCostStatus.POSTED });
     await expect(service.post('t1', 'd1')).rejects.toThrow('Only DRAFT');
     await expect(service.cancel('t1', 'd1')).rejects.toThrow('cannot be cancelled');
+  });
+
+  describe('valuation push on posting', () => {
+    let itemRepo: any, balanceRepo: any;
+
+    beforeEach(() => {
+      itemRepo = mockRepo(); balanceRepo = mockRepo();
+      service = new LandedCostService(docRepo, grnRepo, grnLineRepo, poLineRepo, itemRepo, balanceRepo);
+    });
+
+    const draft = (allocations: any[]) => ({
+      id: 'd1', tenantId: 't1', status: LandedCostStatus.DRAFT, allocations,
+    });
+
+    it('absorbs the allocated charge into the moving average across warehouses', async () => {
+      docRepo.findOne.mockResolvedValue(draft([
+        { grnLineId: 'gl1', itemCode: 'STEEL-01', allocatedAmount: 300, quantityAccepted: 100 },
+      ]));
+      itemRepo.findOne.mockResolvedValue({ id: 'item-1', code: 'STEEL-01' });
+      balanceRepo.find.mockResolvedValue([
+        { id: 'b1', qtyOnHand: 60, avgCost: 50 }, // 60% of stock → 180 of the charge
+        { id: 'b2', qtyOnHand: 40, avgCost: 50 }, // 40% → 120
+      ]);
+      const posted = await service.post('t1', 'd1');
+      expect(posted.valuationResult).toEqual([
+        { grnLineId: 'gl1', itemCode: 'STEEL-01', applied: 300, expensed: 0 },
+      ]);
+      const saved = balanceRepo.save.mock.calls.map((c: any) => c[0]);
+      expect(saved[0].avgCost).toBe(53);      // 50 + 180/60
+      expect(saved[1].avgCost).toBe(53);      // 50 + 120/40
+      expect(saved[0].totalValue).toBe(3180); // 60 × 53 — value rose by exactly 180
+    });
+
+    it('expenses charges it cannot absorb, with the reason recorded', async () => {
+      docRepo.findOne.mockResolvedValue(draft([
+        { grnLineId: 'gl1', itemCode: null, allocatedAmount: 100 },
+        { grnLineId: 'gl2', itemCode: 'GHOST', allocatedAmount: 50 },
+        { grnLineId: 'gl3', itemCode: 'EMPTY', allocatedAmount: 25 },
+      ]));
+      itemRepo.findOne
+        .mockResolvedValueOnce(null)                              // GHOST: no item master
+        .mockResolvedValueOnce({ id: 'item-e', code: 'EMPTY' }); // EMPTY: no stock
+      balanceRepo.find.mockResolvedValue([]);
+      const posted = await service.post('t1', 'd1');
+      expect(posted.valuationResult).toMatchObject([
+        { grnLineId: 'gl1', applied: 0, expensed: 100, reason: expect.stringContaining('no item code') },
+        { grnLineId: 'gl2', applied: 0, expensed: 50, reason: expect.stringContaining('GHOST') },
+        { grnLineId: 'gl3', applied: 0, expensed: 25, reason: expect.stringContaining('on hand') },
+      ]);
+      expect(balanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('create stamps itemCode from the PO line onto each allocation', async () => {
+      grnRepo.findOne.mockResolvedValue({ id: 'grn-1', tenantId: 't1', grnNumber: 'GRN-000007', poId: 'po-1' });
+      grnLineRepo.find.mockResolvedValue([{ id: 'gl1', lineNumber: 1, poLineId: 'pl1', quantityAccepted: 10 }]);
+      poLineRepo.find.mockResolvedValue([{ id: 'pl1', description: 'Machine part', unitPrice: 200, itemCode: 'MP-9' }]);
+      const doc = await service.create('t1', { grnId: 'grn-1', charges: [{ type: 'FREIGHT', amount: 100 }] });
+      expect(doc.allocations[0].itemCode).toBe('MP-9');
+    });
   });
 });

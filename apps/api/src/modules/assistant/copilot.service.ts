@@ -6,6 +6,7 @@ import { HelpdeskService } from '../helpdesk/helpdesk.service';
 import { RecognitionService } from '../engagement/recognition.service';
 import { SemanticService } from '../analytics/semantic/semantic.service';
 import { AiAnomalyService } from '../ai/ai-anomaly.service';
+import { LlmPlannerService } from './llm-planner.service';
 import { HrCaseCategory } from '../helpdesk/entities/hr-case.entity';
 
 export interface CopilotPlan {
@@ -35,10 +36,10 @@ const DATASET_ALIASES: Record<string, string> = {
  * action against real services (raise an HR case, give recognition, run an
  * analytics query), or falls back to the Q&A assistant.
  *
- * The planner is deliberately rule-based and deterministic. `plan()` is the
- * single seam where an LLM-backed planner (e.g. the Claude API emitting the
- * same {action, params} shape via tool use) can replace the regexes without
- * touching any executor.
+ * Planning is hybrid: the deterministic regex `plan()` runs first (free,
+ * predictable), and when it misses, the optional LLM planner (Claude tool-use
+ * emitting the same {action, params} shape — see LlmPlannerService) handles
+ * the long tail of phrasings. Executors are planner-agnostic.
  */
 @Injectable()
 export class CopilotService {
@@ -48,6 +49,7 @@ export class CopilotService {
     @Optional() private readonly recognition?: RecognitionService,
     @Optional() private readonly semantic?: SemanticService,
     @Optional() private readonly anomalies?: AiAnomalyService,
+    @Optional() private readonly llmPlanner?: LlmPlannerService,
   ) {}
 
   /** Registry of what the copilot can do — surfaced to the UI as suggestions. */
@@ -122,7 +124,7 @@ export class CopilotService {
     user: { id: string; name: string },
     message: string,
   ): Promise<CopilotResult> {
-    const plan = this.plan(message);
+    const plan = this.plan(message) ?? (await this.llmPlanner?.plan(message)) ?? null;
     if (!plan) {
       return {
         understood: false,
@@ -189,7 +191,15 @@ export class CopilotService {
         if (!this.semantic) return this.unavailable(plan, 'analytics');
         const dataset = plan.params.dataset;
         const datasets = this.semantic.listDatasets();
-        const def = datasets.find((d) => d.key === dataset)!;
+        const def = datasets.find((d) => d.key === dataset);
+        if (!def) {
+          return {
+            understood: true,
+            action: plan.action,
+            params: plan.params,
+            message: `I don't have a dataset called "${dataset}" — try one of: ${datasets.map((d) => d.key).join(', ')}.`,
+          };
+        }
         const dimension = plan.params.dimension && def.dimensions.some((d: any) => d.key === plan.params.dimension)
           ? plan.params.dimension
           : plan.params.dimension === 'month' && def.hasDateColumn

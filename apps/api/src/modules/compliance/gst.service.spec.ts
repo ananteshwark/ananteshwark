@@ -77,6 +77,30 @@ describe('GstService — e-invoicing', () => {
     expect(invoiceRepo.findOne).toHaveBeenCalledTimes(1); // second call short-circuits
   });
 
+  it('transmit sends through the IRP transport and stamps the ack; idempotent', async () => {
+    const irp = { transmit: jest.fn().mockResolvedValue({ ackNo: '112233445566778', ackDate: '2026-06-15 10:00:00', status: 'ACT' }) };
+    service = new GstService(einvoiceRepo, invoiceRepo, lineRepo, customerRepo, billRepo, irp as any);
+    einvoiceRepo.findOne.mockResolvedValue({
+      id: 'e1', tenantId: 't1', irn: 'IRN1', payload: { DocDtls: {} }, status: GstEInvoiceStatus.GENERATED,
+    });
+    const sent = await service.transmitEInvoice('t1', 'e1');
+    expect(irp.transmit).toHaveBeenCalledWith(expect.objectContaining({ irn: 'IRN1' }));
+    expect(sent.status).toBe(GstEInvoiceStatus.TRANSMITTED);
+    expect(sent.ackNo).toBe('112233445566778');
+
+    einvoiceRepo.findOne.mockResolvedValue({ ...sent, status: GstEInvoiceStatus.TRANSMITTED });
+    await service.transmitEInvoice('t1', 'e1');
+    expect(irp.transmit).toHaveBeenCalledTimes(1); // already transmitted → short-circuit
+
+    einvoiceRepo.findOne.mockResolvedValue({ id: 'e1', tenantId: 't1', status: GstEInvoiceStatus.CANCELLED });
+    await expect(service.transmitEInvoice('t1', 'e1')).rejects.toThrow('Cancelled');
+  });
+
+  it('transmit fails loudly when no IRP transport is bound', async () => {
+    einvoiceRepo.findOne.mockResolvedValue({ id: 'e1', tenantId: 't1', status: GstEInvoiceStatus.GENERATED });
+    await expect(service.transmitEInvoice('t1', 'e1')).rejects.toThrow('No IRP transport');
+  });
+
   it('cancellation is only allowed within 24 hours and needs a reason', async () => {
     const fresh = { id: 'e1', tenantId: 't1', status: GstEInvoiceStatus.GENERATED, createdAt: new Date() };
     einvoiceRepo.findOne.mockResolvedValue({ ...fresh });

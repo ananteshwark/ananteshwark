@@ -391,6 +391,7 @@ const navItems: NavItem[] = [
       { label: 'Languages (i18n)', path: '/settings/i18n' },
       { label: 'Audit & GRC', path: '/settings/grc' },
       { label: 'Extensibility', path: '/settings/extensibility' },
+      { label: 'Marketplace', path: '/settings/marketplace' },
       { label: 'Tax Codes', path: '/settings/tax-codes' },
       { label: 'Email Settings', path: '/settings/email' },
     ],

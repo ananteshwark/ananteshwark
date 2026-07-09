@@ -139,6 +139,8 @@ export const ALL_PERMISSIONS = [
   'expenses:travel:read', 'expenses:travel:create', 'expenses:travel:approve',
   // Background verification
   'talent:bgv:read', 'talent:bgv:manage',
+  // Offline-first mobile sync (self-scoped delta pull + mutation push)
+  'mobile:sync',
 ];
 
 export const SYSTEM_ROLES = {
@@ -203,6 +205,7 @@ export const SYSTEM_ROLES = {
       'hr:helpdesk:read',
       'expenses:travel:read',
       'expenses:travel:create',
+      'mobile:sync',
     ],
   },
   RECRUITER: {

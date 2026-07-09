@@ -5,6 +5,7 @@ import { AssistantService } from './assistant.service';
 import { AssistantController } from './assistant.controller';
 import { RbacModule } from '../rbac/rbac.module';
 import { CopilotService } from './copilot.service';
+import { LlmPlannerService } from './llm-planner.service';
 import { Employee } from '../hr/employees/entities/employee.entity';
 import { HelpdeskModule } from '../helpdesk/helpdesk.module';
 import { EngagementModule } from '../engagement/engagement.module';
@@ -21,7 +22,7 @@ import { AiModule } from '../ai/ai.module';
     RbacModule,
   ],
   controllers: [AssistantController],
-  providers: [AssistantService, CopilotService],
-  exports: [AssistantService, CopilotService],
+  providers: [AssistantService, CopilotService, LlmPlannerService],
+  exports: [AssistantService, CopilotService, LlmPlannerService],
 })
 export class AssistantModule {}

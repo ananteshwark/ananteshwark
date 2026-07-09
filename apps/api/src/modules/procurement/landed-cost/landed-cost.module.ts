@@ -4,12 +4,14 @@ import { LandedCostDoc } from './landed-cost.entity';
 import { Grn } from '../grn/entities/grn.entity';
 import { GrnLine } from '../grn/entities/grn-line.entity';
 import { PoLine } from '../po/entities/po-line.entity';
+import { Item } from '../../inventory/entities/item.entity';
+import { StockBalance } from '../../inventory/entities/stock-balance.entity';
 import { LandedCostService } from './landed-cost.service';
 import { LandedCostController } from './landed-cost.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([LandedCostDoc, Grn, GrnLine, PoLine]), RbacModule],
+  imports: [TypeOrmModule.forFeature([LandedCostDoc, Grn, GrnLine, PoLine, Item, StockBalance]), RbacModule],
   controllers: [LandedCostController],
   providers: [LandedCostService],
   exports: [LandedCostService],

@@ -23,6 +23,10 @@ import { CustomerReceipt } from '../finance/ar/entities/customer-receipt.entity'
 import { SalesOrder } from '../sales/entities/sales-order.entity';
 import { Account } from '../finance/gl/entities/account.entity';
 import { JournalLine } from '../finance/gl/entities/journal-line.entity';
+import { Department } from '../hr/employees/entities/department.entity';
+import { Recognition } from '../engagement/entities/recognition.entity';
+import { OnaService } from './ona/ona.service';
+import { OnaController } from './ona/ona.controller';
 
 @Module({
   imports: [
@@ -43,11 +47,13 @@ import { JournalLine } from '../finance/gl/entities/journal-line.entity';
       SalesOrder,
       Account,
       JournalLine,
+      Department,
+      Recognition,
     ]),
     RbacModule,
   ],
-  controllers: [AnalyticsController, CrossAnalyticsController, SemanticController],
-  providers: [AnalyticsService, CrossAnalyticsService, SemanticService],
-  exports: [AnalyticsService, CrossAnalyticsService, SemanticService],
+  controllers: [AnalyticsController, CrossAnalyticsController, SemanticController, OnaController],
+  providers: [AnalyticsService, CrossAnalyticsService, SemanticService, OnaService],
+  exports: [AnalyticsService, CrossAnalyticsService, SemanticService, OnaService],
 })
 export class AnalyticsModule {}

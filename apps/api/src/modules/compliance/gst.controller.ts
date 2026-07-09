@@ -26,6 +26,13 @@ export class GstController {
     return this.service.listEInvoices(user.tenantId);
   }
 
+  @Post('einvoices/:id/transmit')
+  @RequirePermission('finance:tax:manage')
+  @ApiOperation({ summary: 'Transmit a generated e-invoice to the IRP through the configured transport' })
+  transmit(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.transmitEInvoice(user.tenantId, id);
+  }
+
   @Post('einvoices/:id/cancel')
   @RequirePermission('finance:tax:manage')
   cancel(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { reason: string }) {

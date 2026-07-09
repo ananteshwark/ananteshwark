@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { createHash } from 'crypto';
@@ -7,6 +7,7 @@ import { Invoice } from '../finance/ar/entities/invoice.entity';
 import { InvoiceLine } from '../finance/ar/entities/invoice-line.entity';
 import { Customer } from '../finance/ar/entities/customer.entity';
 import { Bill } from '../finance/ap/entities/bill.entity';
+import { IrpTransport, IRP_TRANSPORT } from './irp.transport';
 
 export interface SellerDetails {
   gstin: string;
@@ -41,6 +42,7 @@ export class GstService {
     @InjectRepository(InvoiceLine) private readonly lineRepo: Repository<InvoiceLine>,
     @InjectRepository(Customer) private readonly customerRepo: Repository<Customer>,
     @InjectRepository(Bill) private readonly billRepo: Repository<Bill>,
+    @Optional() @Inject(IRP_TRANSPORT) private readonly irp?: IrpTransport,
   ) {}
 
   /**
@@ -159,6 +161,27 @@ export class GstService {
 
   async listEInvoices(tenantId: string): Promise<GstEInvoice[]> {
     return this.einvoiceRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' } });
+  }
+
+  /**
+   * Transmit a generated e-invoice to the IRP through the bound transport
+   * (sandbox by default; a GSP adapter in production). Idempotent: an already
+   * transmitted register entry returns as-is.
+   */
+  async transmitEInvoice(tenantId: string, id: string): Promise<GstEInvoice> {
+    const record = await this.einvoiceRepo.findOne({ where: { id, tenantId } });
+    if (!record) throw new NotFoundException(`E-invoice ${id} not found`);
+    if (record.status === GstEInvoiceStatus.TRANSMITTED) return record;
+    if (record.status === GstEInvoiceStatus.CANCELLED) {
+      throw new BadRequestException('Cancelled e-invoices cannot be transmitted');
+    }
+    if (!this.irp) throw new BadRequestException('No IRP transport is configured in this deployment');
+    const ack = await this.irp.transmit({ irn: record.irn, payload: record.payload });
+    record.status = GstEInvoiceStatus.TRANSMITTED;
+    record.ackNo = ack.ackNo;
+    record.ackDate = ack.ackDate;
+    record.transmittedAt = new Date();
+    return this.einvoiceRepo.save(record);
   }
 
   /** IRP rule: an IRN can only be cancelled within 24 hours of generation. */
