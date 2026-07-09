@@ -141,6 +141,9 @@ export const ALL_PERMISSIONS = [
   'talent:bgv:read', 'talent:bgv:manage',
   // Offline-first mobile sync (self-scoped delta pull + mutation push)
   'mobile:sync',
+  // Development plans + continuous feedback
+  'talent:idp:read', 'talent:idp:manage',
+  'talent:feedback:read', 'talent:feedback:create',
 ];
 
 export const SYSTEM_ROLES = {
@@ -206,6 +209,9 @@ export const SYSTEM_ROLES = {
       'expenses:travel:read',
       'expenses:travel:create',
       'mobile:sync',
+      'talent:idp:read',
+      'talent:feedback:read',
+      'talent:feedback:create',
     ],
   },
   RECRUITER: {

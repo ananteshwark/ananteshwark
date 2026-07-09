@@ -7,8 +7,10 @@ import { GoalsModule } from './goals/goals.module';
 import { PerformanceModule } from './performance/performance.module';
 import { AppraisalModule } from './appraisal/appraisal.module';
 import { HiringModule } from './hiring/hiring.module';
+import { IdpModule } from './idp/idp.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
-  imports: [AtsModule, OnboardingModule, LearningModule, SuccessionModule, GoalsModule, PerformanceModule, AppraisalModule, HiringModule],
+  imports: [AtsModule, OnboardingModule, LearningModule, SuccessionModule, GoalsModule, PerformanceModule, AppraisalModule, HiringModule, IdpModule, FeedbackModule],
 })
 export class TalentModule {}

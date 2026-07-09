@@ -61,4 +61,38 @@ export class GoalsController {
   updateProgress(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateKrProgressDto) {
     return this.service.updateKeyResultProgress(user.tenantId, id, dto);
   }
+
+  // ---- Goal journal ----
+  @Get('objectives/:objectiveId/journal')
+  @RequirePermission('talent:goals:read')
+  listJournal(@CurrentUser() user: any, @Param('objectiveId') objectiveId: string) {
+    return this.service.listJournal(user.tenantId, objectiveId);
+  }
+
+  @Post('objectives/:objectiveId/journal')
+  @RequirePermission('talent:goals:create')
+  addJournalEntry(@CurrentUser() user: any, @Param('objectiveId') objectiveId: string, @Body() body: { entry: string }) {
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'Unknown';
+    return this.service.addJournalEntry(user.tenantId, objectiveId, { userId: user.id, name }, body?.entry);
+  }
+
+  // ---- Goal explorer ----
+  @Get('explorer')
+  @RequirePermission('talent:goals:read')
+  listPeerObjectives(@CurrentUser() user: any, @Query('cycleId') cycleId: string, @Query('excludeOwnerId') excludeOwnerId?: string) {
+    return this.service.listPeerObjectives(user.tenantId, cycleId, excludeOwnerId);
+  }
+
+  @Post('objectives/:id/copy')
+  @RequirePermission('talent:goals:create')
+  copyObjective(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { ownerId: string; cycleId?: string }) {
+    return this.service.copyObjective(user.tenantId, id, body);
+  }
+
+  // ---- Bulk assignment ----
+  @Post('objectives/bulk')
+  @RequirePermission('talent:goals:manage')
+  bulkCreateObjectives(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.bulkCreateObjectives(user.tenantId, dto);
+  }
 }

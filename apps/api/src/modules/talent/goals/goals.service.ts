@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { OkrCycle } from './entities/okr-cycle.entity';
-import { Objective, ObjectiveStatus } from './entities/objective.entity';
+import { Objective, ObjectiveStatus, OwnerType } from './entities/objective.entity';
 import { KeyResult, KrStatus } from './entities/key-result.entity';
+import { GoalJournalEntry } from './entities/goal-journal.entity';
 import { CreateCycleDto, CreateObjectiveDto, CreateKeyResultDto, UpdateKrProgressDto } from './dto/goals.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
 
@@ -13,6 +14,8 @@ export class GoalsService {
     @InjectRepository(OkrCycle) private cycleRepo: Repository<OkrCycle>,
     @InjectRepository(Objective) private objectiveRepo: Repository<Objective>,
     @InjectRepository(KeyResult) private krRepo: Repository<KeyResult>,
+    @Optional() @InjectRepository(GoalJournalEntry)
+    private readonly journalRepo?: Repository<GoalJournalEntry>,
   ) {}
 
   async createCycle(tenantId: string, dto: CreateCycleDto): Promise<OkrCycle> {
@@ -64,6 +67,107 @@ export class GoalsService {
     const avgProgress = krs.reduce((sum, kr) => sum + Number(kr.progress), 0) / krs.length;
     const status = avgProgress >= 100 ? ObjectiveStatus.ACHIEVED : avgProgress >= 70 ? ObjectiveStatus.ON_TRACK : avgProgress >= 40 ? ObjectiveStatus.AT_RISK : ObjectiveStatus.BEHIND;
     await this.objectiveRepo.update({ id: objectiveId, tenantId }, { progress: Math.round(avgProgress), status });
+  }
+
+  // ---- Goal journal ----
+  async addJournalEntry(
+    tenantId: string, objectiveId: string,
+    author: { userId: string; name: string }, entry: string,
+  ): Promise<GoalJournalEntry> {
+    if (!this.journalRepo) throw new BadRequestException('Goal journal is not available in this deployment');
+    if (!entry?.trim()) throw new BadRequestException('Entry text is required');
+    const objective = await this.objectiveRepo.findOne({ where: { id: objectiveId, tenantId } });
+    if (!objective) throw new NotFoundException(`Objective ${objectiveId} not found`);
+    return this.journalRepo.save(this.journalRepo.create({
+      tenantId, objectiveId, authorUserId: author.userId, authorName: author.name, entry: entry.trim(),
+    }));
+  }
+
+  async listJournal(tenantId: string, objectiveId: string): Promise<GoalJournalEntry[]> {
+    if (!this.journalRepo) return [];
+    return this.journalRepo.find({ where: { tenantId, objectiveId }, order: { createdAt: 'DESC' } });
+  }
+
+  // ---- Goal explorer ----
+  /** Peers' individual objectives in a cycle — the browse-and-learn view. */
+  async listPeerObjectives(tenantId: string, cycleId: string, excludeOwnerId?: string): Promise<Objective[]> {
+    const where: any = { tenantId, cycleId, ownerType: OwnerType.INDIVIDUAL };
+    if (excludeOwnerId) where.ownerId = Not(excludeOwnerId);
+    return this.objectiveRepo.find({ where, order: { progress: 'DESC' } });
+  }
+
+  /** Copy a peer's objective (with its key results, progress reset) to a new owner. */
+  async copyObjective(
+    tenantId: string, objectiveId: string,
+    dto: { ownerId: string; cycleId?: string },
+  ): Promise<Objective> {
+    const source = await this.objectiveRepo.findOne({ where: { id: objectiveId, tenantId } });
+    if (!source) throw new NotFoundException(`Objective ${objectiveId} not found`);
+    if (!dto.ownerId) throw new BadRequestException('ownerId is required');
+
+    const copy = await this.objectiveRepo.save(this.objectiveRepo.create({
+      tenantId,
+      cycleId: dto.cycleId ?? source.cycleId,
+      title: source.title,
+      description: source.description,
+      ownerId: dto.ownerId,
+      ownerType: OwnerType.INDIVIDUAL,
+      weight: source.weight,
+      progress: 0,
+      status: ObjectiveStatus.ON_TRACK,
+    }));
+    const krs = await this.krRepo.find({ where: { objectiveId: source.id, tenantId } });
+    for (const kr of krs) {
+      await this.krRepo.save(this.krRepo.create({
+        tenantId,
+        objectiveId: copy.id,
+        title: kr.title,
+        description: kr.description,
+        metric: kr.metric,
+        targetValue: kr.targetValue,
+        currentValue: 0,
+        unit: kr.unit,
+        progress: 0,
+      }));
+    }
+    return copy;
+  }
+
+  // ---- Bulk goal assignment ----
+  /** Create the same objective (with key results) for many owners at once. */
+  async bulkCreateObjectives(
+    tenantId: string,
+    dto: {
+      cycleId: string; title: string; description?: string; weight?: number;
+      ownerIds: string[];
+      keyResults?: Array<{ title: string; metric?: string; targetValue: number; unit?: string }>;
+    },
+  ): Promise<{ created: number; objectives: Objective[] }> {
+    if (!dto.cycleId || !dto.title?.trim()) throw new BadRequestException('cycleId and title are required');
+    const ownerIds = [...new Set((dto.ownerIds ?? []).filter(Boolean))];
+    if (!ownerIds.length) throw new BadRequestException('At least one ownerId is required');
+
+    const objectives: Objective[] = [];
+    for (const ownerId of ownerIds) {
+      const objective = await this.objectiveRepo.save(this.objectiveRepo.create({
+        tenantId,
+        cycleId: dto.cycleId,
+        title: dto.title.trim(),
+        description: dto.description ?? null,
+        ownerId,
+        ownerType: OwnerType.INDIVIDUAL,
+        weight: dto.weight ?? 1,
+        progress: 0,
+      } as any)) as unknown as Objective;
+      for (const kr of dto.keyResults ?? []) {
+        await this.krRepo.save(this.krRepo.create({
+          tenantId, objectiveId: objective.id, title: kr.title, metric: kr.metric ?? null,
+          targetValue: kr.targetValue, currentValue: 0, unit: kr.unit ?? null, progress: 0,
+        } as any));
+      }
+      objectives.push(objective);
+    }
+    return { created: objectives.length, objectives };
   }
 
   async getDashboard(tenantId: string, cycleId: string): Promise<any> {
