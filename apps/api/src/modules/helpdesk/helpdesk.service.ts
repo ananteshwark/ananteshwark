@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In, LessThan, IsNull } from 'typeorm';
 import { HrCase, HrCaseComment, HrCaseCategory, HrCasePriority, HrCaseStatus } from './entities/hr-case.entity';
+import { HrCaseRoutingRule, RoutingStrategy } from './entities/hr-case-routing-rule.entity';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { AutomationService } from '../automation/automation.service';
 
@@ -27,6 +28,8 @@ export class HelpdeskService {
     @InjectRepository(HrCase) private readonly caseRepo: Repository<HrCase>,
     @InjectRepository(HrCaseComment) private readonly commentRepo: Repository<HrCaseComment>,
     @Optional() private readonly automation?: AutomationService,
+    @Optional() @InjectRepository(HrCaseRoutingRule)
+    private readonly routingRepo?: Repository<HrCaseRoutingRule>,
   ) {}
 
   private async nextCaseNumber(tenantId: string): Promise<string> {
@@ -69,12 +72,54 @@ export class HelpdeskService {
       slaDueAt,
       createdByUserId,
     });
-    const saved = await this.caseRepo.save(hrCase);
+    let saved = await this.caseRepo.save(hrCase);
+    saved = await this.autoAssign(tenantId, saved);
     await this.automation?.emit(tenantId, 'hr_case.created', {
       caseId: saved.id, caseNumber: saved.caseNumber, subject: saved.subject,
       category: saved.category, priority: saved.priority, employeeId: saved.employeeId,
     });
     return saved;
+  }
+
+  /**
+   * Route a new case via the most specific active rule: category+priority
+   * beats category-only beats priority-only beats catch-all. Round-robin
+   * advances the rule's cursor; least-loaded picks the pool agent with the
+   * fewest open cases. Best-effort — routing failures never block creation.
+   */
+  private async autoAssign(tenantId: string, hrCase: HrCase): Promise<HrCase> {
+    if (!this.routingRepo) return hrCase;
+    try {
+      const rules = await this.routingRepo.find({ where: { tenantId, isActive: true } });
+      const specificity = (r: HrCaseRoutingRule) =>
+        (r.category === hrCase.category ? 2 : r.category === null ? 0 : -100) +
+        (r.priority === hrCase.priority ? 1 : r.priority === null ? 0 : -100);
+      const rule = rules
+        .filter((r) => specificity(r) >= 0 && r.agentUserIds?.length)
+        .sort((a, b) => specificity(b) - specificity(a))[0];
+      if (!rule) return hrCase;
+
+      let agentId: string;
+      if (rule.strategy === RoutingStrategy.LEAST_LOADED) {
+        const loads = await Promise.all(rule.agentUserIds.map(async (uid) => ({
+          uid,
+          open: await this.caseRepo.count({
+            where: { tenantId, assignedToId: uid, status: In([HrCaseStatus.OPEN, HrCaseStatus.IN_PROGRESS, HrCaseStatus.ON_HOLD]) },
+          }),
+        })));
+        loads.sort((a, b) => a.open - b.open);
+        agentId = loads[0].uid;
+      } else {
+        const nextIndex = (Number(rule.lastAssignedIndex) + 1) % rule.agentUserIds.length;
+        agentId = rule.agentUserIds[nextIndex];
+        rule.lastAssignedIndex = nextIndex;
+        await this.routingRepo.save(rule);
+      }
+      hrCase.assignedToId = agentId;
+      return await this.caseRepo.save(hrCase);
+    } catch {
+      return hrCase; // routing must never break case creation
+    }
   }
 
   /** Cases the caller raised (self-service view). */
@@ -163,5 +208,87 @@ export class HelpdeskService {
       order: { createdAt: 'ASC' },
     });
     return includeInternal ? comments : comments.filter(c => !c.internal);
+  }
+
+  // ---- Routing rules ----
+  async createRoutingRule(tenantId: string, dto: Partial<HrCaseRoutingRule>): Promise<HrCaseRoutingRule> {
+    if (!this.routingRepo) throw new BadRequestException('Routing rules are not available in this deployment');
+    if (!dto.name?.trim() || !dto.agentUserIds?.length) {
+      throw new BadRequestException('name and a non-empty agentUserIds pool are required');
+    }
+    return this.routingRepo.save(this.routingRepo.create({ ...dto, tenantId }));
+  }
+
+  async listRoutingRules(tenantId: string): Promise<HrCaseRoutingRule[]> {
+    if (!this.routingRepo) return [];
+    return this.routingRepo.find({ where: { tenantId, isActive: true }, order: { createdAt: 'ASC' } });
+  }
+
+  async deactivateRoutingRule(tenantId: string, id: string): Promise<HrCaseRoutingRule> {
+    if (!this.routingRepo) throw new BadRequestException('Routing rules are not available in this deployment');
+    const rule = await this.routingRepo.findOne({ where: { tenantId, id } });
+    if (!rule) throw new NotFoundException(`Routing rule ${id} not found`);
+    rule.isActive = false;
+    return this.routingRepo.save(rule);
+  }
+
+  // ---- SLA escalation sweep ----
+  /**
+   * Escalate open cases past their SLA: stamp escalatedAt once, reassign to
+   * the matching rule's escalation contact when configured, and emit
+   * hr_case.sla_escalated for notification rules.
+   */
+  async escalateOverdueSla(tenantId: string): Promise<{ escalated: number }> {
+    const overdue = await this.caseRepo.find({
+      where: {
+        tenantId,
+        status: In([HrCaseStatus.OPEN, HrCaseStatus.IN_PROGRESS]),
+        slaDueAt: LessThan(new Date()),
+        escalatedAt: IsNull(),
+      },
+    });
+    if (!overdue.length) return { escalated: 0 };
+
+    const rules = this.routingRepo
+      ? await this.routingRepo.find({ where: { tenantId, isActive: true } })
+      : [];
+    let escalated = 0;
+    for (const hrCase of overdue) {
+      const rule = rules
+        .filter((r) => (r.category === null || r.category === hrCase.category) && r.escalationUserId)
+        .sort((a, b) => (b.category ? 1 : 0) - (a.category ? 1 : 0))[0];
+      hrCase.escalatedAt = new Date();
+      if (rule?.escalationUserId) hrCase.assignedToId = rule.escalationUserId;
+      await this.caseRepo.save(hrCase);
+      await this.automation?.emit(tenantId, 'hr_case.sla_escalated', {
+        caseId: hrCase.id, caseNumber: hrCase.caseNumber, subject: hrCase.subject,
+        category: hrCase.category, priority: hrCase.priority,
+        assignedToId: hrCase.assignedToId, slaDueAt: hrCase.slaDueAt,
+      });
+      escalated += 1;
+    }
+    return { escalated };
+  }
+
+  // ---- Closure feedback (CSAT) ----
+  async submitFeedback(
+    tenantId: string, id: string, userId: string,
+    dto: { score: number; comment?: string },
+  ): Promise<HrCase> {
+    const hrCase = await this.getCase(tenantId, id);
+    if (hrCase.createdByUserId !== userId) {
+      throw new ForbiddenException('Only the requester can rate this case');
+    }
+    if (![HrCaseStatus.RESOLVED, HrCaseStatus.CLOSED].includes(hrCase.status)) {
+      throw new BadRequestException('Feedback can only be given on resolved or closed cases');
+    }
+    if (hrCase.csatScore != null) throw new BadRequestException('Feedback was already submitted for this case');
+    const score = Number(dto.score);
+    if (!Number.isInteger(score) || score < 1 || score > 5) {
+      throw new BadRequestException('score must be an integer from 1 to 5');
+    }
+    hrCase.csatScore = score;
+    hrCase.csatComment = dto.comment?.trim() || null;
+    return this.caseRepo.save(hrCase);
   }
 }

@@ -47,6 +47,11 @@ export class HrCase {
   @Column({ name: 'sla_due_at', type: 'timestamptz', nullable: true }) slaDueAt: Date | null;
   @Column({ name: 'resolution_notes', type: 'text', nullable: true }) resolutionNotes: string | null;
   @Column({ name: 'resolved_at', type: 'timestamptz', nullable: true }) resolvedAt: Date | null;
+  // SLA escalation stamp — set once by the overdue sweep.
+  @Column({ name: 'escalated_at', type: 'timestamptz', nullable: true }) escalatedAt: Date | null;
+  // Closure feedback (CSAT) from the requester, 1-5.
+  @Column({ name: 'csat_score', type: 'int', nullable: true }) csatScore: number | null;
+  @Column({ name: 'csat_comment', type: 'text', nullable: true }) csatComment: string | null;
   @Column({ name: 'created_by_user_id' }) createdByUserId: string;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

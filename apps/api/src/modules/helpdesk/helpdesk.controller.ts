@@ -91,4 +91,37 @@ export class HelpdeskController {
   listAllComments(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.listComments(user.tenantId, id, true);
   }
+
+  // Requester rates the resolution (1-5), once.
+  @Post('cases/:id/feedback')
+  @RequirePermission('hr:helpdesk:read')
+  submitFeedback(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { score: number; comment?: string }) {
+    return this.service.submitFeedback(user.tenantId, id, user.id, body);
+  }
+
+  // ---- Routing rules ----
+  @Get('routing-rules')
+  @RequirePermission('hr:helpdesk:manage')
+  listRoutingRules(@CurrentUser() user: any) {
+    return this.service.listRoutingRules(user.tenantId);
+  }
+
+  @Post('routing-rules')
+  @RequirePermission('hr:helpdesk:manage')
+  createRoutingRule(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.createRoutingRule(user.tenantId, dto);
+  }
+
+  @Patch('routing-rules/:id/deactivate')
+  @RequirePermission('hr:helpdesk:manage')
+  deactivateRoutingRule(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.deactivateRoutingRule(user.tenantId, id);
+  }
+
+  // ---- SLA escalation sweep (also callable from the scheduler) ----
+  @Post('sla/escalate')
+  @RequirePermission('hr:helpdesk:manage')
+  escalateOverdueSla(@CurrentUser() user: any) {
+    return this.service.escalateOverdueSla(user.tenantId);
+  }
 }

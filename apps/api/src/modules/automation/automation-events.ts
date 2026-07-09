@@ -72,6 +72,7 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // HR helpdesk
   { event: 'hr_case.created', label: 'HR helpdesk case created', module: 'hr' },
   { event: 'hr_case.resolved', label: 'HR helpdesk case resolved', module: 'hr' },
+  { event: 'hr_case.sla_escalated', label: 'HR helpdesk case escalated (SLA breach)', module: 'hr' },
 
   // Travel
   { event: 'travel.submitted', label: 'Travel request submitted', module: 'expenses' },
