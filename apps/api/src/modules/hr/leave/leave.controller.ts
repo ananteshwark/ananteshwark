@@ -101,4 +101,55 @@ export class LeaveController {
   ) {
     return this.leaveService.getLeaveCalendar(user.tenantId, parseInt(month), parseInt(year));
   }
+
+  // ---- Blackout windows ----
+  @Get('blackouts')
+  @RequirePermission('hr:leave:read')
+  listBlackouts(@CurrentUser() user: any) {
+    return this.leaveService.listBlackouts(user.tenantId);
+  }
+
+  @Post('blackouts')
+  @RequirePermission('hr:leave:approve')
+  createBlackout(@CurrentUser() user: any, @Body() dto: { name: string; fromDate: string; toDate: string; leaveTypeId?: string; reason?: string }) {
+    return this.leaveService.createBlackout(user.tenantId, dto);
+  }
+
+  @Patch('blackouts/:id/deactivate')
+  @RequirePermission('hr:leave:approve')
+  deactivateBlackout(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.leaveService.deactivateBlackout(user.tenantId, id);
+  }
+
+  // ---- Encashment ----
+  @Get('encashments')
+  @RequirePermission('hr:leave:read')
+  listEncashments(@CurrentUser() user: any, @Query('employeeId') employeeId?: string) {
+    return this.leaveService.listEncashments(user.tenantId, employeeId);
+  }
+
+  @Post('encashments')
+  @RequirePermission('hr:leave:apply')
+  requestEncashment(@CurrentUser() user: any, @Body() dto: { employeeId: string; leaveTypeId: string; units: number; leaveYear?: number }) {
+    return this.leaveService.requestEncashment(user.tenantId, dto);
+  }
+
+  @Post('encashments/:id/approve')
+  @RequirePermission('hr:leave:approve')
+  approveEncashment(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { remarks?: string }) {
+    return this.leaveService.approveEncashment(user.tenantId, id, user.id, body?.remarks);
+  }
+
+  @Post('encashments/:id/reject')
+  @RequirePermission('hr:leave:approve')
+  rejectEncashment(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { remarks?: string }) {
+    return this.leaveService.rejectEncashment(user.tenantId, id, user.id, body?.remarks);
+  }
+
+  // ---- Occasion auto-grants ----
+  @Post('occasion-grants/run')
+  @RequirePermission('hr:leave:approve')
+  runOccasionGrants(@CurrentUser() user: any, @Body() body?: { asOf?: string }) {
+    return this.leaveService.grantOccasionLeaves(user.tenantId, body?.asOf);
+  }
 }

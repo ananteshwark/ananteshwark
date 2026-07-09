@@ -3,6 +3,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeor
 export enum AccrualSource {
   SYSTEM = 'SYSTEM',
   MANUAL = 'MANUAL',
+  ENCASHMENT = 'ENCASHMENT',
+  OCCASION = 'OCCASION',
 }
 
 @Entity('hr_leave_accrual_logs')

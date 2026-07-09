@@ -21,6 +21,7 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'leave.submitted', label: 'Leave application submitted', module: 'hr' },
   { event: 'leave.approved', label: 'Leave approved', module: 'hr' },
   { event: 'leave.rejected', label: 'Leave rejected', module: 'hr' },
+  { event: 'leave.encashed', label: 'Leave encashment approved', module: 'hr' },
   { event: 'exit.initiated', label: 'Employee exit initiated', module: 'hr' },
   { event: 'exit.fnf_approved', label: 'F&F settlement approved', module: 'hr' },
 

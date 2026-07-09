@@ -55,6 +55,10 @@ export class LeaveApplication {
   @Column({ name: 'review_remarks', type: 'text', nullable: true })
   reviewRemarks: string | null;
 
+  // Populated for hourly applications; `days` carries the converted fraction.
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  hours: number | null;
+
   @Column({ name: 'half_day', default: false })
   halfDay: boolean;
 

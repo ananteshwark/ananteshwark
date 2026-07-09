@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsUUID, IsDateString, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { PartialType } from '@nestjs/swagger';
-import { AccrualType } from '../entities/leave-type.entity';
+import { AccrualType, OccasionType } from '../entities/leave-type.entity';
 import { HalfDayPeriod } from '../entities/leave-application.entity';
 
 export class CreateLeaveTypeDto {
@@ -45,6 +45,38 @@ export class CreateLeaveTypeDto {
   @IsOptional()
   @IsInt()
   maxConsecutiveDays?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  allowHourly?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  hoursPerDay?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  sandwichRule?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  maxBackdatedDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  maxAdvanceDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  maxApplicationsPerYear?: number;
+
+  @IsOptional()
+  @IsUUID()
+  requiresExhaustedTypeId?: string;
+
+  @IsOptional()
+  @IsEnum(OccasionType)
+  occasionType?: OccasionType;
 }
 
 export class UpdateLeaveTypeDto extends PartialType(CreateLeaveTypeDto) {}
@@ -75,4 +107,9 @@ export class ApplyLeaveDto {
   @IsOptional()
   @IsEnum(HalfDayPeriod)
   halfDayPeriod?: HalfDayPeriod;
+
+  // Hourly application (leave type must allow it); converted to day-fractions.
+  @IsOptional()
+  @IsNumber()
+  hours?: number;
 }
