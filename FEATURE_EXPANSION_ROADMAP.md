@@ -354,7 +354,15 @@ acknowledgement, talent profile aggregate). API suite: 185 suites / 1,709 tests 
 8. **Recruitment quick wins**: referral portal + IJP postings, bulk offers, evaluation forms
 9. **Core quick wins**: talent profile aggregate, talent search filters, HR policy repository + acknowledgement, Pulse schedules, VoE theme taxonomy + question bank + event-triggered surveys
 
-### Phase 2 — New sub-modules on existing foundations
+### Phase 2 — New sub-modules on existing foundations — ✅ COMPLETE
+*All twelve workstreams shipped (commits on `claude/app-build-setup-ntay5k`,
+`e1fd964`→`7cc9b6a`): merit planning, career architecture/pools/9-box, skills
+ontology + attestation, 360/promotion/achievement-matrix, journeys + disciplinary,
+alumni network, form builder + I-9/E-Verify, external-collaborator portals, people
+analytics (storyboards/composer/licence tiers), knowledge base + email-to-ticket +
+action planning + attrition watchlist, Studio tier 1 (API keys/quota gateway/lookup
+tables), and time-tracking tier 2 (break rules/infractions/fair workweek/One View).
+API suite: 200 suites / 1,873 tests green.*
 
 1. **Merit Planning & Compensation Modelling** (plan engine, budget tree, worksheets, HRBP gate, cycle types, letter/structure outputs)
 2. **Career Architecture + Talent Pools + Talent Reviews + Succession pools/dashboard**
