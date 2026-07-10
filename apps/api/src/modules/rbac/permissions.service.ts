@@ -165,6 +165,8 @@ export const ALL_PERMISSIONS = [
   'hr:i9:read', 'hr:i9:manage',
   // External-collaborator portals (recruiter / BGV vendor / travel agent)
   'platform:collaborators:read', 'platform:collaborators:manage', 'platform:collaborators:portal',
+  // People analytics: storyboards, metric composer & license tiers
+  'analytics:people:read', 'analytics:people:author', 'analytics:people:admin',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

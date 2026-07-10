@@ -61,6 +61,7 @@ import { ProjectResourcesModule } from './modules/projects/resources/resources.m
 import { EvmModule } from './modules/projects/evm/evm.module';
 import { CapitalModule } from './modules/projects/capital/capital.module';
 import { BiModule } from './modules/analytics/bi/bi.module';
+import { PeopleAnalyticsModule } from './modules/analytics/people/people-analytics.module';
 import { PredictiveModule } from './modules/analytics/predictive/predictive.module';
 import { BpmModule } from './modules/workflow/bpm/bpm.module';
 import { MobileModule } from './modules/mobile/mobile.module';
@@ -184,6 +185,7 @@ import { getDatabaseConfig } from './config/database.config';
     EvmModule,
     CapitalModule,
     BiModule,
+    PeopleAnalyticsModule,
     PredictiveModule,
     BpmModule,
     MobileModule,

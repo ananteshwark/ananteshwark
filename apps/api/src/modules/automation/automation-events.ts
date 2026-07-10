@@ -122,6 +122,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'collaborator.invited', label: 'External collaborator invited', module: 'platform' },
   { event: 'collaborator.submission_received', label: 'Collaborator submission received', module: 'platform' },
 
+  // People analytics
+  { event: 'analytics.storyboard_published', label: 'Analytics storyboard published', module: 'analytics' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
