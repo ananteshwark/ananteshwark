@@ -118,6 +118,10 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // I-9 / E-Verify
   { event: 'i9.completed', label: 'I-9 verification completed', module: 'hr' },
 
+  // External collaborators
+  { event: 'collaborator.invited', label: 'External collaborator invited', module: 'platform' },
+  { event: 'collaborator.submission_received', label: 'Collaborator submission received', module: 'platform' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

@@ -76,6 +76,7 @@ import { ExtensibilityModule } from './modules/extensibility/extensibility.modul
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { FormsModule } from './modules/platform/forms/forms.module';
+import { CollaborationModule } from './modules/collaboration/collaboration.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
 import { LicensingModule } from './modules/licensing/licensing.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -198,6 +199,7 @@ import { getDatabaseConfig } from './config/database.config';
     AnalyticsModule,
     PlatformModule,
     FormsModule,
+    CollaborationModule,
     LocalizationPacksModule,
     LicensingModule,
     AdminModule,
