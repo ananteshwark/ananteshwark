@@ -87,6 +87,10 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'merit.launched', label: 'Merit plan launched to managers', module: 'compensation' },
   { event: 'merit.approved', label: 'Merit plan approved & outputs generated', module: 'compensation' },
 
+  // Career, talent pools & talent reviews
+  { event: 'talent_pool.nominated', label: 'Employee nominated to a talent pool', module: 'talent' },
+  { event: 'talent_review.finalized', label: 'Talent review (9-box) finalized', module: 'talent' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

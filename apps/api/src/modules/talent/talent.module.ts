@@ -10,8 +10,9 @@ import { HiringModule } from './hiring/hiring.module';
 import { IdpModule } from './idp/idp.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { ProfileModule } from './profile/profile.module';
+import { CareerModule } from './career/career.module';
 
 @Module({
-  imports: [AtsModule, OnboardingModule, LearningModule, SuccessionModule, GoalsModule, PerformanceModule, AppraisalModule, HiringModule, IdpModule, FeedbackModule, ProfileModule],
+  imports: [AtsModule, OnboardingModule, LearningModule, SuccessionModule, GoalsModule, PerformanceModule, AppraisalModule, HiringModule, IdpModule, FeedbackModule, ProfileModule, CareerModule],
 })
 export class TalentModule {}

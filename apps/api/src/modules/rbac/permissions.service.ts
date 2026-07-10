@@ -145,6 +145,10 @@ export const ALL_PERMISSIONS = [
   // Development plans + continuous feedback
   'talent:idp:read', 'talent:idp:manage',
   'talent:feedback:read', 'talent:feedback:create',
+  // Career architecture, talent pools & talent reviews (9-box)
+  'talent:career:read', 'talent:career:manage',
+  'talent:pools:read', 'talent:pools:manage',
+  'talent:reviews:read', 'talent:reviews:manage', 'talent:reviews:calibrate',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
