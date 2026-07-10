@@ -151,6 +151,9 @@ export const ALL_PERMISSIONS = [
   'talent:reviews:read', 'talent:reviews:manage', 'talent:reviews:calibrate',
   // Skills platform: ontology graph, proficiency descriptors & attestation
   'hr:skills:read', 'hr:skills:manage', 'hr:skills:attest',
+  // Multi-source (360) feedback & promotion framework
+  'talent:msf:read', 'talent:msf:manage', 'talent:msf:respond',
+  'talent:promotion:read', 'talent:promotion:manage', 'talent:promotion:approve',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

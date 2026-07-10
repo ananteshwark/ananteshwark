@@ -11,8 +11,9 @@ import { IdpModule } from './idp/idp.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { ProfileModule } from './profile/profile.module';
 import { CareerModule } from './career/career.module';
+import { MsfModule } from './msf/msf.module';
 
 @Module({
-  imports: [AtsModule, OnboardingModule, LearningModule, SuccessionModule, GoalsModule, PerformanceModule, AppraisalModule, HiringModule, IdpModule, FeedbackModule, ProfileModule, CareerModule],
+  imports: [AtsModule, OnboardingModule, LearningModule, SuccessionModule, GoalsModule, PerformanceModule, AppraisalModule, HiringModule, IdpModule, FeedbackModule, ProfileModule, CareerModule, MsfModule],
 })
 export class TalentModule {}

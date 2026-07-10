@@ -94,6 +94,10 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // Skills platform
   { event: 'skill.attested', label: 'Skill attestation verified', module: 'hr' },
 
+  // Multi-source feedback & promotion
+  { event: 'msf.closed', label: '360 feedback campaign closed', module: 'talent' },
+  { event: 'promotion.decided', label: 'Promotion case decided', module: 'talent' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
