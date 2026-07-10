@@ -18,6 +18,21 @@ export enum TravelRequestStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export enum TravelerType {
+  SELF      = 'SELF',      // the requester travels
+  COLLEAGUE = 'COLLEAGUE', // raised on behalf of another employee
+  GUEST     = 'GUEST',     // raised for a non-employee guest
+}
+
+/** An accommodation leg attached to a trip (hotel booking). */
+export interface AccommodationLeg {
+  city: string;
+  checkIn: string;   // yyyy-mm-dd
+  checkOut: string;  // yyyy-mm-dd
+  hotel?: string;
+  estimatedCost?: number;
+}
+
 @Entity('trv_requests')
 @Index(['tenantId', 'status'])
 @Index(['tenantId', 'tripNumber'], { unique: true })
@@ -44,6 +59,20 @@ export class TravelRequest {
   // Set when the post-trip expense claim is filed against this trip.
   @Column({ name: 'expense_claim_id', nullable: true }) expenseClaimId: string | null;
   @Column({ name: 'created_by_user_id' }) createdByUserId: string;
+  // On-behalf / guest travel. employeeId still holds the traveller for
+  // COLLEAGUE trips; GUEST trips carry the traveller name here.
+  @Column({ name: 'traveler_type', type: 'enum', enum: TravelerType, default: TravelerType.SELF })
+  travelerType: TravelerType;
+  @Column({ name: 'guest_name', nullable: true }) guestName: string | null;
+  // Hotel legs.
+  @Column({ name: 'accommodation', type: 'jsonb', default: () => "'[]'" }) accommodation: AccommodationLeg[];
+  // Budget-breach exception flow.
+  @Column({ name: 'budget_limit', type: 'numeric', precision: 18, scale: 2, nullable: true, transformer: decimalTransformer })
+  budgetLimit: number | null;
+  @Column({ name: 'exception_justification', type: 'text', nullable: true }) exceptionJustification: string | null;
+  @Column({ name: 'is_exception', default: false }) isException: boolean;
+  // Cancellation reason (distinct from rejection).
+  @Column({ name: 'cancellation_reason', type: 'text', nullable: true }) cancellationReason: string | null;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

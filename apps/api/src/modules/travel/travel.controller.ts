@@ -40,8 +40,8 @@ export class TravelController {
 
   @Patch('requests/:id/submit')
   @RequirePermission('expenses:travel:create')
-  submit(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.service.submit(user.tenantId, id);
+  submit(@CurrentUser() user: any, @Param('id') id: string, @Body() body?: { exceptionJustification?: string }) {
+    return this.service.submit(user.tenantId, id, { exceptionJustification: body?.exceptionJustification });
   }
 
   @Patch('requests/:id/approve')
@@ -64,7 +64,27 @@ export class TravelController {
 
   @Patch('requests/:id/cancel')
   @RequirePermission('expenses:travel:create')
-  cancel(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.service.cancel(user.tenantId, id);
+  cancel(@CurrentUser() user: any, @Param('id') id: string, @Body() body?: { reason?: string }) {
+    return this.service.cancel(user.tenantId, id, body?.reason);
+  }
+
+  @Patch('requests/:id/accommodation')
+  @RequirePermission('expenses:travel:create')
+  setAccommodation(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { legs: any[] }) {
+    return this.service.setAccommodation(user.tenantId, id, body?.legs ?? []);
+  }
+
+  // ---- Admin/agent ↔ employee chat ----
+  @Get('requests/:id/comments')
+  @RequirePermission('expenses:travel:read')
+  listComments(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.listComments(user.tenantId, id);
+  }
+
+  @Post('requests/:id/comments')
+  @RequirePermission('expenses:travel:read')
+  addComment(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { body: string; role?: string }) {
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'Unknown';
+    return this.service.addComment(user.tenantId, id, { userId: user.id, name, role: body?.role }, body?.body);
   }
 }
