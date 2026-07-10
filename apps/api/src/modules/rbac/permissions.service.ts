@@ -8,7 +8,7 @@ export const ALL_PERMISSIONS = [
   // HR module
   'hr:employees:read', 'hr:employees:create', 'hr:employees:update', 'hr:employees:delete',
   'hr:org:manage',
-  'hr:attendance:read', 'hr:attendance:create', 'hr:attendance:approve',
+  'hr:attendance:read', 'hr:attendance:create', 'hr:attendance:approve', 'hr:attendance:compliance',
   'hr:leave:read', 'hr:leave:apply', 'hr:leave:approve',
   'hr:timesheets:read', 'hr:timesheets:approve',
   // Finance module

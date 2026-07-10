@@ -17,15 +17,18 @@ import { TimeEvaluationService } from './time-evaluation.service';
 import { TimeEvaluationController } from './time-evaluation.controller';
 import { TimePolicyService } from './time-policy.service';
 import { TimePolicyController } from './time-policy.controller';
+import { BreakRule, AttendanceInfraction, FairWorkweekRule } from './entities/workweek.entity';
+import { WorkweekService } from './workweek.service';
+import { WorkweekController } from './workweek.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Shift, ShiftAssignment, Holiday, AttendanceRecord, TimeEntry, Timesheet, TimeEvaluationRule, TimeEvaluationResult, ShiftPattern, Geofence, Employee]),
+    TypeOrmModule.forFeature([Shift, ShiftAssignment, Holiday, AttendanceRecord, TimeEntry, Timesheet, TimeEvaluationRule, TimeEvaluationResult, ShiftPattern, Geofence, Employee, BreakRule, AttendanceInfraction, FairWorkweekRule]),
     RbacModule,
   ],
-  controllers: [AttendanceController, TimeEvaluationController, TimePolicyController],
-  providers: [AttendanceService, TimeEvaluationService, TimePolicyService],
-  exports: [AttendanceService, TimeEvaluationService, TimePolicyService, TypeOrmModule],
+  controllers: [AttendanceController, TimeEvaluationController, TimePolicyController, WorkweekController],
+  providers: [AttendanceService, TimeEvaluationService, TimePolicyService, WorkweekService],
+  exports: [AttendanceService, TimeEvaluationService, TimePolicyService, WorkweekService, TypeOrmModule],
 })
 export class AttendanceModule {}

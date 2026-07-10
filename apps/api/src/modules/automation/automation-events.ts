@@ -133,6 +133,10 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // Studio
   { event: 'apikey.quota_alert', label: 'API key quota threshold crossed', module: 'platform' },
 
+  // Time tracking tier 2
+  { event: 'attendance.infraction_recorded', label: 'Attendance infraction recorded', module: 'hr' },
+  { event: 'attendance.fairworkweek_violation', label: 'Fair-workweek rule violated', module: 'hr' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
