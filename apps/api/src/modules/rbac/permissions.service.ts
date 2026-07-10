@@ -96,6 +96,7 @@ export const ALL_PERMISSIONS = [
   // Benefits & Compensation module
   'benefits:read', 'benefits:manage',
   'compensation:read', 'compensation:manage',
+  'compensation:merit:read', 'compensation:merit:manage', 'compensation:merit:propose', 'compensation:merit:approve',
   // Analytics module
   'analytics:read', 'analytics:manage',
   // Platform module

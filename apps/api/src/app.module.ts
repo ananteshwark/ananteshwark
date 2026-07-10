@@ -41,6 +41,7 @@ import { CmmsModule } from './modules/maintenance/cmms/cmms.module';
 import { BenefitsModule } from './modules/benefits/benefits.module';
 import { BenefitsEnrollmentModule } from './modules/benefits/enrollment/benefits-enrollment.module';
 import { CompWorkbenchModule } from './modules/benefits/comp-workbench/comp-workbench.module';
+import { MeritModule } from './modules/compensation/merit/merit.module';
 import { SkillsModule } from './modules/hr/skills/skills.module';
 import { HeadcountModule } from './modules/hr/headcount/headcount.module';
 import { OtlModule } from './modules/hr/otl/otl.module';
@@ -161,6 +162,7 @@ import { getDatabaseConfig } from './config/database.config';
     BenefitsModule,
     BenefitsEnrollmentModule,
     CompWorkbenchModule,
+    MeritModule,
     SkillsModule,
     HeadcountModule,
     OtlModule,

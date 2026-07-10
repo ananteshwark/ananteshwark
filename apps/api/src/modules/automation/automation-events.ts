@@ -83,6 +83,10 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'letter.issued', label: 'HR letter issued', module: 'hr' },
   { event: 'policy.published', label: 'HR policy published', module: 'hr' },
 
+  // Compensation — merit planning
+  { event: 'merit.launched', label: 'Merit plan launched to managers', module: 'compensation' },
+  { event: 'merit.approved', label: 'Merit plan approved & outputs generated', module: 'compensation' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
