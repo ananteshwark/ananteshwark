@@ -91,6 +91,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'talent_pool.nominated', label: 'Employee nominated to a talent pool', module: 'talent' },
   { event: 'talent_review.finalized', label: 'Talent review (9-box) finalized', module: 'talent' },
 
+  // Skills platform
+  { event: 'skill.attested', label: 'Skill attestation verified', module: 'hr' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

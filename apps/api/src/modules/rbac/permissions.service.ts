@@ -149,6 +149,8 @@ export const ALL_PERMISSIONS = [
   'talent:career:read', 'talent:career:manage',
   'talent:pools:read', 'talent:pools:manage',
   'talent:reviews:read', 'talent:reviews:manage', 'talent:reviews:calibrate',
+  // Skills platform: ontology graph, proficiency descriptors & attestation
+  'hr:skills:read', 'hr:skills:manage', 'hr:skills:attest',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
