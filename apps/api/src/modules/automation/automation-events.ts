@@ -107,6 +107,10 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'disciplinary.action_issued', label: 'Disciplinary action issued', module: 'hr' },
   { event: 'disciplinary.closed', label: 'Disciplinary case closed', module: 'hr' },
 
+  // Alumni network
+  { event: 'alumni.invited', label: 'Alumnus invited to the network', module: 'hr' },
+  { event: 'alumni.ticket_raised', label: 'Alumni ticket raised', module: 'hr' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

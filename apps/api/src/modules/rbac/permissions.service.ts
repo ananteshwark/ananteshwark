@@ -157,6 +157,8 @@ export const ALL_PERMISSIONS = [
   // Lifecycle journeys & disciplinary case management
   'hr:journeys:read', 'hr:journeys:manage',
   'hr:disciplinary:read', 'hr:disciplinary:manage',
+  // Alumni network (post-exit portal)
+  'hr:alumni:read', 'hr:alumni:manage',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
