@@ -144,6 +144,8 @@ export const ALL_PERMISSIONS = [
   // Development plans + continuous feedback
   'talent:idp:read', 'talent:idp:manage',
   'talent:feedback:read', 'talent:feedback:create',
+  // HR policy repository + acknowledgement
+  'hr:policies:read', 'hr:policies:manage',
 ];
 
 export const SYSTEM_ROLES = {
@@ -212,6 +214,7 @@ export const SYSTEM_ROLES = {
       'talent:idp:read',
       'talent:feedback:read',
       'talent:feedback:create',
+      'hr:policies:read',
     ],
   },
   RECRUITER: {

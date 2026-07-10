@@ -336,7 +336,12 @@ Attendance + time evaluation + shifts + rosters + OTL exist. Extensions:
 
 ## 2. Phased build plan
 
-### Phase 1 — Extend what exists (highest leverage, lowest risk)
+### Phase 1 — Extend what exists (highest leverage, lowest risk) — ✅ COMPLETE
+*All nine workstreams shipped (commits on `claude/app-build-setup-ntay5k`): absence
+depth, expense depth, helpdesk depth, performance depth, social/RnR depth, time-tracking
+depth, travel depth, recruitment quick wins, and core quick wins (HR policies +
+acknowledgement, talent profile aggregate). API suite: 185 suites / 1,709 tests green.*
+
 *Everything here lands inside a module that already has entities, services, tests, and UI.*
 
 1. **Absence depth**: hourly leave, sandwich/blackout/interdependent rules, encashment, birthday/anniversary auto-grants, date restrictions, concurrent handling

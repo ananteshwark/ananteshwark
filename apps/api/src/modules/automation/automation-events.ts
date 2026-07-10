@@ -81,6 +81,7 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
 
   // HR letters
   { event: 'letter.issued', label: 'HR letter issued', module: 'hr' },
+  { event: 'policy.published', label: 'HR policy published', module: 'hr' },
 
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
