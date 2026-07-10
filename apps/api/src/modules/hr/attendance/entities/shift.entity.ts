@@ -32,6 +32,14 @@ export class Shift {
   @Column({ name: 'is_night_shift', default: false })
   isNightShift: boolean;
 
+  // Buffer that extends the shift window on either side (late-running work).
+  @Column({ name: 'buffer_minutes', type: 'int', default: 0 })
+  bufferMinutes: number;
+
+  // Night-shift differential: extra pay percentage for hours worked on this shift.
+  @Column({ name: 'night_differential_pct', type: 'numeric', precision: 5, scale: 2, default: 0 })
+  nightDifferentialPct: number;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
