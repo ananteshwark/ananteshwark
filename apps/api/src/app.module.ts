@@ -75,6 +75,7 @@ import { GrcModule } from './modules/grc/grc.module';
 import { ExtensibilityModule } from './modules/extensibility/extensibility.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlatformModule } from './modules/platform/platform.module';
+import { FormsModule } from './modules/platform/forms/forms.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
 import { LicensingModule } from './modules/licensing/licensing.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -196,6 +197,7 @@ import { getDatabaseConfig } from './config/database.config';
     ExtensibilityModule,
     AnalyticsModule,
     PlatformModule,
+    FormsModule,
     LocalizationPacksModule,
     LicensingModule,
     AdminModule,

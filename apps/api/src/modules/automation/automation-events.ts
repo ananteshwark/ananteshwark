@@ -111,6 +111,13 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'alumni.invited', label: 'Alumnus invited to the network', module: 'hr' },
   { event: 'alumni.ticket_raised', label: 'Alumni ticket raised', module: 'hr' },
 
+  // Dynamic forms
+  { event: 'form.published', label: 'Form definition published', module: 'platform' },
+  { event: 'form.submitted', label: 'Form submission received', module: 'platform' },
+
+  // I-9 / E-Verify
+  { event: 'i9.completed', label: 'I-9 verification completed', module: 'hr' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

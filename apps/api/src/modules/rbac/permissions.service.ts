@@ -159,6 +159,10 @@ export const ALL_PERMISSIONS = [
   'hr:disciplinary:read', 'hr:disciplinary:manage',
   // Alumni network (post-exit portal)
   'hr:alumni:read', 'hr:alumni:manage',
+  // Dynamic form builder
+  'platform:forms:read', 'platform:forms:manage', 'platform:forms:submit',
+  // I-9 / E-Verify employment eligibility
+  'hr:i9:read', 'hr:i9:manage',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
