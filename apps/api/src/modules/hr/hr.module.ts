@@ -5,9 +5,11 @@ import { LeaveModule } from './leave/leave.module';
 import { ExitModule } from './exits/exit.module';
 import { FamilyModule } from './family/family.module';
 import { PolicyModule } from './policies/policy.module';
+import { JourneysModule } from './journeys/journeys.module';
+import { DisciplinaryModule } from './disciplinary/disciplinary.module';
 
 @Module({
-  imports: [EmployeeModule, AttendanceModule, LeaveModule, ExitModule, FamilyModule, PolicyModule],
-  exports: [EmployeeModule, AttendanceModule, LeaveModule, ExitModule, FamilyModule, PolicyModule],
+  imports: [EmployeeModule, AttendanceModule, LeaveModule, ExitModule, FamilyModule, PolicyModule, JourneysModule, DisciplinaryModule],
+  exports: [EmployeeModule, AttendanceModule, LeaveModule, ExitModule, FamilyModule, PolicyModule, JourneysModule, DisciplinaryModule],
 })
 export class HrModule {}

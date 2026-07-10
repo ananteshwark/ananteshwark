@@ -154,6 +154,9 @@ export const ALL_PERMISSIONS = [
   // Multi-source (360) feedback & promotion framework
   'talent:msf:read', 'talent:msf:manage', 'talent:msf:respond',
   'talent:promotion:read', 'talent:promotion:manage', 'talent:promotion:approve',
+  // Lifecycle journeys & disciplinary case management
+  'hr:journeys:read', 'hr:journeys:manage',
+  'hr:disciplinary:read', 'hr:disciplinary:manage',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

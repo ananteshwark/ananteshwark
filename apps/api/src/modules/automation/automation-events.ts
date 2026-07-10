@@ -98,6 +98,15 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'msf.closed', label: '360 feedback campaign closed', module: 'talent' },
   { event: 'promotion.decided', label: 'Promotion case decided', module: 'talent' },
 
+  // Lifecycle journeys
+  { event: 'journey.started', label: 'Employee journey started', module: 'hr' },
+  { event: 'journey.completed', label: 'Employee journey completed', module: 'hr' },
+
+  // Disciplinary case management
+  { event: 'disciplinary.opened', label: 'Disciplinary case opened', module: 'hr' },
+  { event: 'disciplinary.action_issued', label: 'Disciplinary action issued', module: 'hr' },
+  { event: 'disciplinary.closed', label: 'Disciplinary case closed', module: 'hr' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
