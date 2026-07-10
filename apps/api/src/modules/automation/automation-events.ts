@@ -130,6 +130,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'action_plan.created', label: 'Survey action plan created', module: 'hr' },
   { event: 'attrition.flagged', label: 'Employee flagged on attrition watchlist', module: 'hr' },
 
+  // Studio
+  { event: 'apikey.quota_alert', label: 'API key quota threshold crossed', module: 'platform' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

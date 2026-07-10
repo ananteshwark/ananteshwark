@@ -172,6 +172,8 @@ export const ALL_PERMISSIONS = [
   // Survey action planning & attrition watchlist
   'engagement:actionplans:read', 'engagement:actionplans:manage',
   'hr:attrition:read', 'hr:attrition:manage',
+  // Studio: API keys & lookup tables
+  'studio:apikeys:manage', 'studio:lookup:read', 'studio:lookup:manage',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
