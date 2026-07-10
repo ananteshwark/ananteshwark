@@ -167,6 +167,11 @@ export const ALL_PERMISSIONS = [
   'platform:collaborators:read', 'platform:collaborators:manage', 'platform:collaborators:portal',
   // People analytics: storyboards, metric composer & license tiers
   'analytics:people:read', 'analytics:people:author', 'analytics:people:admin',
+  // Knowledge base & email-to-ticket
+  'knowledge:read', 'knowledge:manage', 'knowledge:intake',
+  // Survey action planning & attrition watchlist
+  'engagement:actionplans:read', 'engagement:actionplans:manage',
+  'hr:attrition:read', 'hr:attrition:manage',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

@@ -125,6 +125,11 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // People analytics
   { event: 'analytics.storyboard_published', label: 'Analytics storyboard published', module: 'analytics' },
 
+  // Knowledge base, action planning & attrition
+  { event: 'kb.article_published', label: 'Knowledge-base article published', module: 'hr' },
+  { event: 'action_plan.created', label: 'Survey action plan created', module: 'hr' },
+  { event: 'attrition.flagged', label: 'Employee flagged on attrition watchlist', module: 'hr' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
