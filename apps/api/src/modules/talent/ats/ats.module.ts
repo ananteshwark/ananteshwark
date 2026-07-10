@@ -4,12 +4,13 @@ import { JobPosting } from './entities/job-posting.entity';
 import { Applicant } from './entities/applicant.entity';
 import { InterviewSchedule } from './entities/interview-schedule.entity';
 import { JobOffer } from './entities/job-offer.entity';
+import { Referral } from './entities/referral.entity';
 import { AtsService } from './ats.service';
 import { AtsController } from './ats.controller';
 import { RbacModule } from '../../rbac/rbac.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([JobPosting, Applicant, InterviewSchedule, JobOffer]), RbacModule],
+  imports: [TypeOrmModule.forFeature([JobPosting, Applicant, InterviewSchedule, JobOffer, Referral]), RbacModule],
   controllers: [AtsController],
   providers: [AtsService],
   exports: [AtsService],

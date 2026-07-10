@@ -116,4 +116,32 @@ export class AtsController {
   declineOffer(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.declineOffer(user.tenantId, id);
   }
+
+  // ---- Bulk offers ----
+  @Post('offers/bulk')
+  @RequirePermission('talent:ats:hire')
+  makeBulkOffers(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.makeBulkOffers(user.tenantId, dto);
+  }
+
+  // ---- Internal job postings (IJP) ----
+  @Get('internal-postings')
+  @RequirePermission('talent:ats:read')
+  listInternalPostings(@CurrentUser() user: any) {
+    return this.service.listInternalPostings(user.tenantId);
+  }
+
+  // ---- Referrals ----
+  @Get('referrals')
+  @RequirePermission('talent:ats:read')
+  listReferrals(@CurrentUser() user: any, @Query('mine') mine?: string) {
+    return this.service.listReferrals(user.tenantId, mine === 'true' ? user.id : undefined);
+  }
+
+  @Post('referrals')
+  @RequirePermission('talent:ats:read')
+  submitReferral(@CurrentUser() user: any, @Body() dto: any) {
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'Unknown';
+    return this.service.submitReferral(user.tenantId, { userId: user.id, name }, dto);
+  }
 }

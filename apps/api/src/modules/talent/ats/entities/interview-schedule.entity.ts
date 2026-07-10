@@ -68,6 +68,10 @@ export class InterviewSchedule {
   @Column({ type: 'enum', enum: InterviewRecommendation, nullable: true })
   recommendation: InterviewRecommendation | null;
 
+  // Structured evaluation: { criterion: score(1-5) } filled from a rubric.
+  @Column({ name: 'evaluation_scores', type: 'jsonb', nullable: true })
+  evaluationScores: Record<string, number> | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

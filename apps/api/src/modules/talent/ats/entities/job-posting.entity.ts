@@ -67,6 +67,14 @@ export class JobPosting {
   @Column({ name: 'closing_date', type: 'date', nullable: true })
   closingDate: string | null;
 
+  // Internal Job Posting (IJP): visible to employees only, not external boards.
+  @Column({ name: 'internal_only', default: false })
+  internalOnly: boolean;
+
+  // Referral bonus paid on a successful hire sourced via referral.
+  @Column({ name: 'referral_bonus', type: 'decimal', precision: 18, scale: 2, default: 0 })
+  referralBonus: number;
+
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
   createdById: string | null;
 
