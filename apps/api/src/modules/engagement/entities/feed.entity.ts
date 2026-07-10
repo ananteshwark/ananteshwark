@@ -6,6 +6,12 @@ export enum FeedPostType {
   POLL         = 'POLL',
 }
 
+export enum ModerationStatus {
+  APPROVED = 'APPROVED', // visible in the feed
+  PENDING  = 'PENDING',  // held in the moderation queue
+  REJECTED = 'REJECTED', // rejected by a moderator
+}
+
 export interface PollOption {
   id: string;
   text: string;
@@ -28,6 +34,13 @@ export class FeedPost {
   // userIds that liked the post.
   @Column({ name: 'liked_by', type: 'jsonb', default: () => "'[]'" }) likedBy: string[];
   @Column({ name: 'comment_count', type: 'int', default: 0 }) commentCount: number;
+  // Group scoping: null = company-wide feed.
+  @Column({ name: 'group_id', type: 'uuid', nullable: true }) groupId: string | null;
+  // Moderation state — posts in a moderated group start PENDING.
+  @Column({ name: 'moderation_status', type: 'enum', enum: ModerationStatus, default: ModerationStatus.APPROVED })
+  moderationStatus: ModerationStatus;
+  // userIds who reported the post (for the moderation queue).
+  @Column({ name: 'reported_by', type: 'jsonb', default: () => "'[]'" }) reportedBy: string[];
   @CreateDateColumn() createdAt: Date;
 }
 

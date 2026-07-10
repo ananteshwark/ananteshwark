@@ -8,7 +8,10 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 import { SurveysService } from './surveys.service';
 import { RecognitionService } from './recognition.service';
 import { FeedService } from './feed.service';
+import { FeedGroupService } from './feed-group.service';
+import { NominationService } from './nomination.service';
 import { SurveyStatus } from './entities/survey.entity';
+import { NominationProgramStatus } from './entities/recognition-nomination.entity';
 
 const displayName = (user: any) =>
   [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
@@ -22,6 +25,8 @@ export class EngagementController {
     private readonly surveys: SurveysService,
     private readonly recognition: RecognitionService,
     private readonly feed: FeedService,
+    private readonly groups: FeedGroupService,
+    private readonly nominations: NominationService,
   ) {}
 
   // ─── Surveys ──────────────────────────────────────────────────
@@ -122,8 +127,10 @@ export class EngagementController {
 
   @Get('feed')
   @RequirePermission('hr:feed:read')
-  listFeed(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
-    return this.feed.listFeed(user.tenantId, pagination);
+  listFeed(@CurrentUser() user: any, @Query() pagination: PaginationDto, @Query('groupId') groupId?: string) {
+    // ?groupId=none → company-wide only; a value → that group; absent → all.
+    const filter = groupId === 'none' ? null : groupId;
+    return this.feed.listFeed(user.tenantId, pagination, { groupId: filter });
   }
 
   @Post('feed/posts')
@@ -180,5 +187,105 @@ export class EngagementController {
   @RequirePermission('hr:feed:manage')
   moderatePost(@CurrentUser() user: any, @Param('id') id: string) {
     return this.feed.deletePost(user.tenantId, id, user.id, true);
+  }
+
+  @Post('feed/posts/:id/report')
+  @RequirePermission('hr:feed:read')
+  reportPost(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.feed.reportPost(user.tenantId, id, user.id);
+  }
+
+  @Get('feed/moderation/queue')
+  @RequirePermission('hr:feed:manage')
+  moderationQueue(@CurrentUser() user: any, @Query('groupId') groupId?: string) {
+    return this.feed.moderationQueue(user.tenantId, groupId);
+  }
+
+  @Post('feed/posts/:id/moderation/:decision')
+  @RequirePermission('hr:feed:manage')
+  moderateDecision(@CurrentUser() user: any, @Param('id') id: string, @Param('decision') decision: 'approve' | 'reject') {
+    return this.feed.moderate(user.tenantId, id, decision);
+  }
+
+  // ─── Groups ───────────────────────────────────────────────────
+
+  @Get('groups')
+  @RequirePermission('hr:feed:read')
+  listGroups(@CurrentUser() user: any, @Query('mine') mine?: string) {
+    return this.groups.listGroups(user.tenantId, mine === 'true' ? user.id : undefined);
+  }
+
+  @Post('groups')
+  @RequirePermission('hr:feed:read')
+  createGroup(@CurrentUser() user: any, @Body() dto: any) {
+    return this.groups.createGroup(user.tenantId, user.id, dto);
+  }
+
+  @Post('groups/:id/join')
+  @RequirePermission('hr:feed:read')
+  joinGroup(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.groups.join(user.tenantId, id, user.id);
+  }
+
+  @Post('groups/:id/leave')
+  @RequirePermission('hr:feed:read')
+  leaveGroup(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.groups.leave(user.tenantId, id, user.id);
+  }
+
+  @Delete('groups/:id')
+  @RequirePermission('hr:feed:read')
+  archiveGroup(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.groups.archive(user.tenantId, id, user.id);
+  }
+
+  // ─── Recognition programs (nominations) ───────────────────────
+
+  @Get('recognition/programs')
+  @RequirePermission('hr:recognition:read')
+  listPrograms(@CurrentUser() user: any, @Query('status') status?: NominationProgramStatus) {
+    return this.nominations.listPrograms(user.tenantId, status);
+  }
+
+  @Post('recognition/programs')
+  @RequirePermission('hr:recognition:manage')
+  createProgram(@CurrentUser() user: any, @Body() dto: any) {
+    return this.nominations.createProgram(user.tenantId, dto);
+  }
+
+  @Patch('recognition/programs/:id/close')
+  @RequirePermission('hr:recognition:manage')
+  closeProgram(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.nominations.closeProgram(user.tenantId, id);
+  }
+
+  @Get('recognition/programs/:id/nominations')
+  @RequirePermission('hr:recognition:read')
+  listNominations(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.nominations.listNominations(user.tenantId, id);
+  }
+
+  @Post('recognition/nominations')
+  @RequirePermission('hr:recognition:read')
+  nominate(@CurrentUser() user: any, @Body() dto: any) {
+    return this.nominations.nominate(user.tenantId, { userId: user.id, name: displayName(user) }, dto);
+  }
+
+  @Post('recognition/nominations/:id/vote')
+  @RequirePermission('hr:recognition:read')
+  voteNomination(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.nominations.vote(user.tenantId, id, user.id);
+  }
+
+  @Post('recognition/nominations/:id/decide/:decision')
+  @RequirePermission('hr:recognition:manage')
+  decideNomination(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Param('decision') decision: 'approve' | 'reject',
+  ) {
+    return this.nominations.decide(user.tenantId, id, decision, (r) =>
+      this.recognition.give(user.tenantId, { userId: user.id, name: displayName(user) }, r),
+    );
   }
 }

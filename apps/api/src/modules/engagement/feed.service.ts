@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { FeedPost, FeedComment, FeedPostType, PollOption } from './entities/feed.entity';
+import { FeedPost, FeedComment, FeedPostType, ModerationStatus, PollOption } from './entities/feed.entity';
+import { FeedGroupService } from './feed-group.service';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { AutomationService } from '../automation/automation.service';
 
@@ -12,12 +13,13 @@ export class FeedService {
     @InjectRepository(FeedPost) private readonly postRepo: Repository<FeedPost>,
     @InjectRepository(FeedComment) private readonly commentRepo: Repository<FeedComment>,
     @Optional() private readonly automation?: AutomationService,
+    @Optional() private readonly groups?: FeedGroupService,
   ) {}
 
   async createPost(
     tenantId: string,
     author: { userId: string; name: string },
-    dto: { type?: FeedPostType; title?: string; body: string; pollOptions?: PollOption[] },
+    dto: { type?: FeedPostType; title?: string; body: string; pollOptions?: PollOption[]; groupId?: string },
   ): Promise<FeedPost> {
     if (!dto.body?.trim()) throw new BadRequestException('Post body is required');
     const type = dto.type === FeedPostType.POLL ? FeedPostType.POLL : FeedPostType.POST;
@@ -27,6 +29,20 @@ export class FeedService {
       if (options.length < 2) throw new BadRequestException('A poll needs at least two options');
       pollOptions = options.map(o => ({ id: o.id || randomUUID(), text: o.text.trim() }));
     }
+
+    // Group posting: enforce membership and moderation.
+    let moderationStatus = ModerationStatus.APPROVED;
+    if (dto.groupId) {
+      if (!this.groups) throw new BadRequestException('Groups are not available in this deployment');
+      const group = await this.groups.getGroup(tenantId, dto.groupId);
+      if (!this.groups.isMember(group, author.userId)) {
+        throw new ForbiddenException('You must be a group member to post here');
+      }
+      if (this.groups.requiresModeration(group, author.userId)) {
+        moderationStatus = ModerationStatus.PENDING;
+      }
+    }
+
     const post = this.postRepo.create({
       tenantId,
       authorUserId: author.userId,
@@ -39,6 +55,9 @@ export class FeedService {
       likedBy: [],
       commentCount: 0,
       pinned: false,
+      groupId: dto.groupId ?? null,
+      moderationStatus,
+      reportedBy: [],
     });
     return this.postRepo.save(post);
   }
@@ -70,10 +89,18 @@ export class FeedService {
     return saved;
   }
 
-  async listFeed(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<FeedPost>> {
+  async listFeed(
+    tenantId: string,
+    pagination: PaginationDto,
+    filters: { groupId?: string | null } = {},
+  ): Promise<PaginatedResponseDto<FeedPost>> {
     const { page = 1, limit = 20 } = pagination;
+    const where: any = { tenantId, moderationStatus: ModerationStatus.APPROVED };
+    // groupId === null → company-wide feed; a value → that group; undefined → all.
+    if (filters.groupId === null) where.groupId = IsNull();
+    else if (filters.groupId) where.groupId = filters.groupId;
     const [items, total] = await this.postRepo.findAndCount({
-      where: { tenantId },
+      where,
       order: { pinned: 'DESC', createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -152,5 +179,42 @@ export class FeedService {
     }
     await this.commentRepo.delete({ tenantId, postId });
     await this.postRepo.delete({ id: postId, tenantId });
+  }
+
+  // ─── Moderation ───────────────────────────────────────────────
+
+  /** Report a post — adds the reporter and holds an approved post for review. */
+  async reportPost(tenantId: string, postId: string, userId: string): Promise<{ reported: boolean; reportCount: number }> {
+    const post = await this.getPost(tenantId, postId);
+    const reportedBy = post.reportedBy ?? [];
+    if (!reportedBy.includes(userId)) {
+      post.reportedBy = [...reportedBy, userId];
+      // A reported, previously-approved post drops back into the queue.
+      if (post.moderationStatus === ModerationStatus.APPROVED) {
+        post.moderationStatus = ModerationStatus.PENDING;
+      }
+      await this.postRepo.save(post);
+    }
+    return { reported: true, reportCount: post.reportedBy.length };
+  }
+
+  /** Moderation queue: PENDING posts (newly submitted or reported). */
+  async moderationQueue(tenantId: string, groupId?: string): Promise<FeedPost[]> {
+    const where: any = { tenantId, moderationStatus: ModerationStatus.PENDING };
+    if (groupId) where.groupId = groupId;
+    return this.postRepo.find({ where, order: { createdAt: 'ASC' } });
+  }
+
+  async moderate(
+    tenantId: string, postId: string, decision: 'approve' | 'reject',
+  ): Promise<FeedPost> {
+    const post = await this.getPost(tenantId, postId);
+    if (post.moderationStatus !== ModerationStatus.PENDING) {
+      throw new BadRequestException(`Post is ${post.moderationStatus}, not pending moderation`);
+    }
+    post.moderationStatus = decision === 'approve' ? ModerationStatus.APPROVED : ModerationStatus.REJECTED;
+    // Approving clears prior reports so the post starts clean.
+    if (decision === 'approve') post.reportedBy = [];
+    return this.postRepo.save(post);
   }
 }
