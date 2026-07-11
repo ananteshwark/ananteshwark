@@ -147,6 +147,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // Learning ecosystem
   { event: 'learning.xapi_completed', label: 'External learning completed (xAPI)', module: 'talent' },
 
+  // Expense/travel ecosystem
+  { event: 'card.transaction_matched', label: 'Card transaction matched to an expense', module: 'expenses' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

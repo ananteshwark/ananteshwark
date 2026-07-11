@@ -14,6 +14,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ChannelsModule } from './modules/notifications/channels/channels.module';
 import { RecruitingConnectorsModule } from './modules/recruiting/connectors/recruiting-connectors.module';
 import { LearningEcosystemModule } from './modules/learning/ecosystem/learning-ecosystem.module';
+import { ExpenseEcosystemModule } from './modules/expenses/ecosystem/expense-ecosystem.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { HealthModule } from './modules/health/health.module';
@@ -152,6 +153,7 @@ import { getDatabaseConfig } from './config/database.config';
     ChannelsModule,
     RecruitingConnectorsModule,
     LearningEcosystemModule,
+    ExpenseEcosystemModule,
     AuditModule,
     HealthModule,
     FinanceModule,
