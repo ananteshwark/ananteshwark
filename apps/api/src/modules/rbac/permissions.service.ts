@@ -182,6 +182,8 @@ export const ALL_PERMISSIONS = [
   'ai:recruiting:read', 'ai:recruiting:cv',
   // AI survey text analytics (sentiment, themes, heatmap, impact)
   'ai:survey:read',
+  // AI learning (skill inference, course mapping, recommendations, search)
+  'ai:learning:read',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

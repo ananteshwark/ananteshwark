@@ -110,6 +110,7 @@ import { AiCareerModule } from './modules/ai/career/ai-career.module';
 import { AiExpenseModule } from './modules/ai/expense/ai-expense.module';
 import { AiRecruitingModule } from './modules/ai/recruiting/ai-recruiting.module';
 import { AiSurveyModule } from './modules/ai/survey/ai-survey.module';
+import { AiLearningModule } from './modules/ai/learning/ai-learning.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
@@ -236,6 +237,7 @@ import { getDatabaseConfig } from './config/database.config';
     AiExpenseModule,
     AiRecruitingModule,
     AiSurveyModule,
+    AiLearningModule,
     DmsModule,
     EmailModule,
     SearchModule,
