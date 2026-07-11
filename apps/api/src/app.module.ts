@@ -111,6 +111,7 @@ import { AiExpenseModule } from './modules/ai/expense/ai-expense.module';
 import { AiRecruitingModule } from './modules/ai/recruiting/ai-recruiting.module';
 import { AiSurveyModule } from './modules/ai/survey/ai-survey.module';
 import { AiLearningModule } from './modules/ai/learning/ai-learning.module';
+import { AiInsightsModule } from './modules/ai/insights/ai-insights.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
@@ -238,6 +239,7 @@ import { getDatabaseConfig } from './config/database.config';
     AiRecruitingModule,
     AiSurveyModule,
     AiLearningModule,
+    AiInsightsModule,
     DmsModule,
     EmailModule,
     SearchModule,

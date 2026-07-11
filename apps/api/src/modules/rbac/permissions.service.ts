@@ -184,6 +184,8 @@ export const ALL_PERMISSIONS = [
   'ai:survey:read',
   // AI learning (skill inference, course mapping, recommendations, search)
   'ai:learning:read',
+  // AI insights (merit bias/outliers + WFM staffing recommendations)
+  'ai:insights:read',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
