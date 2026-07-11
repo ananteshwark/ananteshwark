@@ -178,6 +178,8 @@ export const ALL_PERMISSIONS = [
   'ai:career:read',
   // AI expense layer (receipt OCR + line risk scoring)
   'ai:expense:read', 'ai:expense:ocr',
+  // AI recruiting layer (CV parsing + interview scheduling)
+  'ai:recruiting:read', 'ai:recruiting:cv',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
