@@ -180,6 +180,8 @@ export const ALL_PERMISSIONS = [
   'ai:expense:read', 'ai:expense:ocr',
   // AI recruiting layer (CV parsing + interview scheduling)
   'ai:recruiting:read', 'ai:recruiting:cv',
+  // AI survey text analytics (sentiment, themes, heatmap, impact)
+  'ai:survey:read',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
