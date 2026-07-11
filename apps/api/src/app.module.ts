@@ -81,6 +81,7 @@ import { CollaborationModule } from './modules/collaboration/collaboration.modul
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { ActionPlanningModule } from './modules/action-planning/action-planning.module';
 import { StudioModule } from './modules/studio/studio.module';
+import { IntegrationsModule } from './modules/studio/integrations/integrations.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
 import { LicensingModule } from './modules/licensing/licensing.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -214,6 +215,7 @@ import { getDatabaseConfig } from './config/database.config';
     KnowledgeModule,
     ActionPlanningModule,
     StudioModule,
+    IntegrationsModule,
     LocalizationPacksModule,
     LicensingModule,
     AdminModule,

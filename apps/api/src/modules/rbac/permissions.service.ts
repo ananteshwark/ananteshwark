@@ -174,6 +174,8 @@ export const ALL_PERMISSIONS = [
   'hr:attrition:read', 'hr:attrition:manage',
   // Studio: API keys & lookup tables
   'studio:apikeys:manage', 'studio:lookup:read', 'studio:lookup:manage',
+  // Studio tier 2: integration scripts, scheduled jobs, API builder
+  'studio:integrations:read', 'studio:integrations:manage',
   // AI career layer (IJP matching, role clustering, role-fit, reflection)
   'ai:career:read',
   // AI expense layer (receipt OCR + line risk scoring)
