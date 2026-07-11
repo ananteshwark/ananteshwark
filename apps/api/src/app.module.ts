@@ -106,6 +106,7 @@ import { ComplianceModule } from './modules/compliance/compliance.module';
 import { LandedCostModule } from './modules/procurement/landed-cost/landed-cost.module';
 import { RosterModule } from './modules/hr/roster/roster.module';
 import { AiModule } from './modules/ai/ai.module';
+import { AiCareerModule } from './modules/ai/career/ai-career.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
@@ -228,6 +229,7 @@ import { getDatabaseConfig } from './config/database.config';
     LandedCostModule,
     RosterModule,
     AiModule,
+    AiCareerModule,
     DmsModule,
     EmailModule,
     SearchModule,
