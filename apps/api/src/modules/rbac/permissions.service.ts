@@ -191,6 +191,8 @@ export const ALL_PERMISSIONS = [
   // Notification channels & reward store
   'notifications:channels:read', 'notifications:channels:manage',
   'rewards:read', 'rewards:manage', 'rewards:redeem',
+  // Recruiting ecosystem connectors (job boards / calendar / assessment)
+  'recruiting:connectors:read', 'recruiting:connectors:manage', 'recruiting:connectors:publish',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

@@ -12,6 +12,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
 import { DelegationModule } from './modules/delegation/delegation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ChannelsModule } from './modules/notifications/channels/channels.module';
+import { RecruitingConnectorsModule } from './modules/recruiting/connectors/recruiting-connectors.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { HealthModule } from './modules/health/health.module';
@@ -148,6 +149,7 @@ import { getDatabaseConfig } from './config/database.config';
     DelegationModule,
     NotificationsModule,
     ChannelsModule,
+    RecruitingConnectorsModule,
     AuditModule,
     HealthModule,
     FinanceModule,

@@ -140,6 +140,10 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // Reward store
   { event: 'reward.redeemed', label: 'Reward redeemed from the store', module: 'platform' },
 
+  // Recruiting ecosystem
+  { event: 'recruiting.job_published', label: 'Job published to an external board', module: 'talent' },
+  { event: 'assessment.completed', label: 'Candidate assessment completed', module: 'talent' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
