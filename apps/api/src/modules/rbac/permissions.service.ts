@@ -188,6 +188,9 @@ export const ALL_PERMISSIONS = [
   'ai:learning:read',
   // AI insights (merit bias/outliers + WFM staffing recommendations)
   'ai:insights:read',
+  // Notification channels & reward store
+  'notifications:channels:read', 'notifications:channels:manage',
+  'rewards:read', 'rewards:manage', 'rewards:redeem',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

@@ -11,6 +11,7 @@ import { RbacModule } from './modules/rbac/rbac.module';
 import { WorkflowModule } from './modules/workflow/workflow.module';
 import { DelegationModule } from './modules/delegation/delegation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ChannelsModule } from './modules/notifications/channels/channels.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { HealthModule } from './modules/health/health.module';
@@ -146,6 +147,7 @@ import { getDatabaseConfig } from './config/database.config';
     WorkflowModule,
     DelegationModule,
     NotificationsModule,
+    ChannelsModule,
     AuditModule,
     HealthModule,
     FinanceModule,

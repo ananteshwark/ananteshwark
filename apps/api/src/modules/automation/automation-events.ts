@@ -137,6 +137,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'attendance.infraction_recorded', label: 'Attendance infraction recorded', module: 'hr' },
   { event: 'attendance.fairworkweek_violation', label: 'Fair-workweek rule violated', module: 'hr' },
 
+  // Reward store
+  { event: 'reward.redeemed', label: 'Reward redeemed from the store', module: 'platform' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
