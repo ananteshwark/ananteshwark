@@ -176,6 +176,8 @@ export const ALL_PERMISSIONS = [
   'studio:apikeys:manage', 'studio:lookup:read', 'studio:lookup:manage',
   // AI career layer (IJP matching, role clustering, role-fit, reflection)
   'ai:career:read',
+  // AI expense layer (receipt OCR + line risk scoring)
+  'ai:expense:read', 'ai:expense:ocr',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
