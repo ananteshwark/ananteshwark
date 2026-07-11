@@ -193,6 +193,8 @@ export const ALL_PERMISSIONS = [
   'rewards:read', 'rewards:manage', 'rewards:redeem',
   // Recruiting ecosystem connectors (job boards / calendar / assessment)
   'recruiting:connectors:read', 'recruiting:connectors:manage', 'recruiting:connectors:publish',
+  // Learning ecosystem (xAPI ingest, content providers, ILT/VILT)
+  'learning:ecosystem:read', 'learning:ecosystem:manage', 'learning:ecosystem:ingest',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

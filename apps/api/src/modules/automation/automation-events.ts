@@ -144,6 +144,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   { event: 'recruiting.job_published', label: 'Job published to an external board', module: 'talent' },
   { event: 'assessment.completed', label: 'Candidate assessment completed', module: 'talent' },
 
+  // Learning ecosystem
+  { event: 'learning.xapi_completed', label: 'External learning completed (xAPI)', module: 'talent' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
