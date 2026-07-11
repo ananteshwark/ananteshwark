@@ -377,7 +377,18 @@ API suite: 200 suites / 1,873 tests green.*
 11. **Studio tier 1**: API keys with scopes/quotas/alerts, reports API, lookup tables, connector distribution via marketplace
 12. **Time tracking tier 2**: break rules, infractions, fair workweek, One View cockpit, punch batch processing on the jobs queue
 
-### Phase 3 — AI-powered layer
+### Phase 3 — AI-powered layer — ✅ COMPLETE
+*All seven workstreams shipped (commits on `claude/app-build-setup-ntay5k`,
+`bc4a9bc`→`07ae85f`): AI career (IJP matching/role clustering/role-fit/reflection),
+metered receipt OCR + expense line risk, metered CV parsing + interview
+scheduling, survey text analytics (sentiment/themes/heatmap/impact), skill
+inference + learning recommendations + course mapping, merit bias/outlier alerts
++ WFM recommendations, and copilot expansion (knowledge-search + sentiment
+actions). Every feature is built behind the LLM seam — deterministic/statistical
+core that works without `ANTHROPIC_API_KEY`, with optional Claude enrichment when
+a key is present. Metered features (OCR, CV) count usage against a monthly quota.
+API suite: 206 suites / 1,924 tests green.*
+
 *All built behind the established seams: `modules/ai` (statistical engine) + `LlmPlannerService` pattern (Claude tool-use, disabled without `ANTHROPIC_API_KEY`).*
 
 1. Career reflection, exploration & planning; AI career architecture (role clustering, job evaluation); IJP matching
