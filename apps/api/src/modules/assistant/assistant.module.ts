@@ -11,6 +11,8 @@ import { HelpdeskModule } from '../helpdesk/helpdesk.module';
 import { EngagementModule } from '../engagement/engagement.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AiModule } from '../ai/ai.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { AiSurveyModule } from '../ai/survey/ai-survey.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { AiModule } from '../ai/ai.module';
     EngagementModule,
     AnalyticsModule,
     AiModule,
+    KnowledgeModule,
+    AiSurveyModule,
     RbacModule,
   ],
   controllers: [AssistantController],

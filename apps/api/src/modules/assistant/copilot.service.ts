@@ -6,6 +6,8 @@ import { HelpdeskService } from '../helpdesk/helpdesk.service';
 import { RecognitionService } from '../engagement/recognition.service';
 import { SemanticService } from '../analytics/semantic/semantic.service';
 import { AiAnomalyService } from '../ai/ai-anomaly.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
+import { AiSurveyService } from '../ai/survey/ai-survey.service';
 import { LlmPlannerService } from './llm-planner.service';
 import { HrCaseCategory } from '../helpdesk/entities/hr-case.entity';
 
@@ -50,6 +52,8 @@ export class CopilotService {
     @Optional() private readonly semantic?: SemanticService,
     @Optional() private readonly anomalies?: AiAnomalyService,
     @Optional() private readonly llmPlanner?: LlmPlannerService,
+    @Optional() private readonly knowledge?: KnowledgeService,
+    @Optional() private readonly survey?: AiSurveyService,
   ) {}
 
   /** Registry of what the copilot can do — surfaced to the UI as suggestions. */
@@ -59,6 +63,8 @@ export class CopilotService {
       { action: 'give_recognition', example: 'Recognize Asha Rao for closing the audit early' },
       { action: 'run_query', example: 'Show expenses by status' },
       { action: 'find_anomalies', example: 'Any anomalies this week?' },
+      { action: 'search_knowledge', example: 'How do I reset my payroll password?' },
+      { action: 'survey_sentiment', example: 'Analyze the sentiment of "the team feels burned out"' },
     ];
   }
 
@@ -100,6 +106,23 @@ export class CopilotService {
         action: 'find_anomalies',
         params: { module: anomalyMatch[1]?.trim().toLowerCase() ?? null },
       };
+    }
+
+    // survey_sentiment: analyze/what is the sentiment of "TEXT"
+    const sentimentMatch = text.match(
+      /(?:analy[sz]e|what(?:'s| is) the|check|score)\s+(?:the\s+)?sentiment\s+(?:of|for)\s+["“]?(.+?)["”]?$/i,
+    );
+    if (sentimentMatch) {
+      return { action: 'survey_sentiment', params: { text: sentimentMatch[1].trim() } };
+    }
+
+    // search_knowledge: "how do I ...", "search the knowledge base for ...", "kb article about ..."
+    const kbMatch = text.match(
+      /(?:^how do i\s+(.+)|(?:search|look up|find)\s+(?:the\s+)?(?:knowledge base|kb|help(?:\s*center)?|articles?)\s+(?:for|about|on)?\s*(.+)|(?:kb|knowledge)\s+article\s+(?:about|on|for)\s+(.+))/i,
+    );
+    if (kbMatch) {
+      const query = (kbMatch[1] ?? kbMatch[2] ?? kbMatch[3] ?? '').trim().replace(/\?$/, '');
+      if (query) return { action: 'search_knowledge', params: { query } };
     }
 
     // run_query: "show/list/count DATASET [by DIMENSION]"
@@ -248,6 +271,34 @@ export class CopilotService {
             (high ? ` (${high} high severity)` : '') +
             (module ? ` in ${module}` : '') +
             `. Top: ${top.join(' · ')}. Full detail is on the AI Anomalies page.`,
+        };
+      }
+
+      case 'search_knowledge': {
+        if (!this.knowledge) return this.unavailable(plan, 'knowledge base');
+        const results = await this.knowledge.search(tenantId, plan.params.query, 5);
+        if (!results.length) {
+          return {
+            understood: true, action: plan.action, params: plan.params,
+            result: { articles: [] },
+            message: `I couldn't find a knowledge-base article for "${plan.params.query}". You could raise an HR case instead.`,
+          };
+        }
+        const top = results.slice(0, 3).map((r) => r.article.title);
+        return {
+          understood: true, action: plan.action, params: plan.params,
+          result: { articles: results.map((r) => ({ id: r.article.id, title: r.article.title, score: r.score })) },
+          message: `Top knowledge-base matches for "${plan.params.query}": ${top.join(' · ')}.`,
+        };
+      }
+
+      case 'survey_sentiment': {
+        if (!this.survey) return this.unavailable(plan, 'survey analytics');
+        const s = AiSurveyService.scoreSentiment(plan.params.text);
+        return {
+          understood: true, action: plan.action, params: plan.params,
+          result: s,
+          message: `Sentiment: ${s.label} (score ${s.score}, ${s.positives} positive / ${s.negatives} negative signals).`,
         };
       }
 

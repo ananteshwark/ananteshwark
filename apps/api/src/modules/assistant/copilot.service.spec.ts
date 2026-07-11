@@ -35,6 +35,21 @@ describe('CopilotService — planner', () => {
     expect(copilot.plan('find outliers in payroll')!.params.module).toBe('payroll');
   });
 
+  it('plans a knowledge-base search from "how do I ..." and explicit searches', () => {
+    expect(copilot.plan('How do I reset my payroll password?')).toEqual({
+      action: 'search_knowledge', params: { query: 'reset my payroll password' },
+    });
+    expect(copilot.plan('search the knowledge base for leave carryover')!.params.query).toBe('leave carryover');
+    expect(copilot.plan('kb article about expense limits')!.params.query).toBe('expense limits');
+  });
+
+  it('plans sentiment analysis from quoted text', () => {
+    expect(copilot.plan('analyze the sentiment of "the team feels burned out"')).toEqual({
+      action: 'survey_sentiment', params: { text: 'the team feels burned out' },
+    });
+    expect(copilot.plan("what's the sentiment of great supportive culture")!.action).toBe('survey_sentiment');
+  });
+
   it('returns null (→ graceful fallback) for anything else', () => {
     expect(copilot.plan('what is the meaning of life')).toBeNull();
   });
@@ -130,6 +145,29 @@ describe('CopilotService — execution', () => {
     const result = await copilot.execute('t1', user, 'raise a ticket about wifi');
     expect(result.understood).toBe(true);
     expect(result.message).toContain('not available');
+  });
+
+  it('searches the knowledge base and narrates top matches', async () => {
+    const knowledge: any = {
+      search: jest.fn().mockResolvedValue([
+        { article: { id: 'a1', title: 'Reset your password' }, score: 8 },
+        { article: { id: 'a2', title: 'Payroll FAQ' }, score: 3 },
+      ]),
+    };
+    // knowledge is the 7th constructor param.
+    const copilot = new CopilotService(undefined, undefined, undefined, undefined, undefined, undefined, knowledge);
+    const result = await copilot.execute('t1', user, 'how do I reset my password');
+    expect(knowledge.search).toHaveBeenCalledWith('t1', 'reset my password', 5);
+    expect(result.understood).toBe(true);
+    expect(result.message).toContain('Reset your password');
+  });
+
+  it('scores sentiment through the survey service', async () => {
+    // survey is the 8th constructor param; scoreSentiment is a static, so a truthy stub suffices to wire it.
+    const copilot = new CopilotService(undefined, undefined, undefined, undefined, undefined, undefined, undefined, {} as any);
+    const result = await copilot.execute('t1', user, 'analyze the sentiment of "toxic and stressful and underpaid"');
+    expect(result.understood).toBe(true);
+    expect(result.message).toContain('negative');
   });
 
   it('unknown commands return the capability examples', async () => {

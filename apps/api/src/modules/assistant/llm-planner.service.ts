@@ -88,6 +88,34 @@ const PLANNER_TOOLS: Anthropic.Messages.ToolUnion[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'search_knowledge',
+    description:
+      'Search the knowledge base / help articles. Call when the user asks how to do something, or asks to look up an article, FAQ, or policy.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'The topic or question to search the knowledge base for' },
+      },
+      required: ['query'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'survey_sentiment',
+    description:
+      'Score the sentiment of a piece of text (e.g. a survey verbatim or comment). Call when the user asks to analyze or check the sentiment of some text.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'The text to analyze' },
+      },
+      required: ['text'],
+      additionalProperties: false,
+    },
+  },
 ];
 
 const KNOWN_ACTIONS = new Set(PLANNER_TOOLS.map((t) => (t as any).name));

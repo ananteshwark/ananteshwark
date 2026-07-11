@@ -40,7 +40,7 @@ describe('LlmPlannerService', () => {
     const request = client.messages.create.mock.calls[0][0];
     expect(request.model).toBe('claude-opus-4-8');
     expect(request.tools.map((t: any) => t.name)).toEqual([
-      'give_recognition', 'raise_hr_case', 'run_query', 'find_anomalies',
+      'give_recognition', 'raise_hr_case', 'run_query', 'find_anomalies', 'search_knowledge', 'survey_sentiment',
     ]);
     expect(request.tools.every((t: any) => t.strict === true)).toBe(true);
   });
