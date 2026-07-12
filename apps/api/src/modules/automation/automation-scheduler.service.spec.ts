@@ -70,7 +70,56 @@ describe('AutomationSchedulerService', () => {
     ticketRepo.find.mockResolvedValue([]);
     contractRepo.find.mockResolvedValue([]);
     const r = await service.sweepNow();
-    expect(r).toEqual({ overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0 });
+    expect(r).toEqual({
+      overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0,
+      expiredAttestations: 0, expiredCertifications: 0, visitorNoShows: 0,
+      i9Alerts: 0, studioJobsRun: 0,
+    });
+  });
+
+  it('runs the new-module sweeps when their dependencies are wired', async () => {
+    const attestationRepo = mockRepo();
+    const certRepo = mockRepo();
+    const visitorRepo = mockRepo();
+    const i9Repo = mockRepo();
+    const integrations: any = {
+      dueJobsAll: jest.fn().mockResolvedValue([{ id: 'j1', tenantId: 't1' }]),
+      runJob: jest.fn().mockResolvedValue({}),
+    };
+    const wired = new AutomationSchedulerService(
+      automation, invoiceRepo, ticketRepo, contractRepo, undefined,
+      attestationRepo as any, certRepo as any, visitorRepo as any, i9Repo as any, integrations,
+    );
+
+    attestationRepo.find.mockResolvedValue([{ id: 'a1', status: 'VERIFIED', expiresAt: '2020-01-01' }]);
+    certRepo.find.mockResolvedValue([{ id: 'e1', status: 'CERTIFIED', expiresAt: '2020-01-01' }]);
+    visitorRepo.find.mockResolvedValue([{ id: 'v1', status: 'PRE_REGISTERED', expectedAt: new Date('2020-01-01') }]);
+    // First i9 find → section2 overdue; second → reverification due.
+    i9Repo.find
+      .mockResolvedValueOnce([{ id: 'k1', tenantId: 't1', employeeId: 'emp1', employeeName: 'Ann', section2DueDate: '2020-01-01' }])
+      .mockResolvedValueOnce([{ id: 'k2', tenantId: 't1', employeeId: 'emp2', employeeName: 'Bob', reverificationDate: '2020-01-01' }]);
+
+    const r = await wired.sweepNow();
+    expect(r).toMatchObject({
+      expiredAttestations: 1, expiredCertifications: 1, visitorNoShows: 1, i9Alerts: 2, studioJobsRun: 1,
+    });
+    expect(attestationRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'EXPIRED' }));
+    expect(certRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'EXPIRED' }));
+    expect(visitorRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'NO_SHOW' }));
+    expect(automation.emit).toHaveBeenCalledWith('t1', 'i9.section2_overdue', expect.objectContaining({ caseId: 'k1' }));
+    expect(automation.emit).toHaveBeenCalledWith('t1', 'i9.reverification_due', expect.objectContaining({ caseId: 'k2' }));
+    expect(integrations.runJob).toHaveBeenCalledWith('t1', 'j1', [], expect.any(Date));
+
+    // Second sweep: I-9 alerts are deduped per case per day.
+    i9Repo.find
+      .mockResolvedValueOnce([{ id: 'k1', tenantId: 't1', employeeId: 'emp1', employeeName: 'Ann', section2DueDate: '2020-01-01' }])
+      .mockResolvedValueOnce([]);
+    attestationRepo.find.mockResolvedValue([]);
+    certRepo.find.mockResolvedValue([]);
+    visitorRepo.find.mockResolvedValue([]);
+    integrations.dueJobsAll.mockResolvedValue([]);
+    const again = await wired.sweepNow();
+    expect(again.i9Alerts).toBe(0);
   });
 
   it('does not start timers under jest', () => {

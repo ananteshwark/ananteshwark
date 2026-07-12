@@ -7,6 +7,8 @@ import { Employee } from '../employees/entities/employee.entity';
 import { ExitService } from './exit.service';
 import { ExitController } from './exit.controller';
 import { RbacModule } from '../../rbac/rbac.module';
+import { JourneysModule } from '../journeys/journeys.module';
+import { AlumniModule } from '../alumni/alumni.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { RbacModule } from '../../rbac/rbac.module';
       Employee,
     ]),
     RbacModule,
+    JourneysModule,
+    AlumniModule,
   ],
   controllers: [ExitController],
   providers: [ExitService],

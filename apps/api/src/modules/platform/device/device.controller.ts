@@ -74,6 +74,13 @@ export class DeviceController {
     return this.service.checkIn(user.tenantId, id, body?.badgeNumber);
   }
 
+  @Post('visitors/no-show-sweep')
+  @RequirePermission('device:visitor:manage')
+  @ApiOperation({ summary: 'Mark overdue pre-registrations as NO_SHOW (also run hourly by the scheduler)' })
+  noShowSweep(@CurrentUser() user: any, @Body() body: { asOf?: string }) {
+    return this.service.noShowSweep(user.tenantId, body?.asOf ? new Date(body.asOf) : new Date());
+  }
+
   @Post('visitors/:id/check-out')
   @RequirePermission('device:visitor:manage')
   checkOut(@CurrentUser() user: any, @Param('id') id: string) {

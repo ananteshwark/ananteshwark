@@ -80,6 +80,39 @@ describe('RewardStoreService', () => {
     expect(automation.emit).toHaveBeenCalledWith('t1', 'reward.redeemed', expect.objectContaining({ itemName: 'Mug', fulfilled: false }));
   });
 
+  describe('recognition-ledger balance', () => {
+    const withLedger = (recognition: any) =>
+      new RewardStoreService(itemRepo, redemptionRepo, fulfillment, automation, recognition);
+
+    it('computes earned minus live redemptions', async () => {
+      const recognition: any = { pointsFor: jest.fn().mockResolvedValue(500) };
+      redemptionRepo.find.mockResolvedValue([
+        { pointsSpent: 100, status: RedemptionStatus.FULFILLED },
+        { pointsSpent: 50, status: RedemptionStatus.REQUESTED },
+        { pointsSpent: 999, status: RedemptionStatus.CANCELLED }, // refunded — not spent
+      ]);
+      const b = await withLedger(recognition).balance('t1', 'e1');
+      expect(b).toEqual({ earned: 500, spent: 150, available: 350 });
+    });
+
+    it('redeem derives affordability from the ledger when availablePoints is omitted', async () => {
+      const recognition: any = { pointsFor: jest.fn().mockResolvedValue(120) };
+      redemptionRepo.find.mockResolvedValue([]);
+      itemRepo.findOne.mockResolvedValue({ id: 'i1', tenantId: 't1', name: 'Mug', pointsCost: 100, active: true, stock: null });
+      const r = await withLedger(recognition).redeem('t1', 'e1', 'i1');
+      expect(r.pointsSpent).toBe(100);
+
+      // Second redemption: 120 earned − 100 live = 20 < 100 → rejected.
+      redemptionRepo.find.mockResolvedValue([{ pointsSpent: 100, status: RedemptionStatus.REQUESTED }]);
+      await expect(withLedger(recognition).redeem('t1', 'e1', 'i1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('requires explicit availablePoints when no ledger is connected', async () => {
+      itemRepo.findOne.mockResolvedValue({ id: 'i1', tenantId: 't1', name: 'Mug', pointsCost: 100, active: true, stock: null });
+      await expect(service.redeem('t1', 'e1', 'i1')).rejects.toThrow(BadRequestException);
+    });
+  });
+
   it('restocks on cancellation of a requested redemption', async () => {
     redemptionRepo.findOne.mockResolvedValue({ id: 'r1', tenantId: 't1', itemId: 'i1', status: RedemptionStatus.REQUESTED });
     itemRepo.findOne.mockResolvedValue({ id: 'i1', tenantId: 't1', stock: 2 });

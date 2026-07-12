@@ -8,11 +8,13 @@ import { ChannelAdapter } from './channel.adapter';
 import { RewardFulfillmentAdapter } from './reward.adapter';
 import { ChannelsController } from './channels.controller';
 import { RbacModule } from '../../rbac/rbac.module';
+import { EngagementModule } from '../../engagement/engagement.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChannelSubscription, ChannelDelivery, RewardCatalogItem, RewardRedemption]),
     RbacModule,
+    EngagementModule,
   ],
   controllers: [ChannelsController],
   providers: [ChannelDispatchService, RewardStoreService, ChannelAdapter, RewardFulfillmentAdapter],

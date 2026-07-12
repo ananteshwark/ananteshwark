@@ -51,13 +51,13 @@ describe('AutomationSchedulerService — lease-gated ticks', () => {
 
     leases.tryAcquire.mockResolvedValue(true);
     const result = await service.sweepIfLeader();
-    expect(result).toEqual({ overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0 });
+    expect(result).toMatchObject({ overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0 });
   });
 
   it('sweeps unconditionally when no lease service is wired (single instance)', async () => {
     const service = new AutomationSchedulerService(
       { emit: jest.fn() }, mockRepo(), mockRepo(), mockRepo(),
     );
-    expect(await service.sweepIfLeader()).toEqual({ overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0 });
+    expect(await service.sweepIfLeader()).toMatchObject({ overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0 });
   });
 });

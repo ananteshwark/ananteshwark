@@ -81,6 +81,13 @@ export class SkillOntologyController {
     return this.service.rejectAttestation(user.tenantId, id, user.id, body?.note);
   }
 
+  @Post('attestations/expire-sweep')
+  @RequirePermission('hr:skills:manage')
+  @ApiOperation({ summary: 'Expire verified certifications past their date (also run hourly by the scheduler)' })
+  expireSweep(@CurrentUser() user: any, @Body() body: { asOf?: string }) {
+    return this.service.expireSweep(user.tenantId, body?.asOf ?? new Date().toISOString().slice(0, 10));
+  }
+
   @Get('employees/:employeeId/coverage')
   @RequirePermission('hr:skills:read')
   @ApiOperation({ summary: 'Verified vs self-declared skill coverage for an employee' })

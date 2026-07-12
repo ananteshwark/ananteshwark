@@ -2,11 +2,16 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@ne
 import { randomUUID } from 'crypto';
 import { LeaseService } from '../../common/leases/lease.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, Not, Repository } from 'typeorm';
+import { In, LessThan, LessThanOrEqual, Not, Repository } from 'typeorm';
 import { AutomationService } from './automation.service';
 import { Invoice, InvoiceStatus } from '../finance/ar/entities/invoice.entity';
 import { ServiceTicket, TicketStatus } from '../crm/entities/service-ticket.entity';
 import { Contract, ContractStatus } from '../contracts/entities/contract.entity';
+import { SkillAttestation, AttestationStatus } from '../hr/skills/entities/skill-attestation.entity';
+import { CertEnrollment, CertEnrollmentStatus } from '../learning/academy/entities/academy.entity';
+import { Visitor, VisitorStatus } from '../platform/device/entities/device.entity';
+import { I9Case, I9Status } from '../hr/i9/entities/i9-case.entity';
+import { IntegrationsService } from '../studio/integrations/integrations.service';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -18,7 +23,15 @@ const HOUR_MS = 60 * 60 * 1000;
  *  - flags open tickets past their resolution deadline as SLA-breached and
  *    emits `ticket.sla_breached` (the flag is the dedupe);
  *  - emits `contract.expiring` for ACTIVE contracts ending within 30 days
- *    (deduped per contract per day in-process).
+ *    (deduped per contract per day in-process);
+ *  - expires VERIFIED skill attestations and CERTIFIED academy enrolments
+ *    past their expiry (the status flip is the dedupe);
+ *  - marks pre-registered visitors whose expected time has passed as NO_SHOW;
+ *  - emits `i9.section2_overdue` / `i9.reverification_due` for I-9 compliance
+ *    deadlines (deduped per case per day in-process);
+ *  - executes due Studio scheduled jobs (rolling nextRunAt is the dedupe).
+ * The newer sweeps take their dependencies via @Optional() so the scheduler
+ * still boots (and tests still construct positionally) without them.
  * Disabled under tests; can be invoked on demand via sweepNow().
  */
 @Injectable()
@@ -27,6 +40,7 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
   private timer: ReturnType<typeof setInterval> | null = null;
   private kickoff: ReturnType<typeof setTimeout> | null = null;
   private readonly alertedContracts = new Set<string>();
+  private readonly alertedI9 = new Set<string>();
   // Identifies this process in the leader-election lease.
   private readonly instanceId = randomUUID();
 
@@ -39,6 +53,15 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
     @InjectRepository(Contract)
     private readonly contractRepo: Repository<Contract>,
     @Optional() private readonly leases?: LeaseService,
+    @Optional() @InjectRepository(SkillAttestation)
+    private readonly attestationRepo?: Repository<SkillAttestation>,
+    @Optional() @InjectRepository(CertEnrollment)
+    private readonly certEnrollRepo?: Repository<CertEnrollment>,
+    @Optional() @InjectRepository(Visitor)
+    private readonly visitorRepo?: Repository<Visitor>,
+    @Optional() @InjectRepository(I9Case)
+    private readonly i9Repo?: Repository<I9Case>,
+    @Optional() private readonly integrations?: IntegrationsService,
   ) {}
 
   onModuleInit() {
@@ -58,7 +81,7 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
    * outlives the hourly renewal, so a crashed leader is replaced within one
    * tick. Manual sweeps via the API bypass election on purpose.
    */
-  async sweepIfLeader(): Promise<{ overdueInvoices: number; slaBreaches: number; expiringContracts: number } | null> {
+  async sweepIfLeader(): Promise<Record<string, number> | null> {
     if (this.leases) {
       const isLeader = await this.leases.tryAcquire('automation-sweeps', this.instanceId, 90 * 60_000);
       if (!isLeader) return null;
@@ -66,13 +89,22 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
     return this.sweepNow();
   }
 
-  async sweepNow(): Promise<{ overdueInvoices: number; slaBreaches: number; expiringContracts: number }> {
-    const [overdueInvoices, slaBreaches, expiringContracts] = await Promise.all([
+  async sweepNow(): Promise<{
+    overdueInvoices: number; slaBreaches: number; expiringContracts: number;
+    expiredAttestations: number; expiredCertifications: number; visitorNoShows: number;
+    i9Alerts: number; studioJobsRun: number;
+  }> {
+    const [overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun] = await Promise.all([
       this.sweepOverdueInvoices().catch((e) => { this.logger.warn(`overdue sweep: ${e.message}`); return 0; }),
       this.sweepSlaBreaches().catch((e) => { this.logger.warn(`sla sweep: ${e.message}`); return 0; }),
       this.sweepExpiringContracts().catch((e) => { this.logger.warn(`contract sweep: ${e.message}`); return 0; }),
+      this.sweepAttestationExpiry().catch((e) => { this.logger.warn(`attestation sweep: ${e.message}`); return 0; }),
+      this.sweepCertificationExpiry().catch((e) => { this.logger.warn(`certification sweep: ${e.message}`); return 0; }),
+      this.sweepVisitorNoShows().catch((e) => { this.logger.warn(`visitor sweep: ${e.message}`); return 0; }),
+      this.sweepI9Compliance().catch((e) => { this.logger.warn(`i9 sweep: ${e.message}`); return 0; }),
+      this.sweepStudioJobs().catch((e) => { this.logger.warn(`studio jobs sweep: ${e.message}`); return 0; }),
     ]);
-    return { overdueInvoices, slaBreaches, expiringContracts };
+    return { overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun };
   }
 
   private async sweepOverdueInvoices(): Promise<number> {
@@ -148,5 +180,101 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
       alerts++;
     }
     return alerts;
+  }
+
+  /** Flip VERIFIED skill attestations past their expiry to EXPIRED. */
+  private async sweepAttestationExpiry(): Promise<number> {
+    if (!this.attestationRepo) return 0;
+    const today = new Date().toISOString().slice(0, 10);
+    const due = await this.attestationRepo.find({
+      where: { status: AttestationStatus.VERIFIED, expiresAt: LessThan(today) },
+    });
+    for (const a of due) {
+      a.status = AttestationStatus.EXPIRED;
+      await this.attestationRepo.save(a);
+    }
+    return due.length;
+  }
+
+  /** Flip CERTIFIED academy enrolments past their expiry to EXPIRED. */
+  private async sweepCertificationExpiry(): Promise<number> {
+    if (!this.certEnrollRepo) return 0;
+    const today = new Date().toISOString().slice(0, 10);
+    const due = await this.certEnrollRepo.find({
+      where: { status: CertEnrollmentStatus.CERTIFIED, expiresAt: LessThanOrEqual(today) },
+    });
+    for (const e of due) {
+      e.status = CertEnrollmentStatus.EXPIRED;
+      await this.certEnrollRepo.save(e);
+    }
+    return due.length;
+  }
+
+  /** Mark pre-registered visitors whose expected time has passed as NO_SHOW. */
+  private async sweepVisitorNoShows(): Promise<number> {
+    if (!this.visitorRepo) return 0;
+    const due = await this.visitorRepo.find({
+      where: { status: VisitorStatus.PRE_REGISTERED, expectedAt: LessThan(new Date()) },
+    });
+    for (const v of due) {
+      v.status = VisitorStatus.NO_SHOW;
+      await this.visitorRepo.save(v);
+    }
+    return due.length;
+  }
+
+  /**
+   * I-9 compliance alerts: Section 2 past its 3-business-day deadline while
+   * still pending, and completed cases whose reverification date has arrived.
+   * Alert-only (no status flip), so deduped per case per day in-process.
+   */
+  private async sweepI9Compliance(): Promise<number> {
+    if (!this.i9Repo) return 0;
+    const today = new Date().toISOString().slice(0, 10);
+    let alerts = 0;
+
+    const overdue = await this.i9Repo.find({
+      where: { status: I9Status.SECTION2_PENDING, section2DueDate: LessThan(today) },
+    });
+    for (const k of overdue) {
+      const key = `s2:${k.id}:${today}`;
+      if (this.alertedI9.has(key)) continue;
+      this.alertedI9.add(key);
+      await this.automation.emit(k.tenantId, 'i9.section2_overdue', {
+        caseId: k.id, employeeId: k.employeeId, employeeName: k.employeeName, section2DueDate: k.section2DueDate,
+      });
+      alerts++;
+    }
+
+    const reverify = await this.i9Repo.find({
+      where: { status: I9Status.COMPLETE, reverificationDate: LessThanOrEqual(today) },
+    });
+    for (const k of reverify) {
+      const key = `rv:${k.id}:${today}`;
+      if (this.alertedI9.has(key)) continue;
+      this.alertedI9.add(key);
+      await this.automation.emit(k.tenantId, 'i9.reverification_due', {
+        caseId: k.id, employeeId: k.employeeId, employeeName: k.employeeName, reverificationDate: k.reverificationDate,
+      });
+      alerts++;
+    }
+    return alerts;
+  }
+
+  /** Execute due Studio scheduled jobs; rolling nextRunAt forward is the dedupe. */
+  private async sweepStudioJobs(): Promise<number> {
+    if (!this.integrations) return 0;
+    const now = new Date();
+    const due = await this.integrations.dueJobsAll(now);
+    let run = 0;
+    for (const job of due) {
+      try {
+        await this.integrations.runJob(job.tenantId, job.id, [], now);
+        run++;
+      } catch (e: any) {
+        this.logger.warn(`studio job ${job.id}: ${e?.message}`);
+      }
+    }
+    return run;
   }
 }

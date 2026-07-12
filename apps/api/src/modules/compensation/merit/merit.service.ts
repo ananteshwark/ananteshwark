@@ -5,6 +5,7 @@ import { MeritPlan, MeritPlanStatus, MeritCycleType } from './entities/merit-pla
 import { MeritBudgetNode } from './entities/merit-budget.entity';
 import { MeritLine, MeritLineStatus } from './entities/merit-line.entity';
 import { AutomationService } from '../../automation/automation.service';
+import { LettersService } from '../../letters/letters.service';
 
 const round2 = (n: number) => Math.round(Number(n) * 100) / 100;
 
@@ -21,6 +22,7 @@ export class MeritService {
     @InjectRepository(MeritBudgetNode) private readonly budgetRepo: Repository<MeritBudgetNode>,
     @InjectRepository(MeritLine) private readonly lineRepo: Repository<MeritLine>,
     @Optional() private readonly automation?: AutomationService,
+    @Optional() private readonly letters?: LettersService,
   ) {}
 
   // ─── Plan lifecycle ───────────────────────────────────────────
@@ -357,6 +359,22 @@ export class MeritService {
     plan.approvedAt = new Date();
     const saved = await this.planRepo.save(plan);
     const outputs = this.buildOutputs(saved, lines.filter((l) => l.status === MeritLineStatus.APPROVED));
+
+    // Handoff: draft an increment letter per approved employee through the
+    // letters module. Best-effort — no MERIT_INCREMENT template (null) or a
+    // failed render never blocks plan approval.
+    if (this.letters) {
+      for (const o of outputs) {
+        const letter = await this.letters
+          .generateByCode(tenantId, { code: 'MERIT_INCREMENT', employeeId: o.employeeId, data: o.letter.variables })
+          .catch(() => null);
+        if (letter) {
+          o.letterId = letter.id;
+          o.letterNumber = letter.letterNumber;
+        }
+      }
+    }
+
     await this.automation?.emit(tenantId, 'merit.approved', {
       planId: saved.id, name: saved.name, awardedCount: outputs.length,
       totalAward: round2(outputs.reduce((s, o) => s + o.increaseAmount, 0)),

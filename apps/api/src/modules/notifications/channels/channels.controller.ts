@@ -65,11 +65,18 @@ export class ChannelsController {
     return this.rewards.createItem(user.tenantId, dto);
   }
 
+  @Get('rewards/balance')
+  @RequirePermission('rewards:read')
+  @ApiOperation({ summary: 'Point balance from the recognition ledger (earned − live redemptions)' })
+  balance(@CurrentUser() user: any, @Query('employeeId') employeeId?: string) {
+    return this.rewards.balance(user.tenantId, employeeId ?? user.id);
+  }
+
   @Post('rewards/:id/redeem')
   @RequirePermission('rewards:redeem')
-  @ApiOperation({ summary: 'Redeem a reward against an available point balance' })
-  redeem(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { availablePoints: number }) {
-    return this.rewards.redeem(user.tenantId, user.id, id, Number(body?.availablePoints ?? 0));
+  @ApiOperation({ summary: 'Redeem a reward; balance comes from the recognition ledger unless availablePoints is supplied' })
+  redeem(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { availablePoints?: number }) {
+    return this.rewards.redeem(user.tenantId, user.id, id, body?.availablePoints != null ? Number(body.availablePoints) : undefined);
   }
 
   @Get('redemptions')

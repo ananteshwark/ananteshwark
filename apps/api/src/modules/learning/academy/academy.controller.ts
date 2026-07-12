@@ -45,9 +45,10 @@ export class AcademyController {
     return this.service.recordRequirement(user.tenantId, id, body, new Date());
   }
 
-  @Get('expire-sweep')
+  @Post('expire-sweep')
   @RequirePermission('academy:manage')
-  expireSweep(@CurrentUser() user: any, @Query('asOf') asOf: string) {
-    return this.service.expireSweep(user.tenantId, asOf);
+  @ApiOperation({ summary: 'Expire certified-but-lapsed enrolments (also run hourly by the scheduler)' })
+  expireSweep(@CurrentUser() user: any, @Body() body: { asOf?: string }) {
+    return this.service.expireSweep(user.tenantId, body?.asOf ?? new Date().toISOString().slice(0, 10));
   }
 }

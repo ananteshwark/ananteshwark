@@ -6,9 +6,10 @@ import { MeritLine } from './entities/merit-line.entity';
 import { MeritService } from './merit.service';
 import { MeritController } from './merit.controller';
 import { RbacModule } from '../../rbac/rbac.module';
+import { LettersModule } from '../../letters/letters.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MeritPlan, MeritBudgetNode, MeritLine]), RbacModule],
+  imports: [TypeOrmModule.forFeature([MeritPlan, MeritBudgetNode, MeritLine]), RbacModule, LettersModule],
   controllers: [MeritController],
   providers: [MeritService],
   exports: [MeritService],

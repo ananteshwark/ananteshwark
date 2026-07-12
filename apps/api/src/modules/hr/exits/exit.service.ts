@@ -21,6 +21,9 @@ import {
   EmployeeStatus,
 } from '../employees/entities/employee.entity';
 import { AutomationService } from '../../automation/automation.service';
+import { JourneysService } from '../journeys/journeys.service';
+import { JourneyTrigger } from '../journeys/entities/journey.entity';
+import { AlumniService } from '../alumni/alumni.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -44,6 +47,8 @@ export class ExitService {
     @InjectRepository(Employee)
     private readonly employeeRepo: Repository<Employee>,
     @Optional() private readonly automation?: AutomationService,
+    @Optional() private readonly journeys?: JourneysService,
+    @Optional() private readonly alumni?: AlumniService,
   ) {}
 
   async list(tenantId: string, status?: string): Promise<any[]> {
@@ -130,6 +135,17 @@ export class ExitService {
     await this.checklistRepo.save(items);
 
     await this.automation?.emit(tenantId, 'exit.initiated', { exitRequestId: saved.id, employeeId: saved.employeeId, lastWorkingDate: saved.lastWorkingDate, reason: saved.reason });
+
+    // Handoff: fire every active OFFBOARDING journey, anchored on the last
+    // working date. Best-effort — a journey failure never blocks the exit.
+    await this.journeys
+      ?.triggerByEvent(tenantId, JourneyTrigger.OFFBOARDING, {
+        employeeId: saved.employeeId,
+        employeeName: `${emp.firstName} ${emp.lastName}`,
+        anchorDate: saved.lastWorkingDate,
+      })
+      .catch(() => undefined);
+
     return this.getOne(tenantId, saved.id);
   }
 
@@ -162,6 +178,22 @@ export class ExitService {
             ? EmployeeStatus.TERMINATED
             : EmployeeStatus.RESIGNED;
         await this.employeeRepo.save(emp);
+
+        // Handoff: invite the departing employee into the alumni network.
+        // Best-effort and idempotent — a duplicate profile just no-ops.
+        const tenureMonths = emp.dateOfJoining
+          ? Math.max(0, Math.round((Date.parse(exit.lastWorkingDate) - Date.parse(emp.dateOfJoining)) / (30.44 * 86400000)))
+          : undefined;
+        await this.alumni
+          ?.invite(tenantId, {
+            employeeId: exit.employeeId,
+            fullName: `${emp.firstName} ${emp.lastName}`,
+            exitDate: exit.lastWorkingDate,
+            tenureMonths,
+            personalEmail: emp.personalEmail ?? undefined,
+            rehireEligible: exit.rehireEligible ?? undefined,
+          })
+          .catch(() => undefined);
       }
     }
 

@@ -208,6 +208,35 @@ describe('MeritService', () => {
       await expect(service.approvePlan('t1', 'p1')).rejects.toThrow(BadRequestException);
     });
 
+    it('drafts a MERIT_INCREMENT letter per approved employee when the letters module is wired', async () => {
+      const letters: any = {
+        generateByCode: jest.fn().mockResolvedValue({ id: 'ltr1', letterNumber: 'LTR-000001' }),
+      };
+      const wired = new MeritService(planRepo, budgetRepo, lineRepo, automation, letters);
+      planRepo.findOne.mockResolvedValue(draftPlan({ status: MeritPlanStatus.LAUNCHED }));
+      lineRepo.find.mockResolvedValue([
+        { id: 'l1', employeeId: 'e1', employeeName: 'Ann', currency: 'USD', currentSalary: 100000, newSalary: 110000, proposedPct: 10, proposedAmount: 10000, status: MeritLineStatus.APPROVED },
+      ]);
+      const { outputs } = await wired.approvePlan('t1', 'p1');
+      expect(letters.generateByCode).toHaveBeenCalledWith('t1', expect.objectContaining({
+        code: 'MERIT_INCREMENT', employeeId: 'e1',
+        data: expect.objectContaining({ newSalary: 110000 }),
+      }));
+      expect(outputs[0]).toMatchObject({ letterId: 'ltr1', letterNumber: 'LTR-000001' });
+    });
+
+    it('a missing letter template or render failure never blocks approval', async () => {
+      const letters: any = { generateByCode: jest.fn().mockRejectedValue(new Error('no such employee')) };
+      const wired = new MeritService(planRepo, budgetRepo, lineRepo, automation, letters);
+      planRepo.findOne.mockResolvedValue(draftPlan({ status: MeritPlanStatus.LAUNCHED }));
+      lineRepo.find.mockResolvedValue([
+        { id: 'l1', employeeId: 'e1', employeeName: 'Ann', currency: 'USD', currentSalary: 100000, newSalary: 110000, proposedPct: 10, proposedAmount: 10000, status: MeritLineStatus.APPROVED },
+      ]);
+      const { plan, outputs } = await wired.approvePlan('t1', 'p1');
+      expect(plan.status).toBe(MeritPlanStatus.APPROVED);
+      expect(outputs[0].letterId).toBeUndefined();
+    });
+
     it('approves the plan, builds outputs with letter data and emits merit.approved', async () => {
       planRepo.findOne.mockResolvedValue(draftPlan({ status: MeritPlanStatus.LAUNCHED }));
       lineRepo.find.mockResolvedValue([

@@ -113,6 +113,20 @@ export class LettersService {
     return this.issuedRepo.save(letter);
   }
 
+  /**
+   * Render a template found by its code (e.g. MERIT_INCREMENT) — the handoff
+   * entry point for other modules. Returns null when the tenant has no active
+   * template with that code, so callers can treat letters as optional.
+   */
+  async generateByCode(
+    tenantId: string,
+    dto: { code: string; employeeId: string; data?: Record<string, any> },
+  ): Promise<IssuedLetter | null> {
+    const template = await this.templateRepo.findOne({ where: { tenantId, code: dto.code, isActive: true } });
+    if (!template) return null;
+    return this.generate(tenantId, { templateId: template.id, employeeId: dto.employeeId, data: dto.data });
+  }
+
   async listIssued(tenantId: string, employeeId?: string): Promise<IssuedLetter[]> {
     return this.issuedRepo.find({
       where: employeeId ? { tenantId, employeeId } : { tenantId },

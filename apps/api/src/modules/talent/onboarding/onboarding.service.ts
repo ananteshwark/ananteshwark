@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OnboardingTemplate } from './entities/onboarding-template.entity';
@@ -6,6 +6,9 @@ import { OnboardingPlan, OnboardingStatus } from './entities/onboarding-plan.ent
 import { OnboardingTask, TaskStatus } from './entities/onboarding-task.entity';
 import { CreateTemplateDto, CreateOnboardingPlanDto, UpdateTaskStatusDto } from './dto/onboarding.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { Employee } from '../../hr/employees/entities/employee.entity';
+import { JourneysService } from '../../hr/journeys/journeys.service';
+import { JourneyTrigger } from '../../hr/journeys/entities/journey.entity';
 
 @Injectable()
 export class OnboardingService {
@@ -13,6 +16,8 @@ export class OnboardingService {
     @InjectRepository(OnboardingTemplate) private templateRepo: Repository<OnboardingTemplate>,
     @InjectRepository(OnboardingPlan) private planRepo: Repository<OnboardingPlan>,
     @InjectRepository(OnboardingTask) private taskRepo: Repository<OnboardingTask>,
+    @Optional() @InjectRepository(Employee) private employeeRepo?: Repository<Employee>,
+    @Optional() private readonly journeys?: JourneysService,
   ) {}
 
   async createTemplate(tenantId: string, dto: CreateTemplateDto): Promise<OnboardingTemplate> {
@@ -51,6 +56,20 @@ export class OnboardingService {
         await this.taskRepo.save(tasks);
       }
     }
+
+    // Handoff: fire every active ONBOARDING journey, anchored on the start
+    // date. Best-effort — a journey failure never blocks plan creation.
+    const emp = await this.employeeRepo
+      ?.findOne({ where: { id: dto.employeeId, tenantId } })
+      .catch(() => null);
+    await this.journeys
+      ?.triggerByEvent(tenantId, JourneyTrigger.ONBOARDING, {
+        employeeId: dto.employeeId,
+        employeeName: emp ? `${emp.firstName} ${emp.lastName}` : dto.employeeId,
+        anchorDate: dto.startDate,
+      })
+      .catch(() => undefined);
+
     return saved;
   }
 

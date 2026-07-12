@@ -144,7 +144,9 @@ export class IntegrationsService {
     return this.jobRepo.save(this.jobRepo.create({
       tenantId, name: dto.name.trim(), scriptKey: dto.scriptKey, intervalMinutes: interval,
       deliveryType: dto.deliveryType ?? DeliveryType.NONE, deliveryConfig: dto.deliveryConfig ?? {},
-      active: true, nextRunAt: dto.startAt ? new Date(dto.startAt) : null,
+      // Without an explicit start the first run is one interval out, so the
+      // scheduler sweep picks the job up without any further action.
+      active: true, nextRunAt: dto.startAt ? new Date(dto.startAt) : new Date(Date.now() + interval * 60000),
     }));
   }
 
@@ -157,11 +159,25 @@ export class IntegrationsService {
     return this.jobRepo.find({ where: { tenantId, active: true, nextRunAt: LessThanOrEqual(asOf) }, order: { nextRunAt: 'ASC' } });
   }
 
-  /** Record a run and roll nextRunAt forward by the interval; deliver output. */
+  /** Cross-tenant due jobs — the scheduler-sweep entry point. */
+  dueJobsAll(asOf: Date): Promise<ScheduledJob[]> {
+    return this.jobRepo.find({ where: { active: true, nextRunAt: LessThanOrEqual(asOf) }, order: { nextRunAt: 'ASC' } });
+  }
+
+  /**
+   * Record a run and roll nextRunAt forward by the interval; deliver output.
+   * When no input rows are supplied and the job's deliveryConfig names a
+   * `sourceTable`, the rows are pulled from that lookup table — this is how
+   * scheduler-triggered runs get their data.
+   */
   async runJob(tenantId: string, jobId: string, rows: Row[], now: Date): Promise<{ job: ScheduledJob; output: Row[]; delivery: any }> {
     const job = await this.jobRepo.findOne({ where: { id: jobId, tenantId } });
     if (!job) throw new NotFoundException(`Job ${jobId} not found`);
-    const output = await this.runScript(tenantId, job.scriptKey, rows);
+    let inputRows = rows ?? [];
+    if (!inputRows.length && job.deliveryConfig?.sourceTable && this.studio) {
+      inputRows = (await this.studio.listRows(tenantId, job.deliveryConfig.sourceTable)).map((r) => r.values);
+    }
+    const output = await this.runScript(tenantId, job.scriptKey, inputRows);
     const delivery = await this.delivery.deliver(job.deliveryType, job.deliveryConfig, output);
     job.lastRunAt = now;
     job.nextRunAt = new Date(now.getTime() + job.intervalMinutes * 60000);

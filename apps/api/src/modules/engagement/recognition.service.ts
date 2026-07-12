@@ -66,6 +66,12 @@ export class RecognitionService {
     return saved;
   }
 
+  /** Total recognition points earned by an employee — the reward-store ledger source. */
+  async pointsFor(tenantId: string, employeeId: string): Promise<number> {
+    const rows = await this.recognitionRepo.find({ where: { tenantId, toEmployeeId: employeeId } });
+    return rows.reduce((sum, r) => sum + Number(r.points || 0), 0);
+  }
+
   async wall(tenantId: string, pagination: PaginationDto): Promise<PaginatedResponseDto<Recognition>> {
     const { page = 1, limit = 20 } = pagination;
     const [items, total] = await this.recognitionRepo.findAndCount({
