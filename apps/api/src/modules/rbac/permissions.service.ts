@@ -201,6 +201,10 @@ export const ALL_PERMISSIONS = [
   'platform:config:read', 'platform:config:manage',
   // Academy certification portal
   'academy:read', 'academy:manage', 'academy:enroll',
+  // Device features: facial check-in, mobile shell config, visitor kiosk
+  'device:face:read', 'device:face:manage',
+  'device:mobile:read', 'device:mobile:manage',
+  'device:visitor:read', 'device:visitor:manage',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];

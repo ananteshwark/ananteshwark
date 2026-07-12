@@ -153,6 +153,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // Academy certification portal
   { event: 'academy.certified', label: 'Learner certified in the Academy', module: 'talent' },
 
+  // Visitor management
+  { event: 'visitor.checked_in', label: 'Visitor checked in at reception', module: 'platform' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 
