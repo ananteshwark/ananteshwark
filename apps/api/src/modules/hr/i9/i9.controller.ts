@@ -53,6 +53,20 @@ export class I9Controller {
     return this.service.recordEVerify(user.tenantId, id, dto);
   }
 
+  @Post('cases/:id/everify/submit')
+  @RequirePermission('hr:i9:manage')
+  @ApiOperation({ summary: 'Submit the case to E-Verify via the live integration seam' })
+  submitToEVerify(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.submitToEVerify(user.tenantId, id);
+  }
+
+  @Post('cases/:id/everify/refresh')
+  @RequirePermission('hr:i9:manage')
+  @ApiOperation({ summary: 'Poll E-Verify for a submitted case and apply the result' })
+  refreshEVerify(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.refreshEVerify(user.tenantId, id);
+  }
+
   @Post('cases/:id/reverify')
   @RequirePermission('hr:i9:manage')
   flagReverification(@CurrentUser() user: any, @Param('id') id: string, @Body() body: { reverificationDate: string }) {

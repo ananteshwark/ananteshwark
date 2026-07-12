@@ -117,6 +117,7 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
 
   // I-9 / E-Verify
   { event: 'i9.completed', label: 'I-9 verification completed', module: 'hr' },
+  { event: 'i9.everify_tnc', label: 'E-Verify tentative non-confirmation', module: 'hr' },
 
   // External collaborators
   { event: 'collaborator.invited', label: 'External collaborator invited', module: 'platform' },

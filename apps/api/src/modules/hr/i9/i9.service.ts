@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { I9Case, I9Status, CitizenshipStatus, EVerifyResult } from './entities/i9-case.entity';
 import { AutomationService } from '../../automation/automation.service';
+import { EVerifyAdapter } from './everify.adapter';
 
 /** Add `n` business days (skipping Sat/Sun) to a YYYY-MM-DD date. */
 function addBusinessDays(date: string, n: number): string {
@@ -21,6 +22,7 @@ export class I9Service {
   constructor(
     @InjectRepository(I9Case) private readonly caseRepo: Repository<I9Case>,
     @Optional() private readonly automation?: AutomationService,
+    @Optional() private readonly everify?: EVerifyAdapter,
   ) {}
 
   async createCase(tenantId: string, dto: { employeeId: string; employeeName: string; hireDate: string; everifyEnabled?: boolean }): Promise<I9Case> {
@@ -110,6 +112,55 @@ export class I9Service {
     }
     // TNC / final non-confirmation keep the case in EVERIFY_PENDING for follow-up.
     return this.caseRepo.save(kase);
+  }
+
+  get everifyLive(): boolean {
+    return !!this.everify;
+  }
+
+  /**
+   * Live E-Verify submission through the adapter seam. Requires Section 1 and
+   * Section 2 to be complete. If the adapter returns an immediate result it is
+   * applied via recordEVerify; otherwise the caseNumber is stamped and the case
+   * stays EVERIFY_PENDING for a later status refresh. Without a wired adapter it
+   * returns submitted:false and the manual path remains available.
+   */
+  async submitToEVerify(tenantId: string, id: string): Promise<{ case: I9Case; submitted: boolean; result?: EVerifyResult; reason?: string }> {
+    const kase = await this.getCase(tenantId, id);
+    if (kase.status !== I9Status.EVERIFY_PENDING) throw new BadRequestException('The case is not awaiting E-Verify');
+    if (!kase.section1 || !kase.section2) throw new BadRequestException('Section 1 and Section 2 must be complete before E-Verify');
+    if (!this.everify) return { case: kase, submitted: false, reason: 'E-Verify integration not wired in this deployment' };
+
+    const res = await this.everify.submitCase({ employeeName: kase.employeeName, hireDate: kase.hireDate, section1: kase.section1, section2: kase.section2 });
+    if (!res.submitted) return { case: kase, submitted: false, reason: res.reason };
+
+    const caseNumber = res.caseNumber ?? `EV-${kase.id.slice(0, 10)}`;
+    if (res.result) {
+      const updated = await this.recordEVerify(tenantId, id, { caseNumber, result: res.result });
+      await this.maybeEmitTnc(tenantId, updated, res.result);
+      return { case: updated, submitted: true, result: res.result };
+    }
+    kase.everify = { caseNumber, result: undefined as any, submittedAt: new Date().toISOString().slice(0, 10) };
+    return { case: await this.caseRepo.save(kase), submitted: true, reason: 'Submitted; awaiting result' };
+  }
+
+  /** Poll E-Verify for a submitted case and apply any newly available result. */
+  async refreshEVerify(tenantId: string, id: string): Promise<{ case: I9Case; result?: EVerifyResult; reason?: string }> {
+    const kase = await this.getCase(tenantId, id);
+    if (!this.everify) return { case: kase, reason: 'E-Verify integration not wired in this deployment' };
+    if (!kase.everify?.caseNumber) throw new BadRequestException('No E-Verify case has been submitted');
+    if (kase.status !== I9Status.EVERIFY_PENDING) return { case: kase, reason: 'Case is not awaiting an E-Verify result' };
+    const res = await this.everify.checkStatus(kase.everify.caseNumber);
+    if (!res.result) return { case: kase, reason: res.reason ?? 'No result yet' };
+    const updated = await this.recordEVerify(tenantId, id, { caseNumber: kase.everify.caseNumber, result: res.result });
+    await this.maybeEmitTnc(tenantId, updated, res.result);
+    return { case: updated, result: res.result };
+  }
+
+  private async maybeEmitTnc(tenantId: string, kase: I9Case, result: EVerifyResult): Promise<void> {
+    if (result === EVerifyResult.TENTATIVE_NONCONFIRMATION) {
+      await this.automation?.emit(tenantId, 'i9.everify_tnc', { caseId: kase.id, employeeId: kase.employeeId, caseNumber: kase.everify?.caseNumber });
+    }
   }
 
   /** Flag a completed case for reverification (work authorization expiring). */
