@@ -399,7 +399,17 @@ API suite: 206 suites / 1,924 tests green.*
 6. Merit-cycle bias/outlier alerts; WFM intelligent recommendations
 7. Copilot expansion: every new module gets copilot actions through the existing planner
 
-### Phase 4 — Integrations & infrastructure bets
+### Phase 4 — Integrations & infrastructure bets — ✅ COMPLETE
+*All eight workstreams shipped (commits on `claude/app-build-setup-ntay5k`,
+`1908dd3`→`6ec81f9`): Studio tier 2 (safe declarative script runtime +
+scheduling + API builder + SFTP/webhook delivery seam), notification channels
++ reward store, recruiting-ecosystem connectors, learning ecosystem (xAPI +
+content + ILT/VILT), expense/travel ecosystem (card feeds + TMS/cab), config
+sync/sandbox tooling + Academy certification portal, device features (facial
+check-in + mobile shell config + visitor kiosk), and the live E-Verify adapter.
+Every external integration sits behind an adapter seam with a safe no-op "not
+wired" default and a deterministic core, so a real provider drops in per
+deployment without touching callers. API suite: 215 suites / 1,996 tests green.*
 
 1. **Studio tier 2**: integrations-designer script runtime (sandboxed), scheduling, API builder, SFTP delivery
 2. **Notification channels**: MS Teams, web push; reward-store integration
