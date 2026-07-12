@@ -150,6 +150,9 @@ export const AUTOMATION_EVENTS: AutomationEventDef[] = [
   // Expense/travel ecosystem
   { event: 'card.transaction_matched', label: 'Card transaction matched to an expense', module: 'expenses' },
 
+  // Academy certification portal
+  { event: 'academy.certified', label: 'Learner certified in the Academy', module: 'talent' },
+
   // Background verification
   { event: 'bgv.completed', label: 'Background verification completed', module: 'talent' },
 

@@ -197,6 +197,10 @@ export const ALL_PERMISSIONS = [
   'learning:ecosystem:read', 'learning:ecosystem:manage', 'learning:ecosystem:ingest',
   // Expense/travel ecosystem (card feeds + TMS/cab trip imports)
   'expenses:ecosystem:read', 'expenses:ecosystem:manage', 'expenses:ecosystem:ingest',
+  // Config sync / sandbox tooling
+  'platform:config:read', 'platform:config:manage',
+  // Academy certification portal
+  'academy:read', 'academy:manage', 'academy:enroll',
   // HR policy repository + acknowledgement
   'hr:policies:read', 'hr:policies:manage',
 ];
