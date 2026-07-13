@@ -15,7 +15,6 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Response } from 'express';
-import * as path from 'path';
 import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { AttachmentService } from './attachment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -72,12 +71,12 @@ export class AttachmentController {
     @Param('id') id: string,
     @Res() res: Response,
   ) {
-    const att = await this.service.findById(user.tenantId, id);
+    const { attachment: att, buffer } = await this.service.getContent(user.tenantId, id);
     res.set({
       'Content-Type': att.mimeType || 'application/octet-stream',
       'Content-Disposition': `attachment; filename="${encodeURIComponent(att.originalName)}"`,
     });
-    res.sendFile(path.resolve(att.storagePath));
+    res.send(buffer);
   }
 
   @Delete(':id')

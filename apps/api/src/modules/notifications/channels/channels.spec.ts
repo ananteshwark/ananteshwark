@@ -49,6 +49,54 @@ describe('ChannelDispatchService', () => {
     expect(ChannelAdapter.validateTarget(NotificationChannel.WEB_PUSH, { endpoint: 'x' })).toBeNull();
     expect(ChannelAdapter.validateTarget(NotificationChannel.EMAIL, { address: 'a@b.com' })).toBeNull();
   });
+
+  describe('live Teams/Slack webhook transport (CHANNEL_WEBHOOKS_ENABLED=true)', () => {
+    afterEach(() => { delete process.env.CHANNEL_WEBHOOKS_ENABLED; });
+
+    const liveAdapter = (fetchImpl: any) => {
+      process.env.CHANNEL_WEBHOOKS_ENABLED = 'true';
+      const a = new ChannelAdapter();
+      a.fetchFn = fetchImpl;
+      return a;
+    };
+
+    it('POSTs { text } to the incoming webhook and reports SENT', async () => {
+      const fetchFn = jest.fn().mockResolvedValue({ ok: true, status: 200 });
+      const a = liveAdapter(fetchFn);
+      const res = await a.send(NotificationChannel.SLACK, { webhookUrl: 'https://hooks.slack.com/services/x' }, { title: 'Hi', body: 'there' });
+      expect(res.sent).toBe(true);
+      expect(fetchFn).toHaveBeenCalledWith('https://hooks.slack.com/services/x', expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ text: '**Hi**\n\nthere' }),
+      }));
+    });
+
+    it('rejects non-https webhook URLs without making a request', async () => {
+      const fetchFn = jest.fn();
+      const a = liveAdapter(fetchFn);
+      const res = await a.send(NotificationChannel.TEAMS, { webhookUrl: 'http://internal/hook' }, { title: 'x', body: 'y' });
+      expect(res).toMatchObject({ sent: false, reason: expect.stringMatching(/https/) });
+      expect(fetchFn).not.toHaveBeenCalled();
+    });
+
+    it('reports the HTTP status on a failed delivery and never throws on network errors', async () => {
+      const a = liveAdapter(jest.fn().mockResolvedValue({ ok: false, status: 410 }));
+      expect((await a.send(NotificationChannel.SLACK, { webhookUrl: 'https://x/y' }, { title: 't', body: 'b' })).reason).toMatch(/410/);
+
+      const b = liveAdapter(jest.fn().mockRejectedValue(new Error('ECONNREFUSED')));
+      const res = await b.send(NotificationChannel.TEAMS, { webhookUrl: 'https://x/y' }, { title: 't', body: 'b' });
+      expect(res).toMatchObject({ sent: false, reason: expect.stringMatching(/ECONNREFUSED/) });
+    });
+
+    it('stays a not-wired seam when the flag is off', async () => {
+      const fetchFn = jest.fn();
+      const a = new ChannelAdapter();
+      a.fetchFn = fetchFn;
+      const res = await a.send(NotificationChannel.SLACK, { webhookUrl: 'https://x/y' }, { title: 't', body: 'b' });
+      expect(res.reason).toMatch(/not wired/);
+      expect(fetchFn).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('RewardStoreService', () => {
