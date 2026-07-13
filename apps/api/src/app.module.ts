@@ -91,6 +91,7 @@ import { StudioModule } from './modules/studio/studio.module';
 import { IntegrationsModule } from './modules/studio/integrations/integrations.module';
 import { LocalizationPacksModule } from './modules/localization/localization-packs.module';
 import { LicensingModule } from './modules/licensing/licensing.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SettingsModule } from './modules/settings/field-config.module';
 import { PicklistModule } from './modules/settings/picklists/picklist.module';
@@ -232,6 +233,7 @@ import { getDatabaseConfig } from './config/database.config';
     IntegrationsModule,
     LocalizationPacksModule,
     LicensingModule,
+    ReportsModule,
     AdminModule,
     SettingsModule,
     PicklistModule,

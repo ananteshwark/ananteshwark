@@ -344,6 +344,7 @@ const navItems: NavItem[] = [
       { label: 'AI Suite', path: '/ai' },
     ],
   },
+  { label: 'Reports', icon: <FileText className="h-4 w-4" />, path: '/reports' },
   { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform', module: 'platform' },
   { label: 'Studio', icon: <SlidersHorizontal className="h-4 w-4" />, path: '/studio', module: 'platform' },
   { label: 'Visitors', icon: <UserCheck className="h-4 w-4" />, path: '/platform/visitors', module: 'platform' },

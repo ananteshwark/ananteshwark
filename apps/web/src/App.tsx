@@ -177,6 +177,7 @@ import RewardsPage from './pages/engagement/RewardsPage';
 import I9Page from './pages/hr/I9Page';
 import VisitorsPage from './pages/platform/VisitorsPage';
 import AcademyPage from './pages/talent/AcademyPage';
+import ReportsPage from './pages/reports/ReportsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -418,6 +419,7 @@ export default function App() {
         <Route path="hr/i9" element={<I9Page />} />
         <Route path="platform/visitors" element={<VisitorsPage />} />
         <Route path="talent/academy" element={<AcademyPage />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="admin/tenants" element={<SuperAdminRoute><TenantsPage /></SuperAdminRoute>} />
         <Route path="ess" element={<ESSPage />} />
         <Route path="mss" element={<MSSPage />} />
