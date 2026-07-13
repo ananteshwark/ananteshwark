@@ -166,6 +166,13 @@ import { AnalyticsPage, CrossAnalyticsPage, BiPage } from './pages/analytics';
 import { PlatformPage } from './pages/platform';
 import { LicensingPage } from './pages/licensing';
 import { TenantsPage } from './pages/admin';
+import MeritPage from './pages/compensation/MeritPage';
+import KnowledgePage from './pages/knowledge/KnowledgePage';
+import JourneysPage from './pages/hr/JourneysPage';
+import AlumniPage from './pages/hr/AlumniPage';
+import CareerPage from './pages/talent/CareerPage';
+import StudioPage from './pages/studio/StudioPage';
+import AiSuitePage from './pages/ai/AiSuitePage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -396,6 +403,13 @@ export default function App() {
         <Route path="analytics/bi" element={<BiPage />} />
         <Route path="platform" element={<PlatformPage />} />
         <Route path="licensing" element={<LicensingPage />} />
+        <Route path="compensation/merit" element={<MeritPage />} />
+        <Route path="knowledge" element={<KnowledgePage />} />
+        <Route path="hr/journeys" element={<JourneysPage />} />
+        <Route path="hr/alumni" element={<AlumniPage />} />
+        <Route path="talent/career" element={<CareerPage />} />
+        <Route path="studio" element={<StudioPage />} />
+        <Route path="ai" element={<AiSuitePage />} />
         <Route path="admin/tenants" element={<SuperAdminRoute><TenantsPage /></SuperAdminRoute>} />
         <Route path="ess" element={<ESSPage />} />
         <Route path="mss" element={<MSSPage />} />

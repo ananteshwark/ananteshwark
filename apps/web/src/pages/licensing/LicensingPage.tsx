@@ -27,6 +27,7 @@ const LICENSE_TYPE_LABELS: Record<string, string> = {
   ENTERPRISE_CONSUMPTION: 'Enterprise Pool',
 };
 
+// Fallback when the server catalog hasn't loaded yet.
 const COMMON_MODULES = [
   'hr', 'finance', 'payroll', 'procurement', 'inventory', 'crm', 'sales', 'contracts',
   'projects', 'expenses', 'talent', 'manufacturing', 'quality', 'maintenance', 'benefits',
@@ -82,6 +83,8 @@ export const LicensingPage: React.FC = () => {
   const [validateForm, setValidateForm] = useState({ employeeId: '', moduleKey: '' });
   const [validateResult, setValidateResult] = useState<any>(null);
 
+  const [catalog, setCatalog] = useState<any[]>([]);
+
   // Filters
   const [consumptionPeriod, setConsumptionPeriod] = useState('');
   const [assignmentModule, setAssignmentModule] = useState('');
@@ -98,6 +101,9 @@ export const LicensingPage: React.FC = () => {
         licensingApi.getInvoices(),
         licensingApi.getConsumption(),
       ]);
+      licensingApi.getCatalog()
+        .then(c => setCatalog(c.data?.data?.data || c.data?.data || []))
+        .catch(() => setCatalog([]));
       setDashboard(dash.data);
       setPlans(plns.data?.data || plns.data || []);
       setContracts(conts.data?.data || conts.data || []);
@@ -108,6 +114,10 @@ export const LicensingPage: React.FC = () => {
     } catch {}
     setLoading(false);
   }, []);
+
+  const moduleOptions = catalog.length
+    ? catalog.map((m: any) => ({ key: m.key, name: m.name }))
+    : COMMON_MODULES.map(k => ({ key: k, name: MODULE_LABELS[k] || k }));
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -519,7 +529,7 @@ export const LicensingPage: React.FC = () => {
                 className="border rounded px-2 py-1 text-sm"
               >
                 <option value="">All Modules</option>
-                {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
+                {moduleOptions.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
               </select>
             </div>
             <div className="flex gap-2">
@@ -716,7 +726,7 @@ export const LicensingPage: React.FC = () => {
                   className="w-full border rounded px-3 py-2 text-sm"
                 >
                   <option value="">— Employee-level check only —</option>
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
+                  {moduleOptions.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
                 </select>
               </div>
               <button onClick={handleValidate} className="w-full py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center justify-center gap-2">
@@ -839,7 +849,7 @@ export const LicensingPage: React.FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Module</label>
                 <select name="moduleKey" required className="w-full border rounded px-3 py-2 text-sm">
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
+                  {moduleOptions.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -927,7 +937,7 @@ export const LicensingPage: React.FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Module</label>
                 <select name="moduleKey" required className="w-full border rounded px-3 py-2 text-sm">
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
+                  {moduleOptions.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
                 </select>
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -953,7 +963,7 @@ export const LicensingPage: React.FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Module</label>
                 <select name="moduleKey" required className="w-full border rounded px-3 py-2 text-sm">
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
+                  {moduleOptions.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
                 </select>
               </div>
               <div>
@@ -1029,7 +1039,7 @@ export const LicensingPage: React.FC = () => {
                 <label className="block text-xs text-gray-500 mb-1">Module (for MODULE type)</label>
                 <select name="moduleKey" className="w-full border rounded px-3 py-2 text-sm">
                   <option value="">— N/A —</option>
-                  {COMMON_MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] || m}</option>)}
+                  {moduleOptions.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-3 gap-3">

@@ -3,6 +3,7 @@ import { apiClient } from './client';
 export const licensingApi = {
   // Dashboard
   getDashboard: () => apiClient.get('/licensing/dashboard'),
+  getCatalog: () => apiClient.get('/licensing/catalog'),
 
   // Plans
   getPlans: () => apiClient.get('/licensing/plans'),
