@@ -73,8 +73,29 @@ describe('AutomationSchedulerService', () => {
     expect(r).toEqual({
       overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0,
       expiredAttestations: 0, expiredCertifications: 0, visitorNoShows: 0,
-      i9Alerts: 0, studioJobsRun: 0,
+      i9Alerts: 0, studioJobsRun: 0, licenseInvoices: 0,
     });
+  });
+
+  it('runs the license billing cycle when licensing is wired and emits per invoice', async () => {
+    const licensing: any = {
+      runMonthlyBillingCycle: jest.fn().mockResolvedValue({
+        periodMonth: '2026-06', tenantsProcessed: 1, snapshotsTaken: 1, invoicesGenerated: 1,
+        invoices: [{
+          tenantId: 't1', contractId: 'c1', invoiceId: 'li1', invoiceNumber: 'INV-2026-0001',
+          totalAmount: 1200, periodStart: '2026-06-01', periodEnd: '2026-06-30',
+        }],
+      }),
+    };
+    const wired = new AutomationSchedulerService(
+      automation, invoiceRepo, ticketRepo, contractRepo, undefined,
+      undefined, undefined, undefined, undefined, undefined, licensing,
+    );
+    const r = await wired.sweepNow();
+    expect(r.licenseInvoices).toBe(1);
+    expect(automation.emit).toHaveBeenCalledWith('t1', 'license.invoice_generated', expect.objectContaining({
+      invoiceId: 'li1', invoiceNumber: 'INV-2026-0001', totalAmount: 1200,
+    }));
   });
 
   it('runs the new-module sweeps when their dependencies are wired', async () => {

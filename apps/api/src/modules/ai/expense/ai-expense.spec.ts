@@ -30,6 +30,22 @@ describe('AiExpenseService', () => {
       const u = await service.ocrUsage('t1', '2026-07');
       expect(u).toMatchObject({ count: 3, quota: 500, remaining: 497 });
     });
+
+    it('folds each metered unit into license consumption when licensing is wired', async () => {
+      const client: any = {
+        messages: { create: jest.fn().mockResolvedValue({ content: [{ type: 'tool_use', input: { merchant: 'Cafe' } }] }) },
+      };
+      const licensing: any = { recordConsumption: jest.fn().mockResolvedValue({}) };
+      const wired = new AiExpenseService(usageRepo, client, licensing);
+      await wired.extractReceipt('t1', '2026-07', { text: 'COFFEE $4' });
+      expect(licensing.recordConsumption).toHaveBeenCalledWith('t1', expect.objectContaining({
+        periodMonth: '2026-07', moduleKey: 'ai', unitsConsumed: 1,
+      }));
+
+      // Billing being down never blocks the metered extraction itself.
+      licensing.recordConsumption.mockRejectedValue(new Error('billing down'));
+      await expect(wired.extractReceipt('t1', '2026-07', { text: 'TEA $3' })).resolves.toMatchObject({ available: true });
+    });
   });
 
   describe('scoreLine (deterministic)', () => {

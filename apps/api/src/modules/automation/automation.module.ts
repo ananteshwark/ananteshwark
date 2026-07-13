@@ -17,6 +17,7 @@ import { CertEnrollment } from '../learning/academy/entities/academy.entity';
 import { Visitor } from '../platform/device/entities/device.entity';
 import { I9Case } from '../hr/i9/entities/i9-case.entity';
 import { IntegrationsModule } from '../studio/integrations/integrations.module';
+import { LicensingModule } from '../licensing/licensing.module';
 
 // Global so every business service can emit events via @Optional() injection
 // without adding an import to each feature module.
@@ -29,6 +30,7 @@ import { IntegrationsModule } from '../studio/integrations/integrations.module';
     EmailModule,
     RbacModule,
     IntegrationsModule,
+    LicensingModule,
   ],
   controllers: [AutomationController],
   providers: [AutomationService, AutomationSchedulerService],

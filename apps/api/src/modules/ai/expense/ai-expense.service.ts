@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Anthropic from '@anthropic-ai/sdk';
 import { OcrUsage } from './entities/ocr-usage.entity';
+import { LicensingService } from '../../licensing/licensing.service';
+import { ConsumptionType } from '../../licensing/entities/consumption-record.entity';
 
 export const AI_EXPENSE_LLM_CLIENT = 'AI_EXPENSE_LLM_CLIENT';
 
@@ -53,6 +55,7 @@ export class AiExpenseService {
   constructor(
     @InjectRepository(OcrUsage) private readonly usageRepo: Repository<OcrUsage>,
     @Optional() @Inject(AI_EXPENSE_LLM_CLIENT) client?: Anthropic,
+    @Optional() private readonly licensing?: LicensingService,
   ) {
     this.client = client ?? (process.env.ANTHROPIC_API_KEY ? new Anthropic({ maxRetries: 1, timeout: 30_000 }) : null);
   }
@@ -75,6 +78,21 @@ export class AiExpenseService {
     if (row.count >= DEFAULT_OCR_MONTHLY_QUOTA) throw new ForbiddenException(`Monthly OCR quota of ${DEFAULT_OCR_MONTHLY_QUOTA} reached`);
     row.count += 1;
     await this.usageRepo.save(row);
+
+    // Fold the metered unit into license consumption so it shows up in
+    // snapshots and consumption-based invoices. Best-effort: metering must
+    // never fail because billing is unavailable.
+    await this.licensing
+      ?.recordConsumption(tenantId, {
+        periodMonth: month,
+        consumptionType: ConsumptionType.MODULE,
+        moduleKey: 'ai',
+        activeEmployees: 0,
+        unitsConsumed: 1,
+        unitRate: Number(process.env.AI_OCR_UNIT_RATE ?? 0),
+        notes: 'Receipt OCR extraction',
+      })
+      .catch(() => undefined);
   }
 
   /**

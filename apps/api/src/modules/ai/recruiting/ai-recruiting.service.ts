@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Anthropic from '@anthropic-ai/sdk';
 import { CvParseUsage } from './entities/cv-parse-usage.entity';
+import { LicensingService } from '../../licensing/licensing.service';
+import { ConsumptionType } from '../../licensing/entities/consumption-record.entity';
 
 export const AI_RECRUITING_LLM_CLIENT = 'AI_RECRUITING_LLM_CLIENT';
 
@@ -27,6 +29,7 @@ export class AiRecruitingService {
   constructor(
     @InjectRepository(CvParseUsage) private readonly usageRepo: Repository<CvParseUsage>,
     @Optional() @Inject(AI_RECRUITING_LLM_CLIENT) client?: Anthropic,
+    @Optional() private readonly licensing?: LicensingService,
   ) {
     this.client = client ?? (process.env.ANTHROPIC_API_KEY ? new Anthropic({ maxRetries: 1, timeout: 30_000 }) : null);
   }
@@ -49,6 +52,21 @@ export class AiRecruitingService {
     if (row.count >= DEFAULT_CV_MONTHLY_QUOTA) throw new ForbiddenException(`Monthly CV-parse quota of ${DEFAULT_CV_MONTHLY_QUOTA} reached`);
     row.count += 1;
     await this.usageRepo.save(row);
+
+    // Fold the metered unit into license consumption so it shows up in
+    // snapshots and consumption-based invoices. Best-effort: metering must
+    // never fail because billing is unavailable.
+    await this.licensing
+      ?.recordConsumption(tenantId, {
+        periodMonth: month,
+        consumptionType: ConsumptionType.MODULE,
+        moduleKey: 'ai',
+        activeEmployees: 0,
+        unitsConsumed: 1,
+        unitRate: Number(process.env.AI_CV_UNIT_RATE ?? 0),
+        notes: 'CV parse extraction',
+      })
+      .catch(() => undefined);
   }
 
   async parseCv(tenantId: string, month: string, input: { text?: string; imageBase64?: string; mediaType?: string }): Promise<{ available: boolean; reason?: string; fields?: any }> {

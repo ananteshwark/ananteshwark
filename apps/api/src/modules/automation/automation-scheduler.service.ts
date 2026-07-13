@@ -12,6 +12,7 @@ import { CertEnrollment, CertEnrollmentStatus } from '../learning/academy/entiti
 import { Visitor, VisitorStatus } from '../platform/device/entities/device.entity';
 import { I9Case, I9Status } from '../hr/i9/entities/i9-case.entity';
 import { IntegrationsService } from '../studio/integrations/integrations.service';
+import { LicensingService } from '../licensing/licensing.service';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -29,7 +30,10 @@ const HOUR_MS = 60 * 60 * 1000;
  *  - marks pre-registered visitors whose expected time has passed as NO_SHOW;
  *  - emits `i9.section2_overdue` / `i9.reverification_due` for I-9 compliance
  *    deadlines (deduped per case per day in-process);
- *  - executes due Studio scheduled jobs (rolling nextRunAt is the dedupe).
+ *  - executes due Studio scheduled jobs (rolling nextRunAt is the dedupe);
+ *  - runs the monthly license billing cycle (usage snapshot + invoice per
+ *    active contract; the existing invoice for the period is the dedupe) and
+ *    emits `license.invoice_generated` per new invoice.
  * The newer sweeps take their dependencies via @Optional() so the scheduler
  * still boots (and tests still construct positionally) without them.
  * Disabled under tests; can be invoked on demand via sweepNow().
@@ -62,6 +66,7 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
     @Optional() @InjectRepository(I9Case)
     private readonly i9Repo?: Repository<I9Case>,
     @Optional() private readonly integrations?: IntegrationsService,
+    @Optional() private readonly licensing?: LicensingService,
   ) {}
 
   onModuleInit() {
@@ -92,9 +97,9 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
   async sweepNow(): Promise<{
     overdueInvoices: number; slaBreaches: number; expiringContracts: number;
     expiredAttestations: number; expiredCertifications: number; visitorNoShows: number;
-    i9Alerts: number; studioJobsRun: number;
+    i9Alerts: number; studioJobsRun: number; licenseInvoices: number;
   }> {
-    const [overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun] = await Promise.all([
+    const [overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun, licenseInvoices] = await Promise.all([
       this.sweepOverdueInvoices().catch((e) => { this.logger.warn(`overdue sweep: ${e.message}`); return 0; }),
       this.sweepSlaBreaches().catch((e) => { this.logger.warn(`sla sweep: ${e.message}`); return 0; }),
       this.sweepExpiringContracts().catch((e) => { this.logger.warn(`contract sweep: ${e.message}`); return 0; }),
@@ -103,8 +108,9 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
       this.sweepVisitorNoShows().catch((e) => { this.logger.warn(`visitor sweep: ${e.message}`); return 0; }),
       this.sweepI9Compliance().catch((e) => { this.logger.warn(`i9 sweep: ${e.message}`); return 0; }),
       this.sweepStudioJobs().catch((e) => { this.logger.warn(`studio jobs sweep: ${e.message}`); return 0; }),
+      this.sweepLicenseBilling().catch((e) => { this.logger.warn(`license billing sweep: ${e.message}`); return 0; }),
     ]);
-    return { overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun };
+    return { overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun, licenseInvoices };
   }
 
   private async sweepOverdueInvoices(): Promise<number> {
@@ -259,6 +265,27 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
       alerts++;
     }
     return alerts;
+  }
+
+  /**
+   * Monthly license billing: snapshot + invoice per active contract whose
+   * cycle has closed. The invoice-per-period dedupe inside the licensing
+   * service makes the hourly cadence safe.
+   */
+  private async sweepLicenseBilling(): Promise<number> {
+    if (!this.licensing) return 0;
+    const result = await this.licensing.runMonthlyBillingCycle(new Date());
+    for (const inv of result.invoices) {
+      await this.automation.emit(inv.tenantId, 'license.invoice_generated', {
+        invoiceId: inv.invoiceId,
+        invoiceNumber: inv.invoiceNumber,
+        contractId: inv.contractId,
+        totalAmount: inv.totalAmount,
+        periodStart: inv.periodStart,
+        periodEnd: inv.periodEnd,
+      });
+    }
+    return result.invoicesGenerated;
   }
 
   /** Execute due Studio scheduled jobs; rolling nextRunAt forward is the dedupe. */

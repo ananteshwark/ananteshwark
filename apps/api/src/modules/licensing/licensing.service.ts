@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
@@ -30,6 +31,8 @@ import {
   UpdateInvoiceStatusDto,
   TakeSnapshotDto,
 } from './dto/licensing.dto';
+import { MODULE_CATALOG, MODULE_KEYS, LicensableModule } from './module-catalog';
+import { LicenseEnforcementService } from './license-enforcement.service';
 
 @Injectable()
 export class LicensingService {
@@ -63,7 +66,41 @@ export class LicensingService {
 
     @InjectRepository(LicenseAuditLog)
     private readonly auditLogRepo: Repository<LicenseAuditLog>,
+
+    @Optional()
+    private readonly enforcement?: LicenseEnforcementService,
   ) {}
+
+  // ─── Module catalog ──────────────────────────────────────────────────────────
+
+  /** Reject module keys that aren't in the server-side catalog. */
+  private assertValidModuleKey(moduleKey: string): void {
+    if (!MODULE_KEYS.has(moduleKey)) {
+      throw new BadRequestException(
+        `Unknown module key '${moduleKey}'. Valid keys: ${[...MODULE_KEYS].join(', ')}`,
+      );
+    }
+  }
+
+  /**
+   * The catalog of licensable modules with each one's licensed state for the
+   * tenant. When no module licenses are configured, entitlement is
+   * unrestricted and every module reports as licensed.
+   */
+  async getCatalog(tenantId: string): Promise<{
+    data: Array<LicensableModule & { licensed: boolean }>;
+    total: number;
+    entitlementConfigured: boolean;
+  }> {
+    const active = await this.moduleLicenseRepo.find({ where: { tenantId, isActive: true } });
+    const configured = active.length > 0;
+    const licensedKeys = new Set(active.map((m) => m.moduleKey));
+    const data = MODULE_CATALOG.map((m) => ({
+      ...m,
+      licensed: !!m.core || !configured || licensedKeys.has(m.key),
+    }));
+    return { data, total: data.length, entitlementConfigured: configured };
+  }
 
   // ─── Audit ───────────────────────────────────────────────────────────────────
 
@@ -196,6 +233,7 @@ export class LicensingService {
       null,
       saved,
     );
+    this.enforcement?.invalidate(tenantId);
     return saved;
   }
 
@@ -218,6 +256,7 @@ export class LicensingService {
       old,
       { status: dto.status },
     );
+    this.enforcement?.invalidate(tenantId);
     return saved;
   }
 
@@ -270,6 +309,7 @@ export class LicensingService {
     dto: AssignModuleLicenseDto,
     userId: string | null,
   ): Promise<ModuleLicense> {
+    this.assertValidModuleKey(dto.moduleKey);
     const ml = this.moduleLicenseRepo.create({
       tenantId,
       contractId: dto.contractId,
@@ -291,6 +331,7 @@ export class LicensingService {
       null,
       saved,
     );
+    this.enforcement?.invalidate(tenantId);
     return saved;
   }
 
@@ -322,6 +363,7 @@ export class LicensingService {
       old,
       { maxEmployees: saved.maxEmployees, unitPrice: saved.unitPrice, effectiveTo: saved.effectiveTo },
     );
+    this.enforcement?.invalidate(tenantId);
     return saved;
   }
 
@@ -343,6 +385,7 @@ export class LicensingService {
       { isActive: true },
       { isActive: false },
     );
+    this.enforcement?.invalidate(tenantId);
     return saved;
   }
 
@@ -366,6 +409,7 @@ export class LicensingService {
     dto: AssignEmployeeModuleDto,
     userId: string | null,
   ): Promise<EmployeeModuleAssignment> {
+    this.assertValidModuleKey(dto.moduleKey);
     // Check duplicate active assignment
     const existing = await this.assignmentRepo.findOne({
       where: {
@@ -421,6 +465,7 @@ export class LicensingService {
     dto: BulkAssignEmployeeModuleDto,
     userId: string | null,
   ): Promise<{ assigned: number; skipped: number; capReached: number }> {
+    this.assertValidModuleKey(dto.moduleKey);
     let assigned = 0;
     let skipped = 0;
     let capReached = 0;
@@ -1081,6 +1126,130 @@ export class LicensingService {
       daysToExpiry,
       utilization,
       snapshots,
+    };
+  }
+
+  // ─── Automated billing cycle ─────────────────────────────────────────────────
+
+  /** First/last day of a month (1-based) as YYYY-MM-DD strings. */
+  private static monthEdges(year: number, month1: number): { start: string; end: string } {
+    const start = `${year}-${String(month1).padStart(2, '0')}-01`;
+    const lastDay = new Date(Date.UTC(year, month1, 0)).getUTCDate();
+    const end = `${year}-${String(month1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { start, end };
+  }
+
+  /**
+   * The billing period an ACTIVE contract should be invoiced for once the
+   * month before `asOf` has closed, or null when its cycle hasn't come due:
+   * MONTHLY bills every month, QUARTERLY only after a calendar quarter closes,
+   * ANNUAL only after December.
+   */
+  static billingPeriodFor(
+    cycle: BillingCycle,
+    asOf: Date,
+  ): { periodStart: string; periodEnd: string; periodMonth: string } | null {
+    let year = asOf.getUTCFullYear();
+    let month1 = asOf.getUTCMonth(); // 0-based month index == previous month, 1-based
+    if (month1 === 0) {
+      month1 = 12;
+      year -= 1;
+    }
+    const { start, end } = LicensingService.monthEdges(year, month1);
+    const periodMonth = start.slice(0, 7);
+
+    if (cycle === BillingCycle.MONTHLY) {
+      return { periodStart: start, periodEnd: end, periodMonth };
+    }
+    if (cycle === BillingCycle.QUARTERLY) {
+      if (month1 % 3 !== 0) return null; // only Mar/Jun/Sep/Dec close a quarter
+      const { start: qStart } = LicensingService.monthEdges(year, month1 - 2);
+      return { periodStart: qStart, periodEnd: end, periodMonth };
+    }
+    if (month1 !== 12) return null; // ANNUAL: only after December
+    return { periodStart: `${year}-01-01`, periodEnd: end, periodMonth };
+  }
+
+  /**
+   * Cross-tenant monthly billing sweep (called by the automation scheduler,
+   * also invocable via the API). For every tenant with an ACTIVE contract it
+   * upserts the previous month's usage snapshot, then generates an invoice
+   * for each contract whose billing cycle has come due. Idempotent: an
+   * existing invoice for the same contract and period is the dedupe, so the
+   * hourly scheduler can call this freely.
+   */
+  async runMonthlyBillingCycle(asOf: Date = new Date()): Promise<{
+    periodMonth: string;
+    tenantsProcessed: number;
+    snapshotsTaken: number;
+    invoicesGenerated: number;
+    invoices: Array<{
+      tenantId: string;
+      contractId: string;
+      invoiceId: string;
+      invoiceNumber: string;
+      totalAmount: number;
+      periodStart: string;
+      periodEnd: string;
+    }>;
+  }> {
+    const monthly = LicensingService.billingPeriodFor(BillingCycle.MONTHLY, asOf)!;
+    const contracts = await this.contractRepo.find({ where: { status: ContractStatus.ACTIVE } });
+
+    const tenants = [...new Set(contracts.map((c) => c.tenantId))];
+    let snapshotsTaken = 0;
+    for (const tenantId of tenants) {
+      try {
+        await this.takeSnapshot(tenantId, { snapshotMonth: monthly.periodMonth });
+        snapshotsTaken++;
+      } catch {
+        // snapshot failure must not stop billing for other tenants
+      }
+    }
+
+    const invoices: Array<{
+      tenantId: string; contractId: string; invoiceId: string; invoiceNumber: string;
+      totalAmount: number; periodStart: string; periodEnd: string;
+    }> = [];
+    for (const contract of contracts) {
+      const period = LicensingService.billingPeriodFor(contract.billingCycle, asOf);
+      if (!period) continue;
+      if (contract.contractStartDate > period.periodEnd) continue; // started after the period
+      const existing = await this.invoiceRepo.findOne({
+        where: {
+          tenantId: contract.tenantId,
+          contractId: contract.id,
+          periodStart: period.periodStart,
+          periodEnd: period.periodEnd,
+        },
+      });
+      if (existing) continue;
+      try {
+        const invoice = await this.generateInvoice(
+          contract.tenantId,
+          { contractId: contract.id, periodStart: period.periodStart, periodEnd: period.periodEnd },
+          null,
+        );
+        invoices.push({
+          tenantId: contract.tenantId,
+          contractId: contract.id,
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          totalAmount: invoice.totalAmount,
+          periodStart: period.periodStart,
+          periodEnd: period.periodEnd,
+        });
+      } catch {
+        // one tenant's billing failure must not stop the sweep
+      }
+    }
+
+    return {
+      periodMonth: monthly.periodMonth,
+      tenantsProcessed: tenants.length,
+      snapshotsTaken,
+      invoicesGenerated: invoices.length,
+      invoices,
     };
   }
 }

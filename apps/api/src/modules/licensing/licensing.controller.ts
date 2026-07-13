@@ -46,6 +46,15 @@ export class LicensingController {
     return this.licensingService.getDashboard(user.tenantId);
   }
 
+  // ─── Module catalog ──────────────────────────────────────────────────────────
+
+  @Get('catalog')
+  @ApiOperation({ summary: 'List the licensable module catalog with licensed state' })
+  @RequirePermission('licensing:read')
+  getCatalog(@CurrentUser() user: any) {
+    return this.licensingService.getCatalog(user.tenantId);
+  }
+
   // ─── Plans ───────────────────────────────────────────────────────────────────
 
   @Get('plans')
@@ -222,6 +231,17 @@ export class LicensingController {
   @RequirePermission('licensing:manage')
   takeSnapshot(@CurrentUser() user: any, @Body() dto: TakeSnapshotDto) {
     return this.licensingService.takeSnapshot(user.tenantId, dto);
+  }
+
+  // ─── Billing cycle ────────────────────────────────────────────────────────────
+
+  @Post('billing/run-cycle')
+  @ApiOperation({ summary: 'Run the monthly billing cycle now (snapshot + invoice generation)' })
+  @RequirePermission('licensing:manage')
+  runBillingCycle(@Body() body: { asOf?: string }) {
+    return this.licensingService.runMonthlyBillingCycle(
+      body?.asOf ? new Date(body.asOf) : new Date(),
+    );
   }
 
   // ─── License Validation ───────────────────────────────────────────────────────
