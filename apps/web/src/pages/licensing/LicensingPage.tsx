@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, Minus,
 } from 'lucide-react';
 
-type Tab = 'dashboard' | 'contracts' | 'modules' | 'assignments' | 'invoices' | 'consumption' | 'validate';
+type Tab = 'dashboard' | 'catalog' | 'contracts' | 'modules' | 'assignments' | 'invoices' | 'consumption' | 'validate';
 
 const STATUS_COLORS: Record<string, string> = {
   TRIAL: 'bg-blue-100 text-blue-800',
@@ -84,6 +84,8 @@ export const LicensingPage: React.FC = () => {
   const [validateResult, setValidateResult] = useState<any>(null);
 
   const [catalog, setCatalog] = useState<any[]>([]);
+  const [entitlementConfigured, setEntitlementConfigured] = useState(false);
+  const [runningBilling, setRunningBilling] = useState(false);
 
   // Filters
   const [consumptionPeriod, setConsumptionPeriod] = useState('');
@@ -102,7 +104,11 @@ export const LicensingPage: React.FC = () => {
         licensingApi.getConsumption(),
       ]);
       licensingApi.getCatalog()
-        .then(c => setCatalog(c.data?.data?.data || c.data?.data || []))
+        .then(c => {
+          const payload = c.data?.data ?? c.data;
+          setCatalog(payload?.data ?? []);
+          setEntitlementConfigured(!!payload?.entitlementConfigured);
+        })
         .catch(() => setCatalog([]));
       setDashboard(dash.data);
       setPlans(plns.data?.data || plns.data || []);
@@ -118,6 +124,20 @@ export const LicensingPage: React.FC = () => {
   const moduleOptions = catalog.length
     ? catalog.map((m: any) => ({ key: m.key, name: m.name }))
     : COMMON_MODULES.map(k => ({ key: k, name: MODULE_LABELS[k] || k }));
+
+  const runBillingCycle = async () => {
+    setRunningBilling(true);
+    try {
+      const res = await licensingApi.runBillingCycle();
+      const r = res.data?.data ?? res.data;
+      alert(`Billing cycle for ${r.periodMonth}: ${r.snapshotsTaken} snapshot(s), ${r.invoicesGenerated} new invoice(s).`);
+      await fetchAll();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Billing cycle failed');
+    } finally {
+      setRunningBilling(false);
+    }
+  };
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -291,6 +311,7 @@ export const LicensingPage: React.FC = () => {
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'dashboard', label: 'Dashboard', icon: <BarChart2 className="h-4 w-4" /> },
+    { key: 'catalog', label: 'Catalog', icon: <Package className="h-4 w-4" /> },
     { key: 'contracts', label: 'Contracts', icon: <FileText className="h-4 w-4" /> },
     { key: 'modules', label: 'Modules', icon: <Package className="h-4 w-4" /> },
     { key: 'assignments', label: 'Assignments', icon: <Users className="h-4 w-4" /> },
@@ -330,6 +351,55 @@ export const LicensingPage: React.FC = () => {
       </div>
 
       {loading && <div className="text-center py-12 text-gray-400">Loading...</div>}
+
+      {/* ── CATALOG ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'catalog' && !loading && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-lg border p-4 flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold">Module Catalog & Enforcement</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {entitlementConfigured
+                  ? 'Module entitlement is ENFORCED: modules without an active module license are blocked on their API routes.'
+                  : 'No module licenses configured — every module is available. Add a module license to switch on entitlement enforcement.'}
+              </p>
+            </div>
+            <button onClick={runBillingCycle} disabled={runningBilling}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
+              {runningBilling ? 'Running…' : 'Run Billing Cycle Now'}
+            </button>
+          </div>
+          <div className="bg-white rounded-lg border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs">
+                <tr>
+                  <th className="px-4 py-2 text-left">Module</th>
+                  <th className="px-4 py-2 text-left">Description</th>
+                  <th className="px-4 py-2 text-left">API routes governed</th>
+                  <th className="px-4 py-2 text-left">Licensed</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {catalog.length === 0 && (
+                  <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Catalog unavailable (older API).</td></tr>
+                )}
+                {catalog.map((m: any) => (
+                  <tr key={m.key} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium">{m.name} <code className="text-xs text-gray-400">({m.key})</code>{m.core && <span className="ml-1 text-xs bg-gray-100 rounded-full px-2 py-0.5">core</span>}</td>
+                    <td className="px-4 py-3 text-gray-500">{m.description}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{(m.routePrefixes ?? []).map((r: string) => `/${r}`).join(', ') || '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${m.licensed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {m.licensed ? 'Licensed' : 'Blocked'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ── DASHBOARD ─────────────────────────────────────────────────────────── */}
       {activeTab === 'dashboard' && !loading && (

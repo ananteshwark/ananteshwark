@@ -4,6 +4,7 @@ export const licensingApi = {
   // Dashboard
   getDashboard: () => apiClient.get('/licensing/dashboard'),
   getCatalog: () => apiClient.get('/licensing/catalog'),
+  runBillingCycle: () => apiClient.post('/licensing/billing/run-cycle', {}),
 
   // Plans
   getPlans: () => apiClient.get('/licensing/plans'),

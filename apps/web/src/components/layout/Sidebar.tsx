@@ -88,6 +88,7 @@ const navItems: NavItem[] = [
       { label: 'Exit Management', path: '/hr/exits' },
       { label: 'Journeys', path: '/hr/journeys' },
       { label: 'Alumni Network', path: '/hr/alumni' },
+      { label: 'I-9 Compliance', path: '/hr/i9' },
       { label: 'Dependents & Nominees', path: '/hr/dependents' },
       { label: 'Skills & Intelligence', path: '/hr/skills' },
       { label: 'Headcount Budgeting', path: '/hr/headcount' },
@@ -105,6 +106,7 @@ const navItems: NavItem[] = [
       { label: 'HR Helpdesk', path: '/engagement/helpdesk' },
       { label: 'HR Letters', path: '/engagement/letters' },
       { label: 'Knowledge Base', path: '/knowledge' },
+      { label: 'Rewards Store', path: '/engagement/rewards' },
     ],
   },
   {
@@ -202,6 +204,7 @@ const navItems: NavItem[] = [
       { label: 'Appraisal', path: '/talent/appraisal' },
       { label: 'Succession', path: '/talent/succession' },
       { label: 'Career & 9-Box', path: '/talent/career' },
+      { label: 'Academy Certifications', path: '/talent/academy' },
       { label: 'Merit Planning', path: '/compensation/merit' },
       { label: 'Background Verification', path: '/talent/bgv' },
     ],
@@ -343,6 +346,7 @@ const navItems: NavItem[] = [
   },
   { label: 'Platform', icon: <Shield className="h-4 w-4" />, path: '/platform', module: 'platform' },
   { label: 'Studio', icon: <SlidersHorizontal className="h-4 w-4" />, path: '/studio', module: 'platform' },
+  { label: 'Visitors', icon: <UserCheck className="h-4 w-4" />, path: '/platform/visitors', module: 'platform' },
   { label: 'Licensing', icon: <Key className="h-4 w-4" />, path: '/licensing', module: 'licensing' },
   { label: 'Tenant Management', icon: <Building2 className="h-4 w-4" />, path: '/admin/tenants', superAdmin: true },
   {

@@ -173,6 +173,10 @@ import AlumniPage from './pages/hr/AlumniPage';
 import CareerPage from './pages/talent/CareerPage';
 import StudioPage from './pages/studio/StudioPage';
 import AiSuitePage from './pages/ai/AiSuitePage';
+import RewardsPage from './pages/engagement/RewardsPage';
+import I9Page from './pages/hr/I9Page';
+import VisitorsPage from './pages/platform/VisitorsPage';
+import AcademyPage from './pages/talent/AcademyPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -410,6 +414,10 @@ export default function App() {
         <Route path="talent/career" element={<CareerPage />} />
         <Route path="studio" element={<StudioPage />} />
         <Route path="ai" element={<AiSuitePage />} />
+        <Route path="engagement/rewards" element={<RewardsPage />} />
+        <Route path="hr/i9" element={<I9Page />} />
+        <Route path="platform/visitors" element={<VisitorsPage />} />
+        <Route path="talent/academy" element={<AcademyPage />} />
         <Route path="admin/tenants" element={<SuperAdminRoute><TenantsPage /></SuperAdminRoute>} />
         <Route path="ess" element={<ESSPage />} />
         <Route path="mss" element={<MSSPage />} />
