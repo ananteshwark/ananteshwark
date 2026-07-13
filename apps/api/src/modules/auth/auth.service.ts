@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'crypto';
 import { User, UserStatus } from '../users/entities/user.entity';
+import { StarterKitService } from '../platform/starter-kit/starter-kit.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { SecurityService } from '../security/security.service';
 import { TenantPlan } from '../tenants/entities/tenant.entity';
@@ -33,6 +34,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly tenantsService: TenantsService,
     @Optional() private readonly securityService?: SecurityService,
+    @Optional() private readonly starterKit?: StarterKitService,
   ) {}
 
   async validateUser(email: string, password: string, tenantSlug?: string) {
@@ -168,6 +170,12 @@ export class AuthService {
       status: UserStatus.ACTIVE,
     });
     const savedUser = await this.userRepository.save(user);
+
+    // First-run content (leave types, badges, letter templates, KB
+    // categories, journey templates) so the trial isn't an empty shell.
+    // Best-effort: seeding must never fail registration.
+    await this.starterKit?.seed(tenant.id).catch(() => undefined);
+
     const tokens = await this.generateTokens(savedUser);
     return { ...tokens, tenant };
   }

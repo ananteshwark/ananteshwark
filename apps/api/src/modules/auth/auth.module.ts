@@ -10,6 +10,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { User } from '../users/entities/user.entity';
 import { UsersModule } from '../users/users.module';
 import { SecurityModule } from '../security/security.module';
+import { StarterKitModule } from '../platform/starter-kit/starter-kit.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SecurityModule } from '../security/security.module';
     PassportModule,
     UsersModule,
     SecurityModule,
+    StarterKitModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
