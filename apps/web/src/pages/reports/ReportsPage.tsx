@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, FileBarChart, Download, Play, ChevronDown, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { X, FileBarChart, Download, Play, ChevronDown, ChevronRight, ArrowUpDown, Bookmark } from 'lucide-react';
 import { reportsApi } from '../../api/reports';
+import { useAuthStore } from '../../store/authStore';
 
 const unwrap = (res: any) => res.data?.data ?? res.data;
 
@@ -25,6 +26,15 @@ const OP_LABELS: Record<string, string> = {
 
 const labelize = (field: string) =>
   field.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+
+// Saved-view filters ({field, op, value}) back into editable filter rows.
+function toFilterRows(filters: Array<{ field: string; op: string; value?: any }>): FilterRow[] {
+  return (filters ?? []).map(f => {
+    if (f.op === 'between' && Array.isArray(f.value)) return { field: f.field, op: f.op, value: String(f.value[0] ?? ''), value2: String(f.value[1] ?? '') };
+    if (f.op === 'in' && Array.isArray(f.value)) return { field: f.field, op: f.op, value: f.value.join(', '), value2: '' };
+    return { field: f.field, op: f.op, value: f.value != null ? String(f.value) : '', value2: '' };
+  });
+}
 
 function buildFilterPayload(rows: FilterRow[], columns: ColumnMeta[]) {
   const byField = Object.fromEntries(columns.map(c => [c.field, c]));
@@ -89,6 +99,11 @@ export default function ReportsPage() {
   const [sortBy, setSortBy] = useState<string | undefined>();
   const [sortDir, setSortDir] = useState<'ASC' | 'DESC'>('DESC');
   const [running, setRunning] = useState(false);
+  const [views, setViews] = useState<any[]>([]);
+  const { user } = useAuthStore();
+
+  const loadViews = (code: string) =>
+    reportsApi.listViews(code).then(res => setViews(unwrap(res) ?? [])).catch(() => setViews([]));
 
   useEffect(() => {
     reportsApi.catalog().then(res => {
@@ -107,9 +122,41 @@ export default function ReportsPage() {
     try {
       const res = await reportsApi.describe(r.code);
       setColumns(unwrap(res)?.columns ?? []);
+      loadViews(r.code);
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Could not load report definition');
       setColumns([]);
+      setViews([]);
+    }
+  };
+
+  const applyView = (v: any) => {
+    setFilters(toFilterRows(v.filters ?? []));
+    if (v.sortBy) { setSortBy(v.sortBy); setSortDir(v.sortDir === 'ASC' ? 'ASC' : 'DESC'); }
+  };
+
+  const saveCurrentView = async () => {
+    if (!report) return;
+    const name = prompt('View name (e.g. "Overdue > 30d")');
+    if (!name?.trim()) return;
+    const shared = confirm('Share this view with everyone in your tenant?\nOK = shared, Cancel = private');
+    try {
+      await reportsApi.saveView({
+        reportCode: report.code, name, shared,
+        filters: buildFilterPayload(filters, columns), sortBy, sortDir,
+      });
+      await loadViews(report.code);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Could not save view');
+    }
+  };
+
+  const removeView = async (v: any) => {
+    try {
+      await reportsApi.deleteView(v.id);
+      await loadViews(report.code);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Could not delete view');
     }
   };
 
@@ -209,12 +256,33 @@ export default function ReportsPage() {
                       className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1 disabled:opacity-50">
                       <Play className="h-3.5 w-3.5" />{running ? 'Running…' : 'Run'}
                     </button>
+                    <button onClick={saveCurrentView}
+                      className="px-3 py-1.5 border rounded-lg text-sm flex items-center gap-1">
+                      <Bookmark className="h-3.5 w-3.5" />Save View
+                    </button>
                     <button onClick={exportCsv} disabled={!result}
                       className="px-3 py-1.5 border rounded-lg text-sm flex items-center gap-1 disabled:opacity-40">
                       <Download className="h-3.5 w-3.5" />CSV
                     </button>
                   </div>
                 </div>
+
+                {views.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {views.map(v => (
+                      <span key={v.id} className="inline-flex items-center gap-1 bg-gray-100 rounded-full pl-3 pr-1.5 py-1 text-xs">
+                        <button onClick={() => applyView(v)} className="hover:text-blue-600" title="Apply this view's filters">
+                          {v.name}{v.shared ? ' · shared' : ''}
+                        </button>
+                        {v.createdByUserId === user?.id && (
+                          <button onClick={() => removeView(v)} className="text-gray-400 hover:text-red-500" title="Delete view">
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-3 space-y-2">
                   {filters.map((f, i) => {

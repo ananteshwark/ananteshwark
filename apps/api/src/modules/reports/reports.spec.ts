@@ -23,14 +23,23 @@ const COLUMNS = [
   { propertyName: 'createdAt', type: 'timestamp' },
 ];
 
-const buildService = (permissions?: any) => {
+const buildService = (permissions?: any, viewRepo?: any) => {
   const repo = {
     metadata: { columns: COLUMNS },
     findAndCount: jest.fn().mockResolvedValue([[{ id: 'e1', firstName: 'Ann' }], 1]),
+    find: jest.fn().mockResolvedValue([]),
   };
   const dataSource: any = { getRepository: jest.fn().mockReturnValue(repo) };
-  return { service: new ReportsService(dataSource, permissions), repo };
+  return { service: new ReportsService(dataSource, permissions, viewRepo), repo, dataSource };
 };
+
+const mockViewRepo = () => ({
+  create: jest.fn((x: any) => ({ id: 'v-gen', ...x })),
+  save: jest.fn((x: any) => Promise.resolve({ id: x.id ?? 'v1', ...x })),
+  find: jest.fn().mockResolvedValue([]),
+  findOne: jest.fn().mockResolvedValue(null),
+  delete: jest.fn().mockResolvedValue(undefined),
+});
 
 describe('report catalog integrity', () => {
   it('has unique codes and only real permissions', () => {
@@ -186,6 +195,42 @@ describe('catalog + export', () => {
     expect(csv).toContain(',,'); // the null cell
   });
 
+  it('enriches ID columns with tenant-scoped display labels from lookups', async () => {
+    // hr-leave-applications declares an employeeId → Employee lookup.
+    const leaveRepo = {
+      metadata: { columns: [
+        { propertyName: 'id', type: 'uuid', isPrimary: true },
+        { propertyName: 'tenantId', type: String },
+        { propertyName: 'employeeId', type: String },
+        { propertyName: 'status', type: String },
+        { propertyName: 'createdAt', type: 'timestamp' },
+      ] },
+      findAndCount: jest.fn().mockResolvedValue([[
+        { id: 'l1', employeeId: 'e1', status: 'APPROVED' },
+        { id: 'l2', employeeId: null, status: 'PENDING' },
+      ], 2]),
+    };
+    const employeeRepo = {
+      find: jest.fn().mockResolvedValue([{ id: 'e1', firstName: 'Ann', lastName: 'Lee' }]),
+    };
+    const dataSource: any = {
+      getRepository: jest.fn((entity: any) => (entity?.name === 'Employee' ? employeeRepo : leaveRepo)),
+    };
+    const service = new ReportsService(dataSource);
+    const result = await service.run('u1', 't1', 'hr-leave-applications', {});
+
+    expect(employeeRepo.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ tenantId: 't1' }),
+    }));
+    expect(result.data[0].employeeIdLabel).toBe('Ann Lee');
+    expect(result.data[1].employeeIdLabel).toBeNull();
+    const labelCol = result.columns.find((c: any) => c.field === 'employeeIdLabel');
+    expect(labelCol).toMatchObject({ kind: 'string', operators: [] }); // display-only
+
+    const described = await service.describe('u1', 't1', 'hr-leave-applications');
+    expect(described.columns.some((c: any) => c.field === 'employeeIdLabel')).toBe(true);
+  });
+
   it('exportCsv paginates through results up to the cap', async () => {
     const { service, repo } = buildService();
     repo.findAndCount
@@ -194,5 +239,47 @@ describe('catalog + export', () => {
     const { csv, filename } = await service.exportCsv('u1', 't1', 'hr-employees', {});
     expect(filename).toMatch(/^hr-employees-/);
     expect(csv.split('\n')).toHaveLength(3); // header + 2 rows
+  });
+});
+
+describe('saved views', () => {
+  it('saves a view after validating its filters, and lists own + shared', async () => {
+    const viewRepo = mockViewRepo();
+    const { service } = buildService(undefined, viewRepo);
+
+    const saved = await service.saveView('u1', 't1', {
+      reportCode: 'hr-employees', name: 'Active only',
+      filters: [{ field: 'status', op: 'eq', value: 'ACTIVE' }], shared: true,
+    });
+    expect(saved).toMatchObject({ reportCode: 'hr-employees', shared: true, createdByUserId: 'u1' });
+
+    // Invalid filters are rejected at save time, not discovered at run time.
+    await expect(service.saveView('u1', 't1', {
+      reportCode: 'hr-employees', name: 'Broken', filters: [{ field: 'ghost', op: 'eq', value: 1 }],
+    })).rejects.toThrow(BadRequestException);
+
+    viewRepo.find.mockResolvedValue([
+      { id: 'v1', createdByUserId: 'u1', shared: false },
+      { id: 'v2', createdByUserId: 'u2', shared: true },
+      { id: 'v2', createdByUserId: 'u2', shared: true }, // duplicate across the two where branches
+    ]);
+    const views = await service.listViews('u1', 't1', 'hr-employees');
+    expect(views.map(v => v.id)).toEqual(['v1', 'v2']); // deduped
+  });
+
+  it('only the creator can delete a view', async () => {
+    const viewRepo = mockViewRepo();
+    const { service } = buildService(undefined, viewRepo);
+    viewRepo.findOne.mockResolvedValue({ id: 'v1', tenantId: 't1', createdByUserId: 'someone-else' });
+    await expect(service.deleteView('u1', 't1', 'v1')).rejects.toThrow(ForbiddenException);
+
+    viewRepo.findOne.mockResolvedValue({ id: 'v1', tenantId: 't1', createdByUserId: 'u1' });
+    await expect(service.deleteView('u1', 't1', 'v1')).resolves.toEqual({ deleted: true });
+    expect(viewRepo.delete).toHaveBeenCalledWith({ id: 'v1', tenantId: 't1' });
+  });
+
+  it('reports views as unavailable when the repository is not wired', async () => {
+    const { service } = buildService();
+    await expect(service.listViews('u1', 't1', 'hr-employees')).rejects.toThrow(/not available/);
   });
 });

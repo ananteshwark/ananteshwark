@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import {
   And,
   Between,
@@ -11,9 +11,11 @@ import {
   LessThanOrEqual,
   MoreThanOrEqual,
   Not,
+  Repository,
 } from 'typeorm';
 import { PermissionsService } from '../rbac/permissions.service';
 import { REPORT_BY_CODE, REPORT_CATALOG, ReportDefinition } from './report-catalog';
+import { ReportView } from './entities/report-view.entity';
 
 export type ColumnKind = 'id' | 'string' | 'number' | 'date' | 'boolean' | 'enum' | 'json';
 export type FilterOp = 'eq' | 'neq' | 'in' | 'contains' | 'gte' | 'lte' | 'between' | 'isNull' | 'notNull';
@@ -62,6 +64,8 @@ export class ReportsService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @Optional() private readonly permissions?: PermissionsService,
+    @Optional() @InjectRepository(ReportView)
+    private readonly viewRepo?: Repository<ReportView>,
   ) {}
 
   static kindOf(column: { type: any; enum?: any[]; isPrimary?: boolean; propertyName?: string }): ColumnKind {
@@ -116,12 +120,52 @@ export class ReportsService {
     return { data, total: allowed.length };
   }
 
+  /** Read-only display columns produced by the definition's lookups. */
+  private static labelColumns(def: ReportDefinition) {
+    return (def.lookups ?? []).map((l) => ({
+      field: `${l.field}Label`,
+      kind: 'string' as ColumnKind,
+      enumValues: undefined as string[] | undefined,
+      operators: [] as FilterOp[],
+    }));
+  }
+
   /** Column shapes + the operators each supports, for building filter UIs. */
   async describe(userId: string, tenantId: string, code: string) {
     const def = this.definition(code);
     await this.assertAllowed(userId, tenantId, def);
-    const columns = this.columnsOf(def).map((c) => ({ ...c, operators: OPS_BY_KIND[c.kind] }));
+    const columns = [
+      ...this.columnsOf(def).map((c) => ({ ...c, operators: OPS_BY_KIND[c.kind] })),
+      ...ReportsService.labelColumns(def),
+    ];
     return { code: def.code, module: def.module, name: def.name, description: def.description, columns };
+  }
+
+  /**
+   * Attach `<field>Label` display values by batch-resolving the distinct
+   * IDs in the page against the lookup entity (tenant-scoped). Best-effort:
+   * a failed lookup leaves the label blank rather than failing the report.
+   */
+  private async enrich(def: ReportDefinition, tenantId: string, rows: any[]): Promise<void> {
+    for (const lookup of def.lookups ?? []) {
+      const ids = [...new Set(rows.map((r) => r[lookup.field]).filter(Boolean))];
+      if (!ids.length) continue;
+      try {
+        const repo = this.dataSource.getRepository(lookup.entity as any);
+        const refs = await repo.find({
+          where: { tenantId, id: In(ids) } as any,
+          select: ['id', ...lookup.labelFields] as any,
+        });
+        const labels = new Map(
+          refs.map((ref: any) => [ref.id, lookup.labelFields.map((f) => ref[f]).filter(Boolean).join(' ')]),
+        );
+        for (const row of rows) {
+          row[`${lookup.field}Label`] = row[lookup.field] ? labels.get(row[lookup.field]) ?? null : null;
+        }
+      } catch {
+        for (const row of rows) row[`${lookup.field}Label`] = null;
+      }
+    }
   }
 
   private static operatorFor(filter: ReportFilter, kind: ColumnKind): any {
@@ -201,7 +245,63 @@ export class ReportsService {
       skip: (page - 1) * limit,
       take: limit,
     });
-    return { data, total, page, limit, sortBy, sortDir, columns };
+    await this.enrich(def, tenantId, data);
+    return {
+      data, total, page, limit, sortBy, sortDir,
+      columns: [...columns, ...ReportsService.labelColumns(def)],
+    };
+  }
+
+  // ─── Saved views ─────────────────────────────────────────────────────────
+
+  private views(): Repository<ReportView> {
+    if (!this.viewRepo) throw new BadRequestException('Saved report views are not available in this deployment');
+    return this.viewRepo;
+  }
+
+  /** The caller's own views plus tenant-shared ones for a report. */
+  async listViews(userId: string, tenantId: string, code: string): Promise<ReportView[]> {
+    const def = this.definition(code);
+    await this.assertAllowed(userId, tenantId, def);
+    const rows = await this.views().find({
+      where: [
+        { tenantId, reportCode: code, createdByUserId: userId },
+        { tenantId, reportCode: code, shared: true },
+      ],
+      order: { createdAt: 'DESC' },
+    });
+    return [...new Map(rows.map((v) => [v.id, v])).values()];
+  }
+
+  async saveView(
+    userId: string,
+    tenantId: string,
+    dto: { reportCode: string; name: string; filters?: ReportFilter[]; sortBy?: string; sortDir?: string; shared?: boolean },
+  ): Promise<ReportView> {
+    const def = this.definition(dto.reportCode);
+    await this.assertAllowed(userId, tenantId, def);
+    if (!dto.name?.trim()) throw new BadRequestException('name is required');
+    // Reject views whose filters would fail at run time.
+    this.buildWhere(def, tenantId, dto.filters ?? [], this.columnsOf(def));
+    const repo = this.views();
+    return repo.save(repo.create({
+      tenantId,
+      reportCode: dto.reportCode,
+      name: dto.name.trim(),
+      filters: dto.filters ?? [],
+      sortBy: dto.sortBy ?? null,
+      sortDir: dto.sortDir === 'ASC' ? 'ASC' : 'DESC',
+      shared: !!dto.shared,
+      createdByUserId: userId,
+    }));
+  }
+
+  async deleteView(userId: string, tenantId: string, id: string): Promise<{ deleted: boolean }> {
+    const view = await this.views().findOne({ where: { id, tenantId } });
+    if (!view) throw new NotFoundException('View not found');
+    if (view.createdByUserId !== userId) throw new ForbiddenException('Only the creator can delete a saved view');
+    await this.views().delete({ id, tenantId });
+    return { deleted: true };
   }
 
   static toCsv(rows: any[], fields: string[]): string {

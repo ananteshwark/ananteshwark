@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -23,6 +23,24 @@ export class ReportsController {
   @ApiOperation({ summary: 'Reports the caller may run, grouped by module' })
   catalog(@CurrentUser() user: any) {
     return this.service.catalogFor(user.id, user.tenantId);
+  }
+
+  @Post('views')
+  @ApiOperation({ summary: 'Save the current filters + sort as a named view (optionally tenant-shared)' })
+  saveView(@CurrentUser() user: any, @Body() dto: any) {
+    return this.service.saveView(user.id, user.tenantId, dto ?? {});
+  }
+
+  @Delete('views/:id')
+  @ApiOperation({ summary: 'Delete a saved view (creator only)' })
+  deleteView(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.deleteView(user.id, user.tenantId, id);
+  }
+
+  @Get(':code/views')
+  @ApiOperation({ summary: 'Saved views for a report: yours plus tenant-shared' })
+  listViews(@CurrentUser() user: any, @Param('code') code: string) {
+    return this.service.listViews(user.id, user.tenantId, code);
   }
 
   @Get(':code/describe')

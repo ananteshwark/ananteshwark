@@ -27,6 +27,8 @@ import { KbArticle } from '../knowledge/entities/knowledge.entity';
 import { MeritLine } from '../compensation/merit/entities/merit-line.entity';
 import { LicenseInvoice } from '../licensing/entities/license-invoice.entity';
 import { ConsumptionRecord } from '../licensing/entities/consumption-record.entity';
+import { Customer } from '../finance/ar/entities/customer.entity';
+import { Vendor } from '../finance/ap/entities/vendor.entity';
 
 /**
  * Declarative report registry: one entry per report, grouped by module.
@@ -38,6 +40,15 @@ import { ConsumptionRecord } from '../licensing/entities/consumption-record.enti
  * `permission` gates the report (checked dynamically per user) and
  * `excludeColumns` hides sensitive fields from output AND filtering.
  */
+export interface ReportLookup {
+  /** ID column on the report entity to resolve (e.g. customerId). */
+  field: string;
+  /** Entity holding the display label; resolved tenant-scoped by id. */
+  entity: Function;
+  /** Fields joined with a space to form the label (e.g. first + last name). */
+  labelFields: string[];
+}
+
 export interface ReportDefinition {
   code: string;
   module: string;
@@ -47,32 +58,38 @@ export interface ReportDefinition {
   permission: string;
   excludeColumns?: string[];
   defaultSort?: string;
+  /** ID columns enriched with a read-only `<field>Label` display column. */
+  lookups?: ReportLookup[];
 }
+
+const EMPLOYEE_LOOKUP: ReportLookup = { field: 'employeeId', entity: Employee, labelFields: ['firstName', 'lastName'] };
+const CUSTOMER_LOOKUP: ReportLookup = { field: 'customerId', entity: Customer, labelFields: ['name'] };
+const VENDOR_LOOKUP: ReportLookup = { field: 'vendorId', entity: Vendor, labelFields: ['name'] };
 
 export const REPORT_CATALOG: ReportDefinition[] = [
   // ── HR ────────────────────────────────────────────────────────────────────
   { code: 'hr-employees', module: 'hr', name: 'Employee Directory', description: 'All employees with status, org placement and joining details', entity: Employee, permission: 'hr:employees:read', excludeColumns: ['pan', 'bankAccountNumber'] },
-  { code: 'hr-leave-applications', module: 'hr', name: 'Leave Applications', description: 'Leave requests by type, status and date range', entity: LeaveApplication, permission: 'hr:leave:read' },
-  { code: 'hr-exits', module: 'hr', name: 'Exit Requests', description: 'Exits by reason, status and last working date', entity: ExitRequest, permission: 'hr:employees:read' },
+  { code: 'hr-leave-applications', module: 'hr', name: 'Leave Applications', description: 'Leave requests by type, status and date range', entity: LeaveApplication, permission: 'hr:leave:read', lookups: [EMPLOYEE_LOOKUP] },
+  { code: 'hr-exits', module: 'hr', name: 'Exit Requests', description: 'Exits by reason, status and last working date', entity: ExitRequest, permission: 'hr:employees:read', lookups: [EMPLOYEE_LOOKUP] },
 
   // ── Talent ────────────────────────────────────────────────────────────────
-  { code: 'talent-applicants', module: 'talent', name: 'Applicants', description: 'Candidate pipeline by stage, source and posting', entity: Applicant, permission: 'talent:ats:read' },
+  { code: 'talent-applicants', module: 'talent', name: 'Applicants', description: 'Candidate pipeline by stage, source and posting', entity: Applicant, permission: 'talent:ats:read', lookups: [{ field: 'jobPostingId', entity: JobPosting, labelFields: ['title'] }] },
   { code: 'talent-job-postings', module: 'talent', name: 'Job Postings', description: 'Open and closed job postings', entity: JobPosting, permission: 'talent:ats:read' },
   { code: 'talent-job-offers', module: 'talent', name: 'Job Offers', description: 'Offers by status and validity', entity: JobOffer, permission: 'talent:ats:read' },
 
   // ── Finance ───────────────────────────────────────────────────────────────
-  { code: 'finance-ar-invoices', module: 'finance', name: 'AR Invoices', description: 'Customer invoices by status, due date and balance', entity: Invoice, permission: 'finance:ar:read' },
-  { code: 'finance-ap-bills', module: 'finance', name: 'AP Bills', description: 'Vendor bills by status and due date', entity: Bill, permission: 'finance:ap:read' },
+  { code: 'finance-ar-invoices', module: 'finance', name: 'AR Invoices', description: 'Customer invoices by status, due date and balance', entity: Invoice, permission: 'finance:ar:read', lookups: [CUSTOMER_LOOKUP] },
+  { code: 'finance-ap-bills', module: 'finance', name: 'AP Bills', description: 'Vendor bills by status and due date', entity: Bill, permission: 'finance:ap:read', lookups: [VENDOR_LOOKUP] },
   { code: 'finance-journal-entries', module: 'finance', name: 'Journal Entries', description: 'GL journals by status, period and source', entity: JournalEntry, permission: 'finance:journal:read' },
 
   // ── Payroll ───────────────────────────────────────────────────────────────
   { code: 'payroll-runs', module: 'payroll', name: 'Payroll Runs', description: 'Runs by period and status', entity: PayrollRun, permission: 'payroll:runs:read' },
-  { code: 'payroll-payslips', module: 'payroll', name: 'Payslips', description: 'Payslips by run, employee and period', entity: Payslip, permission: 'payroll:payslips:read' },
+  { code: 'payroll-payslips', module: 'payroll', name: 'Payslips', description: 'Payslips by run, employee and period', entity: Payslip, permission: 'payroll:payslips:read', lookups: [EMPLOYEE_LOOKUP] },
 
   // ── Procurement ───────────────────────────────────────────────────────────
-  { code: 'procurement-purchase-orders', module: 'procurement', name: 'Purchase Orders', description: 'POs by vendor, status and amount', entity: PurchaseOrder, permission: 'procurement:po:read' },
+  { code: 'procurement-purchase-orders', module: 'procurement', name: 'Purchase Orders', description: 'POs by vendor, status and amount', entity: PurchaseOrder, permission: 'procurement:po:read', lookups: [VENDOR_LOOKUP] },
   { code: 'procurement-requisitions', module: 'procurement', name: 'Purchase Requisitions', description: 'Requisitions by status and requester', entity: PurchaseRequisition, permission: 'procurement:requisitions:read' },
-  { code: 'procurement-vendor-invoices', module: 'procurement', name: 'Vendor Invoices', description: 'Vendor invoices by match status', entity: VendorInvoice, permission: 'procurement:read' },
+  { code: 'procurement-vendor-invoices', module: 'procurement', name: 'Vendor Invoices', description: 'Vendor invoices by match status', entity: VendorInvoice, permission: 'procurement:read', lookups: [VENDOR_LOOKUP] },
 
   // ── Inventory ─────────────────────────────────────────────────────────────
   { code: 'inventory-items', module: 'inventory', name: 'Item Master', description: 'Items by category, type and status', entity: Item, permission: 'inventory:items:read' },
@@ -82,11 +99,11 @@ export const REPORT_CATALOG: ReportDefinition[] = [
   { code: 'crm-service-tickets', module: 'crm', name: 'Service Tickets', description: 'Tickets by status, priority and SLA breach', entity: ServiceTicket, permission: 'crm:contacts:read' },
 
   // ── Sales ─────────────────────────────────────────────────────────────────
-  { code: 'sales-orders', module: 'sales', name: 'Sales Orders', description: 'Orders by customer, status and value', entity: SalesOrder, permission: 'sales:orders:read' },
+  { code: 'sales-orders', module: 'sales', name: 'Sales Orders', description: 'Orders by customer, status and value', entity: SalesOrder, permission: 'sales:orders:read', lookups: [CUSTOMER_LOOKUP] },
 
   // ── Expenses & Travel ─────────────────────────────────────────────────────
-  { code: 'expenses-claims', module: 'expenses', name: 'Expense Claims', description: 'Claims by employee, status and amount', entity: ExpenseClaim, permission: 'expenses:claims:read' },
-  { code: 'expenses-travel-requests', module: 'expenses', name: 'Travel Requests', description: 'Travel requests by status and dates', entity: TravelRequest, permission: 'expenses:travel:read' },
+  { code: 'expenses-claims', module: 'expenses', name: 'Expense Claims', description: 'Claims by employee, status and amount', entity: ExpenseClaim, permission: 'expenses:claims:read', lookups: [EMPLOYEE_LOOKUP] },
+  { code: 'expenses-travel-requests', module: 'expenses', name: 'Travel Requests', description: 'Travel requests by status and dates', entity: TravelRequest, permission: 'expenses:travel:read', lookups: [EMPLOYEE_LOOKUP] },
 
   // ── Helpdesk ──────────────────────────────────────────────────────────────
   { code: 'helpdesk-cases', module: 'helpdesk', name: 'HR Helpdesk Cases', description: 'Cases by category, status and SLA', entity: HrCase, permission: 'hr:helpdesk:read' },

@@ -7,4 +7,7 @@ export const reportsApi = {
   run: (code: string, query: any) => apiClient.post(`/reports/${code}/run`, query),
   exportCsv: (code: string, query: any) =>
     apiClient.post(`/reports/${code}/export`, query, { responseType: 'blob' }),
+  listViews: (code: string) => apiClient.get(`/reports/${code}/views`),
+  saveView: (data: any) => apiClient.post('/reports/views', data),
+  deleteView: (id: string) => apiClient.delete(`/reports/views/${id}`),
 };
