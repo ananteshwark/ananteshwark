@@ -1,0 +1,61 @@
+# Render Blueprint — provisions the whole app in one click.
+#
+#   Render dashboard → New → Blueprint → connect this repo → Apply.
+#
+# It creates two services from this file (no dashboard build-config to type):
+#   • erp-api  — the NestJS API (Node web service)
+#   • erp-web  — the React SPA (static site)
+# so there's no Cloudflare, no monorepo root-directory juggling, and no
+# build commands to paste by hand.
+#
+# After the first Apply, set three values in the Render dashboard
+# (Environment tab of each service):
+#   • erp-api  → DATABASE_URL   = your Neon/Supabase pooled connection string
+#   • erp-api  → ALLOWED_ORIGINS = the erp-web URL (e.g. https://erp-web.onrender.com)
+#   • erp-web  → VITE_API_URL    = the erp-api URL (e.g. https://erp-api.onrender.com)
+# then redeploy erp-web once (VITE_API_URL is baked in at build time).
+# JWT secrets are generated automatically.
+
+services:
+  # ── API (NestJS) ────────────────────────────────────────────────────────
+  - type: web
+    name: erp-api
+    runtime: node
+    plan: free
+    rootDir: apps/api
+    buildCommand: corepack enable && pnpm install --ignore-workspace && pnpm run build
+    startCommand: node dist/main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false            # paste your Neon/Supabase pooled URL after Apply
+      - key: DATABASE_SSL
+        value: "true"          # managed Postgres requires TLS
+      - key: JWT_SECRET
+        generateValue: true    # Render generates a random secret
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false            # set to the erp-web URL after Apply
+
+  # ── Web (React SPA, static) ─────────────────────────────────────────────
+  - type: web
+    name: erp-web
+    runtime: static
+    rootDir: apps/web
+    buildCommand: corepack enable && pnpm install --ignore-workspace && pnpm run build
+    staticPublishPath: dist
+    # SPA fallback: serve index.html for client-side routes.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: VITE_API_URL
+        sync: false            # set to the erp-api URL after Apply, then redeploy
