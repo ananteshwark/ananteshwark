@@ -1,0 +1,96 @@
+# Production stack: Postgres + API + static web + Caddy (automatic HTTPS).
+# Designed for a single small VM (Oracle Always Free / Hetzner / any VPS).
+#
+#   cp .env.production.example .env
+#   # edit .env (DOMAIN, passwords, secrets)
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Only Caddy is exposed to the internet (80/443); Postgres, the API and the
+# web server are reachable solely on the internal network. See DEPLOYMENT.md.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-erp_db}
+      POSTGRES_USER: ${DATABASE_USER:-erp_user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?set DATABASE_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USER:-erp_user} -d ${DATABASE_NAME:-erp_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_PORT: 3000
+      APP_ENV: production
+      DATABASE_URL: postgresql://${DATABASE_USER:-erp_user}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME:-erp_db}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${DATABASE_USER:-erp_user}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME:-erp_db}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in .env}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      ALLOWED_ORIGINS: https://${DOMAIN:?set DOMAIN in .env}
+      # DMS attachments — persisted on the named volume below.
+      DMS_STORAGE_DIR: /data/uploads
+      # Optional integrations (leave blank to keep the safe defaults):
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CHANNEL_WEBHOOKS_ENABLED: ${CHANNEL_WEBHOOKS_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      - uploads_data:/data/uploads
+    # No demo seeding in production — a fresh tenant gets its starter kit
+    # automatically on registration.
+    command: ['node', 'dist/main.js']
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        # The SPA calls the API via the same origin; Caddy strips /api below.
+        VITE_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+
+volumes:
+  postgres_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:

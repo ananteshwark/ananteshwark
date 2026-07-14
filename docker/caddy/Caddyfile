@@ -1,0 +1,19 @@
+# Caddy fronts the whole stack and provisions HTTPS automatically via
+# Let's Encrypt (DOMAIN comes from .env through docker-compose).
+#
+# Routing:
+#   /api/*  -> NestJS API (prefix stripped; the API serves routes at /)
+#   /*      -> the static web build (nginx inside the web container)
+
+{$DOMAIN} {
+	encode gzip
+
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+}
