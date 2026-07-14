@@ -14,6 +14,9 @@ const isCompiled = __filename.endsWith('.js');
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
+  // Match the runtime SSL behavior (see config/database.config.ts) so the
+  // migration CLI can also reach a managed Postgres over TLS.
+  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
   entities: [isCompiled ? 'dist/**/*.entity.js' : 'src/**/*.entity.ts'],
   migrations: [isCompiled ? 'dist/database/migrations/*.js' : 'src/database/migrations/*.ts'],
   migrationsTableName: 'typeorm_migrations',

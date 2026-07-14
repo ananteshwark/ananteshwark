@@ -179,7 +179,8 @@ after an update.
 
 ## Alternative: free PaaS (demo-grade only)
 
-If you just want to show the app around without a VM:
+**Full step-by-step for this route: `HOSTING_PAAS.md`** (Cloudflare Pages +
+Render + Neon, with the exact build commands and env vars). Summary:
 
 - **Web**: Cloudflare Pages or Netlify free — build `apps/web` with
   `VITE_API_URL=https://<your-api-host>` and publish `dist/`.
@@ -189,7 +190,8 @@ If you just want to show the app around without a VM:
   (cron-job.org, UptimeRobot) pinging `/health` every 10 minutes mitigates
   this, but it is a workaround.
 - **Database**: Neon free (0.5 GB) or Supabase free (500 MB) — set
-  `DATABASE_URL` accordingly. Both autosuspend on idle.
+  `DATABASE_URL` and **`DATABASE_SSL=true`** (managed Postgres requires TLS).
+  Both autosuspend on idle.
 - **Uploads**: the container disk is ephemeral — acceptable for demos;
   for real use wire the DMS `ObjectStorageAdapter` seam to Cloudflare R2
   (10 GB free).
