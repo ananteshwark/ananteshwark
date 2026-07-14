@@ -24,8 +24,10 @@ the end if you only need a demo.
 ## 1. Get a server
 
 **Option A — Oracle Cloud Always Free ($0, recommended).**
-Sign up at cloud.oracle.com (card required for identity, not billed). Create
-a Compute instance:
+Full from-scratch walkthrough (account signup, shape selection, capacity
+workarounds, both firewalls): see **`ORACLE_CLOUD_SETUP.md`**. In short,
+sign up at cloud.oracle.com (card required for identity, not billed) and
+create a Compute instance:
 
 - Shape: `VM.Standard.A1.Flex` (Ampere ARM) — up to 4 OCPU / 24 GB RAM free.
   2 OCPU / 8 GB is plenty for this stack.
