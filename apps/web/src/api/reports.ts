@@ -10,4 +10,8 @@ export const reportsApi = {
   listViews: (code: string) => apiClient.get(`/reports/${code}/views`),
   saveView: (data: any) => apiClient.post('/reports/views', data),
   deleteView: (id: string) => apiClient.delete(`/reports/views/${id}`),
+  listSchedules: (code: string) => apiClient.get(`/reports/${code}/schedules`),
+  createSchedule: (data: any) => apiClient.post('/reports/schedules', data),
+  setScheduleActive: (id: string, active: boolean) => apiClient.patch(`/reports/schedules/${id}/active`, { active }),
+  deleteSchedule: (id: string) => apiClient.delete(`/reports/schedules/${id}`),
 };

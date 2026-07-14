@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FileBarChart, Download, Play, ChevronDown, ChevronRight, ArrowUpDown, Bookmark } from 'lucide-react';
+import { X, FileBarChart, Download, Play, ChevronDown, ChevronRight, ArrowUpDown, Bookmark, CalendarClock } from 'lucide-react';
 import { reportsApi } from '../../api/reports';
 import { useAuthStore } from '../../store/authStore';
 
@@ -52,6 +52,97 @@ function buildFilterPayload(rows: FilterRow[], columns: ColumnMeta[]) {
     });
 }
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function ScheduleModal({ report, views, currentFilters, onClose, onDone }: {
+  report: any; views: any[]; currentFilters: any[]; onClose: () => void; onDone: () => void;
+}) {
+  const [form, setForm] = useState({
+    name: '', recipients: '', cadence: 'WEEKLY', dayOfWeek: '1', dayOfMonth: '1', hourUtc: '6', viewId: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await reportsApi.createSchedule({
+        reportCode: report.code,
+        name: form.name,
+        recipients: form.recipients.split(',').map(s => s.trim()).filter(Boolean),
+        cadence: form.cadence,
+        dayOfWeek: form.cadence === 'WEEKLY' ? Number(form.dayOfWeek) : undefined,
+        dayOfMonth: form.cadence === 'MONTHLY' ? Number(form.dayOfMonth) : undefined,
+        hourUtc: Number(form.hourUtc),
+        viewId: form.viewId || undefined,
+        filters: form.viewId ? undefined : currentFilters,
+      });
+      onDone();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Could not create schedule');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Schedule — {report.name}</h2>
+          <button onClick={onClose}><X className="h-4 w-4 text-gray-400" /></button>
+        </div>
+        <div className="space-y-3">
+          <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Schedule name (e.g. Weekly actives to HR)"
+            value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+          <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Recipient emails, comma separated"
+            value={form.recipients} onChange={e => setForm(p => ({ ...p, recipients: e.target.value }))} />
+          <div className="grid grid-cols-3 gap-3">
+            <label className="text-xs text-gray-500">Cadence
+              <select className="w-full border rounded-lg px-2 py-2 text-sm mt-1" value={form.cadence}
+                onChange={e => setForm(p => ({ ...p, cadence: e.target.value }))}>
+                <option>DAILY</option><option>WEEKLY</option><option>MONTHLY</option>
+              </select>
+            </label>
+            {form.cadence === 'WEEKLY' && (
+              <label className="text-xs text-gray-500">Weekday
+                <select className="w-full border rounded-lg px-2 py-2 text-sm mt-1" value={form.dayOfWeek}
+                  onChange={e => setForm(p => ({ ...p, dayOfWeek: e.target.value }))}>
+                  {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                </select>
+              </label>
+            )}
+            {form.cadence === 'MONTHLY' && (
+              <label className="text-xs text-gray-500">Day of month
+                <input type="number" min={1} max={31} className="w-full border rounded-lg px-2 py-2 text-sm mt-1"
+                  value={form.dayOfMonth} onChange={e => setForm(p => ({ ...p, dayOfMonth: e.target.value }))} />
+              </label>
+            )}
+            <label className="text-xs text-gray-500">Hour (UTC)
+              <input type="number" min={0} max={23} className="w-full border rounded-lg px-2 py-2 text-sm mt-1"
+                value={form.hourUtc} onChange={e => setForm(p => ({ ...p, hourUtc: e.target.value }))} />
+            </label>
+          </div>
+          <label className="block text-xs text-gray-500">What to send
+            <select className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={form.viewId}
+              onChange={e => setForm(p => ({ ...p, viewId: e.target.value }))}>
+              <option value="">Current filters (frozen as configured now)</option>
+              {views.map(v => <option key={v.id} value={v.id}>Saved view: {v.name}</option>)}
+            </select>
+          </label>
+          <p className="text-xs text-gray-400">Delivered as a CSV attachment by the hourly platform scheduler; a pinned saved view picks up future edits to that view.</p>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+          <button onClick={save} disabled={saving || !form.name.trim() || !form.recipients.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+            {saving ? 'Scheduling…' : 'Create Schedule'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ValueInput({ row, col, onChange }: { row: FilterRow; col?: ColumnMeta; onChange: (patch: Partial<FilterRow>) => void }) {
   if (!col || row.op === 'isNull' || row.op === 'notNull') return null;
   const inputType = col.kind === 'number' ? 'number' : col.kind === 'date' ? 'date' : 'text';
@@ -100,10 +191,14 @@ export default function ReportsPage() {
   const [sortDir, setSortDir] = useState<'ASC' | 'DESC'>('DESC');
   const [running, setRunning] = useState(false);
   const [views, setViews] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const { user } = useAuthStore();
 
   const loadViews = (code: string) =>
     reportsApi.listViews(code).then(res => setViews(unwrap(res) ?? [])).catch(() => setViews([]));
+  const loadSchedules = (code: string) =>
+    reportsApi.listSchedules(code).then(res => setSchedules(unwrap(res) ?? [])).catch(() => setSchedules([]));
 
   useEffect(() => {
     reportsApi.catalog().then(res => {
@@ -123,10 +218,12 @@ export default function ReportsPage() {
       const res = await reportsApi.describe(r.code);
       setColumns(unwrap(res)?.columns ?? []);
       loadViews(r.code);
+      loadSchedules(r.code);
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Could not load report definition');
       setColumns([]);
       setViews([]);
+      setSchedules([]);
     }
   };
 
@@ -260,6 +357,10 @@ export default function ReportsPage() {
                       className="px-3 py-1.5 border rounded-lg text-sm flex items-center gap-1">
                       <Bookmark className="h-3.5 w-3.5" />Save View
                     </button>
+                    <button onClick={() => setShowScheduleModal(true)}
+                      className="px-3 py-1.5 border rounded-lg text-sm flex items-center gap-1">
+                      <CalendarClock className="h-3.5 w-3.5" />Schedule
+                    </button>
                     <button onClick={exportCsv} disabled={!result}
                       className="px-3 py-1.5 border rounded-lg text-sm flex items-center gap-1 disabled:opacity-40">
                       <Download className="h-3.5 w-3.5" />CSV
@@ -311,6 +412,40 @@ export default function ReportsPage() {
                 </div>
               </div>
 
+              {schedules.length > 0 && (
+                <div className="bg-white rounded-xl border p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Delivery schedules</p>
+                  <div className="space-y-1">
+                    {schedules.map(s => (
+                      <div key={s.id} className="flex items-center justify-between text-sm">
+                        <span>
+                          <span className="font-medium">{s.name}</span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            {s.cadence.toLowerCase()}
+                            {s.cadence === 'WEEKLY' && s.dayOfWeek != null ? ` (${WEEKDAYS[s.dayOfWeek]})` : ''}
+                            {s.cadence === 'MONTHLY' && s.dayOfMonth != null ? ` (day ${s.dayOfMonth})` : ''}
+                            {` at ${String(s.hourUtc).padStart(2, '0')}:00 UTC → ${(s.recipients ?? []).length} recipient(s)`}
+                            {s.lastStatus ? ` · last: ${s.lastStatus}` : ''}
+                            {s.nextRunAt ? ` · next: ${new Date(s.nextRunAt).toLocaleString()}` : ''}
+                          </span>
+                        </span>
+                        {s.createdByUserId === user?.id && (
+                          <span className="flex items-center gap-3 shrink-0">
+                            <label className="flex items-center gap-1 text-xs text-gray-500">
+                              <input type="checkbox" checked={!!s.active}
+                                onChange={e => reportsApi.setScheduleActive(s.id, e.target.checked).then(() => loadSchedules(report.code)).catch(() => undefined)} />
+                              active
+                            </label>
+                            <button onClick={() => reportsApi.deleteSchedule(s.id).then(() => loadSchedules(report.code)).catch(() => undefined)}
+                              className="text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {result && (
                 <div className="bg-white rounded-xl border">
                   <div className="flex items-center justify-between px-4 py-2 border-b text-sm text-gray-500">
@@ -357,6 +492,16 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+
+      {showScheduleModal && report && (
+        <ScheduleModal
+          report={report}
+          views={views}
+          currentFilters={buildFilterPayload(filters, columns)}
+          onClose={() => setShowScheduleModal(false)}
+          onDone={() => { setShowScheduleModal(false); loadSchedules(report.code); }}
+        />
+      )}
     </div>
   );
 }

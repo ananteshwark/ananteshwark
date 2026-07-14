@@ -13,6 +13,7 @@ import { Visitor, VisitorStatus } from '../platform/device/entities/device.entit
 import { I9Case, I9Status } from '../hr/i9/entities/i9-case.entity';
 import { IntegrationsService } from '../studio/integrations/integrations.service';
 import { LicensingService } from '../licensing/licensing.service';
+import { ReportSchedulesService } from '../reports/report-schedules.service';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -34,6 +35,8 @@ const HOUR_MS = 60 * 60 * 1000;
  *  - runs the monthly license billing cycle (usage snapshot + invoice per
  *    active contract; the existing invoice for the period is the dedupe) and
  *    emits `license.invoice_generated` per new invoice.
+ *  - delivers due scheduled reports as CSV email (rolling nextRunAt forward
+ *    is the dedupe) and emits `report.schedule_sent` per delivery.
  * The newer sweeps take their dependencies via @Optional() so the scheduler
  * still boots (and tests still construct positionally) without them.
  * Disabled under tests; can be invoked on demand via sweepNow().
@@ -67,6 +70,7 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
     private readonly i9Repo?: Repository<I9Case>,
     @Optional() private readonly integrations?: IntegrationsService,
     @Optional() private readonly licensing?: LicensingService,
+    @Optional() private readonly reportSchedules?: ReportSchedulesService,
   ) {}
 
   onModuleInit() {
@@ -97,9 +101,9 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
   async sweepNow(): Promise<{
     overdueInvoices: number; slaBreaches: number; expiringContracts: number;
     expiredAttestations: number; expiredCertifications: number; visitorNoShows: number;
-    i9Alerts: number; studioJobsRun: number; licenseInvoices: number;
+    i9Alerts: number; studioJobsRun: number; licenseInvoices: number; reportSchedulesRun: number;
   }> {
-    const [overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun, licenseInvoices] = await Promise.all([
+    const [overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun, licenseInvoices, reportSchedulesRun] = await Promise.all([
       this.sweepOverdueInvoices().catch((e) => { this.logger.warn(`overdue sweep: ${e.message}`); return 0; }),
       this.sweepSlaBreaches().catch((e) => { this.logger.warn(`sla sweep: ${e.message}`); return 0; }),
       this.sweepExpiringContracts().catch((e) => { this.logger.warn(`contract sweep: ${e.message}`); return 0; }),
@@ -109,8 +113,9 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
       this.sweepI9Compliance().catch((e) => { this.logger.warn(`i9 sweep: ${e.message}`); return 0; }),
       this.sweepStudioJobs().catch((e) => { this.logger.warn(`studio jobs sweep: ${e.message}`); return 0; }),
       this.sweepLicenseBilling().catch((e) => { this.logger.warn(`license billing sweep: ${e.message}`); return 0; }),
+      this.sweepReportSchedules().catch((e) => { this.logger.warn(`report schedules sweep: ${e.message}`); return 0; }),
     ]);
-    return { overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun, licenseInvoices };
+    return { overdueInvoices, slaBreaches, expiringContracts, expiredAttestations, expiredCertifications, visitorNoShows, i9Alerts, studioJobsRun, licenseInvoices, reportSchedulesRun };
   }
 
   private async sweepOverdueInvoices(): Promise<number> {
@@ -286,6 +291,19 @@ export class AutomationSchedulerService implements OnModuleInit, OnModuleDestroy
       });
     }
     return result.invoicesGenerated;
+  }
+
+  /** Deliver due scheduled reports; rolling nextRunAt forward is the dedupe. */
+  private async sweepReportSchedules(): Promise<number> {
+    if (!this.reportSchedules) return 0;
+    const results = await this.reportSchedules.runDueSchedules(new Date());
+    for (const r of results) {
+      await this.automation.emit(r.tenantId, 'report.schedule_sent', {
+        scheduleId: r.scheduleId, reportCode: r.reportCode, name: r.name,
+        status: r.status, recipients: r.recipients, error: r.error ?? null,
+      });
+    }
+    return results.length;
   }
 
   /** Execute due Studio scheduled jobs; rolling nextRunAt forward is the dedupe. */

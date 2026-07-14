@@ -73,7 +73,7 @@ describe('AutomationSchedulerService', () => {
     expect(r).toEqual({
       overdueInvoices: 0, slaBreaches: 0, expiringContracts: 0,
       expiredAttestations: 0, expiredCertifications: 0, visitorNoShows: 0,
-      i9Alerts: 0, studioJobsRun: 0, licenseInvoices: 0,
+      i9Alerts: 0, studioJobsRun: 0, licenseInvoices: 0, reportSchedulesRun: 0,
     });
   });
 

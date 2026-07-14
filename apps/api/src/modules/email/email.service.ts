@@ -249,6 +249,50 @@ export class EmailService {
     }
   }
 
+  /**
+   * Send a non-templated email, optionally with attachments (e.g. a
+   * scheduled report's CSV). NEVER throws — logs and returns status.
+   */
+  async sendRaw(
+    tenantId: string,
+    to: string,
+    subject: string,
+    text: string,
+    attachments?: Array<{ filename: string; content: string | Buffer }>,
+  ): Promise<{ status: EmailStatus; error?: string }> {
+    try {
+      const transport = await this.buildTransport(tenantId);
+      if (!transport) {
+        throw new Error('No active SMTP configuration found (DB or environment)');
+      }
+      const from = transport.fromName
+        ? `"${transport.fromName}" <${transport.fromEmail}>`
+        : transport.fromEmail;
+      await transport.transporter.sendMail({ from, to, subject, text, attachments });
+      await this.logRepo.save(
+        this.logRepo.create({
+          tenantId, templateCode: 'RAW', toEmail: to, subject,
+          status: EmailStatus.SENT, errorMessage: null,
+        }),
+      );
+      return { status: EmailStatus.SENT };
+    } catch (err: any) {
+      const message = err?.message ?? String(err);
+      this.logger.warn(`Raw email send failed (${subject} -> ${to}): ${message}`);
+      try {
+        await this.logRepo.save(
+          this.logRepo.create({
+            tenantId, templateCode: 'RAW', toEmail: to, subject,
+            status: EmailStatus.FAILED, errorMessage: message,
+          }),
+        );
+      } catch {
+        // swallow logging failures
+      }
+      return { status: EmailStatus.FAILED, error: message };
+    }
+  }
+
   /** Verify SMTP connectivity and optionally send a test email. */
   async testSmtp(
     tenantId: string,

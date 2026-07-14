@@ -252,6 +252,12 @@ export class ReportsService {
     };
   }
 
+  /** Validate a filter set against a report's columns without running it. */
+  validateFilters(code: string, filters: ReportFilter[]): void {
+    const def = this.definition(code);
+    this.buildWhere(def, '__validate__', filters ?? [], this.columnsOf(def));
+  }
+
   // ─── Saved views ─────────────────────────────────────────────────────────
 
   private views(): Repository<ReportView> {
