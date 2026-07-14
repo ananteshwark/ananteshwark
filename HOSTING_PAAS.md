@@ -84,13 +84,25 @@ Project Settings → Database. Same `DATABASE_URL` + `DATABASE_SSL=true`.)
 
 ## 3. Web — Cloudflare Pages
 
-1. Sign up at **dash.cloudflare.com** → **Workers & Pages → Create →
-   Pages → Connect to Git** → pick your repo.
-2. Build settings:
+1. Sign up at **dash.cloudflare.com** → **Workers & Pages → Create** → pick
+   the **Pages** tab (NOT Workers) → **Import an existing Git repository /
+   Connect to Git** → pick your repo and branch.
+
+   > Choosing **Pages**, not Workers, matters: Pages uploads the static
+   > `dist/` build directly. If you pick Workers, the deploy step runs
+   > `npx wrangler deploy` and fails with *"application detection logic has
+   > been run in the root of a workspace"* — that's the Workers monorepo
+   > error, not a build problem. Delete the Worker and create a Pages
+   > project instead.
+
+2. Build settings — expand **Advanced / Build settings**:
+   - **Root directory**: `apps/web`  ← **required**. Without it the build
+     runs at the monorepo root and builds the whole workspace (API too),
+     and the output path is wrong.
    - **Framework preset**: None (Vite).
-   - **Root directory**: `apps/web`.
    - **Build command**: `corepack enable && pnpm install --ignore-workspace && pnpm run build`
-   - **Build output directory**: `dist`
+   - **Build output directory**: `dist`  (relative to the root directory,
+     i.e. `apps/web/dist`).
    - **Environment variables**: `VITE_API_URL` = your API origin from step 2,
      e.g. `https://<name>.onrender.com` (no trailing slash, no `/api`) — a
      **build-time** var, so changing it means a redeploy — and
