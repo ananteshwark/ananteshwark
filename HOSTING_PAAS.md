@@ -45,9 +45,15 @@ Project Settings → Database. Same `DATABASE_URL` + `DATABASE_SSL=true`.)
    - **Root Directory**: `apps/api`  (the API builds self-contained from
      here — it does not need the workspace root).
    - **Runtime/Environment**: Node.
-   - **Build Command**: `npm install -g pnpm@9.15.4 && pnpm install && pnpm build`
+   - **Build Command**: `corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --ignore-workspace && pnpm run build`
    - **Start Command**: `node dist/main`
    - **Instance Type**: Free.
+
+   > Don't use `pnpm install -g pnpm` / `npm install -g pnpm` on Render — a
+   > global install fails with `ERR_PNPM_NO_GLOBAL_BIN_DIR`. `corepack`
+   > (bundled with Node 20) provisions pnpm without a global bin dir.
+   > `--ignore-workspace` makes pnpm install just this package (ignoring the
+   > monorepo root), matching the Docker build.
 3. **Environment variables** (Advanced → Add):
 
    | Key | Value |
@@ -82,16 +88,16 @@ Project Settings → Database. Same `DATABASE_URL` + `DATABASE_SSL=true`.)
 2. Build settings:
    - **Framework preset**: None (Vite).
    - **Root directory**: `apps/web`.
-   - **Build command**: `npm install -g pnpm@9.15.4 && pnpm install && pnpm build`
+   - **Build command**: `corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --ignore-workspace && pnpm run build`
    - **Build output directory**: `dist`
-   - **Environment variable**: `VITE_API_URL` = your API origin from step 2,
-     e.g. `https://<name>.onrender.com` (no trailing slash, no `/api`).
-     This is a **build-time** var — the SPA bakes it in, so a change means
-     a redeploy.
+   - **Environment variables**: `VITE_API_URL` = your API origin from step 2,
+     e.g. `https://<name>.onrender.com` (no trailing slash, no `/api`) — a
+     **build-time** var, so changing it means a redeploy — and
+     `NODE_VERSION` = `20`.
 3. **Save and Deploy**. You get a URL like `https://your-erp.pages.dev`.
 
-(Netlify is equivalent: base directory `apps/web`, build
-`pnpm install && pnpm build`, publish `apps/web/dist`, env `VITE_API_URL`.)
+(Netlify is equivalent: base directory `apps/web`, same corepack build
+command, publish directory `dist`, env `VITE_API_URL` + `NODE_VERSION=20`.)
 
 ## 4. Close the CORS loop
 
