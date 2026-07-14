@@ -45,13 +45,14 @@ Project Settings → Database. Same `DATABASE_URL` + `DATABASE_SSL=true`.)
    - **Root Directory**: `apps/api`  (the API builds self-contained from
      here — it does not need the workspace root).
    - **Runtime/Environment**: Node.
-   - **Build Command**: `corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --ignore-workspace && pnpm run build`
+   - **Build Command**: `corepack enable && pnpm install --ignore-workspace && pnpm run build`
    - **Start Command**: `node dist/main`
    - **Instance Type**: Free.
 
-   > Don't use `pnpm install -g pnpm` / `npm install -g pnpm` on Render — a
-   > global install fails with `ERR_PNPM_NO_GLOBAL_BIN_DIR`. `corepack`
-   > (bundled with Node 20) provisions pnpm without a global bin dir.
+   > `corepack` (bundled with Node 20) provisions the pnpm version pinned
+   > in the repo's root `package.json` (`packageManager` field) — no global
+   > install, which would fail with `ERR_PNPM_NO_GLOBAL_BIN_DIR`, and no
+   > `corepack prepare` step (its space is easy to lose when pasted).
    > `--ignore-workspace` makes pnpm install just this package (ignoring the
    > monorepo root), matching the Docker build.
 3. **Environment variables** (Advanced → Add):
@@ -88,7 +89,7 @@ Project Settings → Database. Same `DATABASE_URL` + `DATABASE_SSL=true`.)
 2. Build settings:
    - **Framework preset**: None (Vite).
    - **Root directory**: `apps/web`.
-   - **Build command**: `corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --ignore-workspace && pnpm run build`
+   - **Build command**: `corepack enable && pnpm install --ignore-workspace && pnpm run build`
    - **Build output directory**: `dist`
    - **Environment variables**: `VITE_API_URL` = your API origin from step 2,
      e.g. `https://<name>.onrender.com` (no trailing slash, no `/api`) — a
