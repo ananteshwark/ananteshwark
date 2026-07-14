@@ -1,0 +1,27 @@
+{
+  // Cloudflare Worker (static assets) config for the web SPA.
+  //
+  // This is an assets-only Worker — no server script, just the Vite build in
+  // ./dist served as static files. `wrangler deploy` (Cloudflare's default
+  // Workers Build deploy command) reads this file and uploads dist/.
+  //
+  // In the Cloudflare dashboard, set the Worker's build settings to:
+  //   - Root directory:   apps/web        (so wrangler runs here and finds this
+  //                                         file — fixes the "workspace root"
+  //                                         detection error)
+  //   - Build command:    corepack enable && pnpm install --ignore-workspace && pnpm run build
+  //   - Deploy command:   npx wrangler deploy   (the default)
+  //   - Env var:          VITE_API_URL = https://<your-api>.onrender.com
+  //                       (baked in at build time; no trailing slash, no /api)
+  //
+  // `name` must match your Worker service name. Change it if your service is
+  // named differently.
+  "name": "ananteshwark",
+  "compatibility_date": "2024-11-01",
+  "assets": {
+    "directory": "./dist",
+    // Serve index.html (HTTP 200) for any path that isn't a built asset, so
+    // React Router client-side routes work on direct navigation/refresh.
+    "not_found_handling": "single-page-application"
+  }
+}
