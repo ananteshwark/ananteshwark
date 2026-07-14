@@ -14,9 +14,9 @@
   //   - Env var:          VITE_API_URL = https://<your-api>.onrender.com
   //                       (baked in at build time; no trailing slash, no /api)
   //
-  // `name` must match your Worker service name. Change it if your service is
-  // named differently.
-  "name": "ananteshwark",
+  // `name` MUST match your Worker service name exactly, or Workers Builds
+  // rejects the deploy. Change it if your service is named differently.
+  "name": "erp",
   "compatibility_date": "2024-11-01",
   "assets": {
     "directory": "./dist",
