@@ -4,8 +4,8 @@ WORKDIR /app
 
 RUN npm install -g pnpm@9.15.4
 
-COPY package.json ./
-RUN pnpm install
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 # Base URL the SPA uses for API calls. Empty keeps the dev default

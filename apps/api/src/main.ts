@@ -49,8 +49,11 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = configService.get('APP_PORT', 3000);
-  await app.listen(port);
+  // Prefer PORT (the convention most PaaS platforms inject) and fall back to
+  // APP_PORT, then 3000. Binding to 0.0.0.0 keeps the container reachable from
+  // the Docker network / platform proxy rather than only loopback.
+  const port = configService.get('PORT') ?? configService.get('APP_PORT', 3000);
+  await app.listen(port, '0.0.0.0');
   logger.log(`Application running on port ${port}`);
   logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }
