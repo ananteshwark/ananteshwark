@@ -1,13 +1,14 @@
 # Opt-in overlay: co-deploys the vendored Contract Management System
 # (contracts/, a FastAPI + React app) alongside the ERP, on its own subdomain.
 #
-#   # in .env: set CONTRACTS_DOMAIN, CONTRACTS_DB_PASSWORD, CONTRACTS_JWT_SECRET,
+#   # in .env: set CONTRACTS_DOMAIN, CONTRACTS_JWT_SECRET,
 #   #          and ANTHROPIC_API_KEY (the CMS needs it for extraction).
 #   docker compose -f docker-compose.prod.yml -f docker-compose.contracts.yml up -d --build
 #
 # Point a DNS A record for CONTRACTS_DOMAIN at the same VM; Caddy gets the cert.
-# Runs its OWN Postgres so the CMS schema/migrations stay independent of the ERP
-# and of upstream upgrades pulled via scripts/sync-contracts.sh. See CONTRACTS.md.
+# To save memory on a small VM, the CMS shares the ERP's Postgres instance in a
+# SEPARATE database (default: cms) rather than running its own — the schema and
+# migrations still stay fully isolated from the ERP's. See CONTRACTS.md.
 
 x-logging: &default-logging
   driver: json-file
@@ -16,21 +17,27 @@ x-logging: &default-logging
     max-file: '3'
 
 services:
-  contracts-db:
+  # One-shot: create the CMS database inside the ERP's Postgres if it's missing.
+  # Idempotent, and works whether the Postgres volume is brand new or already
+  # initialised (an init-script in the base compose would only fire on a fresh
+  # volume, so this covers the "ERP already running, now add contracts" case).
+  contracts-db-init:
     image: postgres:16-alpine
-    restart: unless-stopped
+    restart: 'no'
     logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      POSTGRES_DB: ${CONTRACTS_DB_NAME:-cms}
-      POSTGRES_USER: ${CONTRACTS_DB_USER:-cms}
-      POSTGRES_PASSWORD: ${CONTRACTS_DB_PASSWORD:?set CONTRACTS_DB_PASSWORD in .env}
-    volumes:
-      - contracts_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${CONTRACTS_DB_USER:-cms} -d ${CONTRACTS_DB_NAME:-cms}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      PGPASSWORD: ${DATABASE_PASSWORD}
+    entrypoint: ['sh', '-c']
+    command:
+      - >
+        psql -h postgres -U ${DATABASE_USER:-erp_user} -d postgres -tc
+        "SELECT 1 FROM pg_database WHERE datname='${CONTRACTS_DB_NAME:-cms}'"
+        | grep -q 1 ||
+        psql -h postgres -U ${DATABASE_USER:-erp_user} -d postgres -c
+        "CREATE DATABASE ${CONTRACTS_DB_NAME:-cms}"
 
   contracts-backend:
     build:
@@ -38,11 +45,14 @@ services:
     restart: unless-stopped
     logging: *default-logging
     depends_on:
-      contracts-db:
+      postgres:
         condition: service_healthy
+      contracts-db-init:
+        condition: service_completed_successfully
     environment:
-      # FastAPI uses SQLAlchemy's psycopg2 URL scheme.
-      DATABASE_URL: postgresql+psycopg2://${CONTRACTS_DB_USER:-cms}:${CONTRACTS_DB_PASSWORD}@contracts-db:5432/${CONTRACTS_DB_NAME:-cms}
+      # FastAPI uses SQLAlchemy's psycopg2 URL scheme. Shares the ERP Postgres
+      # (same host/creds) but a separate database, so the tables never mix.
+      DATABASE_URL: postgresql+psycopg2://${DATABASE_USER:-erp_user}:${DATABASE_PASSWORD}@postgres:5432/${CONTRACTS_DB_NAME:-cms}
       JWT_SECRET: ${CONTRACTS_JWT_SECRET:?set CONTRACTS_JWT_SECRET in .env}
       # Extraction needs a model key; also settable at runtime in Admin Settings.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -97,7 +107,6 @@ services:
         condition: service_started
 
 volumes:
-  contracts_db_data:
   contracts_data:
   contracts_uploads:
   contracts_watched:

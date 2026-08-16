@@ -38,17 +38,23 @@ claude/contract-management-system-buhdr3 --squash`.
 The CMS is **not** part of the default stack. Enable it with the overlay:
 
 ```bash
-# 1. In .env, set: CONTRACTS_DOMAIN, CONTRACTS_DB_PASSWORD, CONTRACTS_JWT_SECRET
+# 1. In .env, set: CONTRACTS_DOMAIN, CONTRACTS_JWT_SECRET
 #    and ANTHROPIC_API_KEY (the CMS uses it for contract extraction).
 # 2. Point a DNS A record for CONTRACTS_DOMAIN at the same VM.
 # 3. Bring the whole stack up (ERP + contracts):
 docker compose -f docker-compose.prod.yml -f docker-compose.contracts.yml up -d --build
 ```
 
-This adds three containers — `contracts-db` (its own Postgres), `contracts-backend`
-(FastAPI, runs migrations on boot), `contracts-web` (nginx serving the built SPA)
-— and gives the shared **Caddy** a second site block for `CONTRACTS_DOMAIN`, which
-gets its own auto-provisioned HTTPS certificate.
+This adds `contracts-backend` (FastAPI, runs migrations on boot) and
+`contracts-web` (nginx serving the built SPA), and gives the shared **Caddy** a
+second site block for `CONTRACTS_DOMAIN` with its own auto-provisioned HTTPS cert.
+
+**Database — shared instance, separate database.** To save memory on a small VM,
+the CMS does *not* run its own Postgres. It reuses the ERP's Postgres container
+in a separate database (`cms` by default), so the two schemas never mix while
+only one Postgres runs. A one-shot `contracts-db-init` service creates that
+database if it's missing — idempotent, and it works whether the Postgres volume
+is brand new or the ERP was already running before you enabled contracts.
 
 Why a subdomain: both apps serve routes under `/api`, so they can't share one
 origin. `contracts.example.com/api/*` → CMS backend; everything else → CMS SPA.
@@ -58,7 +64,7 @@ The ERP on `example.com` is completely unaffected.
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.contracts.yml` | Overlay adding the three CMS services + Caddy wiring |
+| `docker-compose.contracts.yml` | Overlay adding the CMS services (shares the ERP Postgres) + Caddy wiring |
 | `docker/contracts/contracts.caddy` | Caddy site block for the contracts subdomain |
 | `docker/caddy/Caddyfile` | `import /etc/caddy/conf.d/*.caddy` (no-op until the overlay mounts the block) |
 | `scripts/sync-contracts.sh` | One-command upstream upgrade pull |
