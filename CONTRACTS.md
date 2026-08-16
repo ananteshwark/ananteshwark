@@ -33,9 +33,10 @@ cms-upstream  ->  https://github.com/ananteshwark/cms.git
 The initial import was `git subtree add --prefix=contracts cms-upstream
 claude/contract-management-system-buhdr3 --squash`.
 
-## Running it in production (opt-in)
+## Running it for a single organisation (opt-in)
 
-The CMS is **not** part of the default stack. Enable it with the overlay:
+The CMS is **not** part of the default stack. For a single-organisation
+deployment, enable the one bundled instance with the overlay:
 
 ```bash
 # 1. In .env, set: CONTRACTS_DOMAIN, CONTRACTS_JWT_SECRET
@@ -44,6 +45,11 @@ The CMS is **not** part of the default stack. Enable it with the overlay:
 # 3. Bring the whole stack up (ERP + contracts):
 docker compose -f docker-compose.prod.yml -f docker-compose.contracts.yml up -d --build
 ```
+
+> **Serving more than one ERP tenant? Do NOT use this single overlay for them.**
+> The CMS is single-tenant, so one shared instance would expose every tenant's
+> contracts to the others. Use the per-tenant silos described in
+> [Multi-tenancy](#multi-tenancy) below instead.
 
 This adds `contracts-backend` (FastAPI, runs migrations on boot) and
 `contracts-web` (nginx serving the built SPA), and gives the shared **Caddy** a
@@ -60,13 +66,69 @@ Why a subdomain: both apps serve routes under `/api`, so they can't share one
 origin. `contracts.example.com/api/*` → CMS backend; everything else → CMS SPA.
 The ERP on `example.com` is completely unaffected.
 
+## Multi-tenancy
+
+**The ERP is multi-tenant (row-level `tenant_id` everywhere). The vendored CMS
+is single-tenant — it has no tenant column at all**, so one CMS instance holds
+exactly one organisation's users, vendors and contracts. Its "internal
+entities" are your own signing subsidiaries, not tenants.
+
+That mismatch has one hard rule:
+
+> **Never put more than one ERP tenant behind a single CMS instance.** There is
+> no row-level isolation inside the CMS, so a shared instance would let every
+> tenant read and edit every other tenant's contracts.
+
+We do **not** fix this by adding a `tenant_id` to the CMS: that would fork its
+schema and break the `git subtree` upgrade path (the whole reason it was
+vendored this way). Instead each tenant gets a fully isolated **silo**:
+
+| Isolated per tenant | Shared |
+|---------------------|--------|
+| Database (`cms_<slug>`), backend + web containers, subdomain, JWT signing secret, upload/data volumes | The Postgres **server** process and the Caddy TLS front door |
+
+### Provisioning a tenant
+
+```bash
+bash scripts/contracts-add-tenant.sh <slug> <subdomain>
+# e.g.
+bash scripts/contracts-add-tenant.sh acme contracts.acme.example.com
+```
+
+This generates an isolated overlay under `deploy/contracts/<slug>/` (a compose
+file, a Caddy site block, and a freshly generated per-tenant `JWT_SECRET` in a
+`chmod 600` env file — all gitignored, all regenerable). Then point DNS for the
+subdomain at the VM and bring the tenant up alongside the ERP — one `-f` per
+tenant you run:
+
+```bash
+docker compose -f docker-compose.prod.yml \
+  -f deploy/contracts/acme/compose.yml \
+  -f deploy/contracts/globex/compose.yml up -d --build
+```
+
+Each tenant's `contracts-init-<slug>` one-shot creates its own `cms_<slug>`
+database in the shared Postgres; the backend never sees another tenant's data.
+A broken tenant can't take down Caddy, the ERP, or the other tenants (Caddy has
+no hard dependency on any CMS container — a down silo just 502s its own
+subdomain).
+
+**Cost:** each tenant adds a backend + web container (~a few hundred MB RAM).
+This is the unavoidable price of isolating a single-tenant app — budget VM size
+by how many tenants will actually use contracts, or enable it selectively.
+
+**Backups** already cover every tenant: the nightly `pg_dumpall`
+(`DEPLOYMENT.md` §6) dumps all `cms_<slug>` databases in one file. Uploads live
+in per-tenant volumes (`erp_contracts_uploads_<slug>`) — back those up too.
+
 ### Files that make this work
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.contracts.yml` | Overlay adding the CMS services (shares the ERP Postgres) + Caddy wiring |
-| `docker/contracts/contracts.caddy` | Caddy site block for the contracts subdomain |
-| `docker/caddy/Caddyfile` | `import /etc/caddy/conf.d/*.caddy` (no-op until the overlay mounts the block) |
+| `docker-compose.contracts.yml` | Single-org overlay (shares the ERP Postgres, db `cms`) + Caddy wiring |
+| `scripts/contracts-add-tenant.sh` | Generates an isolated per-tenant silo (own db/backend/web/subdomain/secret) |
+| `docker/contracts/contracts.caddy` | Caddy site block for the single-org contracts subdomain |
+| `docker/caddy/Caddyfile` | `import /etc/caddy/conf.d/*.caddy` (no-op until an overlay mounts a block) |
 | `scripts/sync-contracts.sh` | One-command upstream upgrade pull |
 | `contracts/frontend/Dockerfile`, `nginx.conf`, `.dockerignore` | Container build for the SPA (local additions; upstream ships a prebuilt-`dist` deploy instead) |
 

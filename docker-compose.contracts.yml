@@ -94,17 +94,14 @@ services:
       - contracts-backend
 
   # Merge into the existing Caddy service: give it the contracts subdomain and
-  # the extra site block, and make it wait for the CMS to be healthy.
+  # the extra site block. Deliberately NO depends_on the contracts services —
+  # Caddy resolves upstreams lazily, so a broken/absent CMS just 502s its own
+  # subdomain and can never block the ERP's frontend from starting.
   caddy:
     environment:
       CONTRACTS_DOMAIN: ${CONTRACTS_DOMAIN}
     volumes:
       - ./docker/contracts/contracts.caddy:/etc/caddy/conf.d/contracts.caddy:ro
-    depends_on:
-      contracts-backend:
-        condition: service_healthy
-      contracts-web:
-        condition: service_started
 
 volumes:
   contracts_data:

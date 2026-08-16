@@ -10,3 +10,5 @@ coverage/
 *.tsbuildinfo
 .pnpm-store/
 .claude/
+# Generated per-tenant contracts silos (compose overlays, Caddy blocks, secrets)
+deploy/contracts/

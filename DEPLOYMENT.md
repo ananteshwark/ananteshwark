@@ -129,23 +129,28 @@ instance is immediately usable. No demo data is loaded in production.
 
 ## 6. Backups (do this before you rely on it)
 
-Nightly Postgres dump, keeping 14 days:
+Nightly Postgres dump, keeping 14 days. Use `pg_dumpall` (not `pg_dump erp_db`)
+so the single dump captures **every** database in the instance — `erp_db` plus
+each Contract Management System tenant database (`cms`, `cms_<tenant>`, …) — and
+the global roles, in one file:
 
 ```bash
 mkdir -p ~/backups
 crontab -e
 # add:
-0 2 * * * docker compose -f ~/erp/docker-compose.prod.yml exec -T postgres pg_dump -U erp_user erp_db | gzip > ~/backups/erp-$(date +\%F).sql.gz && ls -t ~/backups/erp-*.sql.gz | tail -n +15 | xargs -r rm
+0 2 * * * docker compose -f ~/erp/docker-compose.prod.yml exec -T postgres pg_dumpall -U erp_user | gzip > ~/backups/all-$(date +\%F).sql.gz && ls -t ~/backups/all-*.sql.gz | tail -n +15 | xargs -r rm
 ```
 
 Copy them off-box (free options: Cloudflare R2 10 GB, Backblaze B2 10 GB via
-`rclone`). Also back up the uploads volume occasionally:
+`rclone`). Also back up the uploads volumes occasionally — the ERP's, plus each
+contracts tenant's (`erp_contracts_uploads_<tenant>`):
 
 ```bash
 docker run --rm -v erp_uploads_data:/data -v ~/backups:/out alpine tar czf /out/uploads-$(date +%F).tar.gz -C /data .
 ```
 
-Restore: `gunzip -c erp-YYYY-MM-DD.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U erp_user erp_db`
+Restore the whole cluster (all databases + roles) into the maintenance DB:
+`gunzip -c all-YYYY-MM-DD.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U erp_user -d postgres`
 (details and drills in `OPERATIONS_RUNBOOK.md`).
 
 ## 7. Updating

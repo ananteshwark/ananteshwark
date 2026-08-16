@@ -109,8 +109,8 @@ tenant — the starter kit seeds automatically and you're in.
 
 ## 8. Next
 
-- **Backups**: nightly `pg_dump` cron + off-box copy — see `DEPLOYMENT.md`
-  step 6.
+- **Backups**: nightly `pg_dumpall` cron + off-box copy (one dump covers the ERP
+  and every contracts tenant database) — see `DEPLOYMENT.md` step 6.
 - **Updates**: `git pull && docker compose -f docker-compose.prod.yml up -d --build`
   (migrations apply on API start).
 - **Troubleshooting**: `DEPLOYMENT.md` step 8 (cert not issuing, API
