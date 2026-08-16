@@ -1,0 +1,29 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+sqlalchemy>=2.0
+psycopg2-binary>=2.9 ; platform_system != "Windows"
+python-dotenv>=1.0
+pydantic[email]>=2.7
+PyJWT>=2.8
+anthropic>=0.116
+# Alternative extraction providers (optional; required only when selected in Admin Settings):
+openai>=1.40
+google-generativeai>=0.7
+watchdog>=4.0
+APScheduler>=3.10
+python-dateutil>=2.9
+rapidfuzz>=3.9
+openpyxl>=3.1
+pypdf>=4.2
+python-docx>=1.1
+Pillow>=10.3
+# OCR (optional at runtime; required for scanned PDFs/images):
+pytesseract>=0.3.10
+pdf2image>=1.17
+# Google Drive monitoring (optional; required only when Drive ingestion is enabled):
+google-api-python-client>=2.130
+google-auth>=2.30
+pytest>=8.2
+httpx>=0.27
+cryptography>=42.0  # RS256 signing for DocuSign JWT grant (optional)
