@@ -1,0 +1,103 @@
+# Opt-in overlay: co-deploys the vendored Contract Management System
+# (contracts/, a FastAPI + React app) alongside the ERP, on its own subdomain.
+#
+#   # in .env: set CONTRACTS_DOMAIN, CONTRACTS_DB_PASSWORD, CONTRACTS_JWT_SECRET,
+#   #          and ANTHROPIC_API_KEY (the CMS needs it for extraction).
+#   docker compose -f docker-compose.prod.yml -f docker-compose.contracts.yml up -d --build
+#
+# Point a DNS A record for CONTRACTS_DOMAIN at the same VM; Caddy gets the cert.
+# Runs its OWN Postgres so the CMS schema/migrations stay independent of the ERP
+# and of upstream upgrades pulled via scripts/sync-contracts.sh. See CONTRACTS.md.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  contracts-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${CONTRACTS_DB_NAME:-cms}
+      POSTGRES_USER: ${CONTRACTS_DB_USER:-cms}
+      POSTGRES_PASSWORD: ${CONTRACTS_DB_PASSWORD:?set CONTRACTS_DB_PASSWORD in .env}
+    volumes:
+      - contracts_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${CONTRACTS_DB_USER:-cms} -d ${CONTRACTS_DB_NAME:-cms}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  contracts-backend:
+    build:
+      context: ./contracts/backend
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      contracts-db:
+        condition: service_healthy
+    environment:
+      # FastAPI uses SQLAlchemy's psycopg2 URL scheme.
+      DATABASE_URL: postgresql+psycopg2://${CONTRACTS_DB_USER:-cms}:${CONTRACTS_DB_PASSWORD}@contracts-db:5432/${CONTRACTS_DB_NAME:-cms}
+      JWT_SECRET: ${CONTRACTS_JWT_SECRET:?set CONTRACTS_JWT_SECRET in .env}
+      # Extraction needs a model key; also settable at runtime in Admin Settings.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Used for reminder-email links and CORS; same-origin so CORS is moot.
+      APP_BASE_URL: https://${CONTRACTS_DOMAIN:?set CONTRACTS_DOMAIN in .env}
+      # No host folder-watcher in the container deploy by default.
+      WATCH_ENABLED: ${CONTRACTS_WATCH_ENABLED:-false}
+      EMAIL_DRY_RUN: ${CONTRACTS_EMAIL_DRY_RUN:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      TIMEZONE: ${CONTRACTS_TIMEZONE:-Asia/Kolkata}
+    volumes:
+      - contracts_data:/app/data
+      - contracts_uploads:/app/attachments
+      - contracts_watched:/watched
+    healthcheck:
+      # Python image has no curl; probe /api/health with urllib.
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status==200 else 1)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  contracts-web:
+    build:
+      context: ./contracts/frontend
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - contracts-backend
+
+  # Merge into the existing Caddy service: give it the contracts subdomain and
+  # the extra site block, and make it wait for the CMS to be healthy.
+  caddy:
+    environment:
+      CONTRACTS_DOMAIN: ${CONTRACTS_DOMAIN}
+    volumes:
+      - ./docker/contracts/contracts.caddy:/etc/caddy/conf.d/contracts.caddy:ro
+    depends_on:
+      contracts-backend:
+        condition: service_healthy
+      contracts-web:
+        condition: service_started
+
+volumes:
+  contracts_db_data:
+  contracts_data:
+  contracts_uploads:
+  contracts_watched:
