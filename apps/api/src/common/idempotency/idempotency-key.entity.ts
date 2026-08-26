@@ -14,6 +14,10 @@ export class IdempotencyKey {
   @Column({ name: 'scope_hash', length: 64 }) scopeHash: string;
   @Column({ length: 10 }) method: string;
   @Column() path: string;
+  // 'in_progress' while the handler runs (reserved before execution so a
+  // concurrent duplicate can't also execute), 'done' once the response is
+  // stored and replayable.
+  @Column({ length: 16, default: 'in_progress' }) status: string;
   @Column({ name: 'response_body', type: 'jsonb', nullable: true }) responseBody: any;
   @CreateDateColumn() createdAt: Date;
 }
