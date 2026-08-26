@@ -96,4 +96,31 @@ describe('WorkflowService — approver authorization (C1)', () => {
     perms.getUserRoleNames.mockResolvedValue(['Employee']);
     await expect(service.rejectStep('inst1', 'step1', 'bob', 't1', dto)).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  describe('getMyPendingApprovals — only the caller\'s assigned approvals', () => {
+    const instA = () => ({ ...baseInstance(), id: 'A' }); // initiator 'requester'
+    const instB = () => ({ ...baseInstance(), id: 'B', initiatorId: 'someone-else' });
+
+    it('returns instances whose current step the user is an approver for', async () => {
+      instanceRepo.find.mockResolvedValue([instA(), instB()]);
+      defRepo.find.mockResolvedValue([DEF]);
+      perms.getUserRoleNames.mockResolvedValue(['Finance Manager']);
+      const result = await service.getMyPendingApprovals('fin-mgr', 't1');
+      expect(result.map((i: any) => i.id)).toEqual(['A', 'B']);
+    });
+
+    it('excludes instances the user cannot approve (no matching role)', async () => {
+      instanceRepo.find.mockResolvedValue([instA()]);
+      defRepo.find.mockResolvedValue([DEF]);
+      perms.getUserRoleNames.mockResolvedValue([]);
+      expect(await service.getMyPendingApprovals('nobody', 't1')).toEqual([]);
+    });
+
+    it("excludes the caller's own requests", async () => {
+      instanceRepo.find.mockResolvedValue([instA()]); // initiator 'requester'
+      defRepo.find.mockResolvedValue([DEF]);
+      perms.getUserRoleNames.mockResolvedValue(['Finance Manager']);
+      expect(await service.getMyPendingApprovals('requester', 't1')).toEqual([]);
+    });
+  });
 });

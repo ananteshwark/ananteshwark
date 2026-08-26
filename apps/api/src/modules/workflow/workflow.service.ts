@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  ConflictException,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository, OptimisticLockVersionMismatchError } from 'typeorm';
 import { WorkflowDefinition, WorkflowStep } from './entities/workflow-definition.entity';
 import { WorkflowInstance, WorkflowInstanceStatus } from './entities/workflow-instance.entity';
 import { Employee } from '../hr/employees/entities/employee.entity';
@@ -22,6 +29,24 @@ export class WorkflowService {
   ) {}
 
   /**
+   * Save an instance under its optimistic version lock, translating a concurrent
+   * modification into a clean 409 instead of a 500. Two users approving the same
+   * step race here: the first save wins, the second sees a stale version.
+   */
+  private async saveWithOptimisticLock(instance: WorkflowInstance): Promise<WorkflowInstance> {
+    try {
+      return await this.instanceRepository.save(instance);
+    } catch (err) {
+      if (err instanceof OptimisticLockVersionMismatchError) {
+        throw new ConflictException(
+          'This request was just updated by someone else. Reload and try again.',
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Whether `userId` is an authorized approver for `step` on `instance`.
    * - `user`    → the approver value is the user's id
    * - `role`    → the user holds a role with that name (active, non-expired)
@@ -35,9 +60,26 @@ export class WorkflowService {
     userId: string,
     tenantId: string,
   ): Promise<boolean> {
+    // A step with no approvers is unrestricted (callers still need the route
+    // permission). Any explicit approver list requires a positive match.
     const approvers = step?.approvers ?? [];
     if (approvers.length === 0) return true;
+    return this.isAssignedApprover(instance, step, userId, tenantId);
+  }
 
+  /**
+   * Whether `userId` is EXPLICITLY named as an approver for `step` (user/role/
+   * manager). Unlike isAuthorizedApprover this never returns true for an empty
+   * approver list, so it can be used to build a user's own pending-approval
+   * list without matching every unrestricted step for every user.
+   */
+  private async isAssignedApprover(
+    instance: WorkflowInstance,
+    step: WorkflowStep | undefined,
+    userId: string,
+    tenantId: string,
+  ): Promise<boolean> {
+    const approvers = step?.approvers ?? [];
     for (const approver of approvers) {
       if (approver.type === 'user' && approver.value === userId) return true;
       if (approver.type === 'role') {
@@ -178,7 +220,7 @@ export class WorkflowService {
       instance.currentStep = null;
     }
 
-    const saved = await this.instanceRepository.save(instance);
+    const saved = await this.saveWithOptimisticLock(instance);
     if (saved.status === WorkflowInstanceStatus.APPROVED) {
       await this.automation?.emit(tenantId, 'workflow.approved', {
         instanceId: saved.id,
@@ -214,7 +256,7 @@ export class WorkflowService {
     instance.status = WorkflowInstanceStatus.REJECTED;
     instance.currentStep = null;
 
-    const saved = await this.instanceRepository.save(instance);
+    const saved = await this.saveWithOptimisticLock(instance);
     await this.automation?.emit(tenantId, 'workflow.rejected', {
       instanceId: saved.id,
       definitionId: saved.definitionId,
@@ -228,13 +270,33 @@ export class WorkflowService {
   }
 
   async getMyPendingApprovals(userId: string, tenantId: string): Promise<WorkflowInstance[]> {
-    return this.instanceRepository.find({
-      where: {
-        tenantId,
-        status: WorkflowInstanceStatus.IN_PROGRESS,
-      },
+    // Only the instances whose CURRENT step this user is actually an approver
+    // for — not every in-progress instance in the tenant. Bounded by a safety
+    // cap; definitions are batch-loaded to avoid an N+1 across instances.
+    const inProgress = await this.instanceRepository.find({
+      where: { tenantId, status: WorkflowInstanceStatus.IN_PROGRESS },
       order: { createdAt: 'DESC' },
+      take: 500,
     });
+    if (inProgress.length === 0) return [];
+
+    const definitionIds = [...new Set(inProgress.map(i => i.definitionId))];
+    const definitions = await this.definitionRepository.find({
+      where: { id: In(definitionIds), tenantId },
+    });
+    const definitionById = new Map(definitions.map(d => [d.id, d]));
+
+    const mine: WorkflowInstance[] = [];
+    for (const instance of inProgress) {
+      if (instance.initiatorId === userId) continue; // can't approve own request
+      const step = definitionById
+        .get(instance.definitionId)
+        ?.steps?.find(s => s.id === instance.currentStep);
+      if (await this.isAssignedApprover(instance, step, userId, tenantId)) {
+        mine.push(instance);
+      }
+    }
+    return mine;
   }
 
   async getWorkflowHistory(tenantId: string, subjectType: string, subjectId: string): Promise<WorkflowInstance[]> {

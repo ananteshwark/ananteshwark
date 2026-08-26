@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  VersionColumn,
 } from 'typeorm';
 
 export enum WorkflowInstanceStatus {
@@ -55,6 +56,12 @@ export class WorkflowInstance {
     comment?: string;
     timestamp: string;
   }>;
+
+  // Optimistic lock: TypeORM increments this on every save and rejects a save
+  // whose in-memory version is stale. Prevents two concurrent approvals of the
+  // same step from both committing (lost update / double-advance).
+  @VersionColumn({ default: 1 })
+  version: number;
 
   @CreateDateColumn()
   createdAt: Date;
