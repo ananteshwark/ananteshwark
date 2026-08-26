@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { roundMoney } from '../../../common/money/money.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CollectionNote, ContactMethod } from './entities/collection-note.entity';
@@ -7,7 +8,8 @@ import { Dispute, DisputeStatus, DisputeReason } from './entities/dispute.entity
 import { Invoice, InvoiceStatus } from '../ar/entities/invoice.entity';
 import { Customer } from '../ar/entities/customer.entity';
 
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// Single source of truth for cent rounding (see common/money).
+const round2 = roundMoney;
 
 function daysBetween(from: string, to: string): number {
   return Math.floor((new Date(to).getTime() - new Date(from).getTime()) / 86400000);

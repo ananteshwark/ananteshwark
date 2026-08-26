@@ -30,8 +30,10 @@ import {
   ReceiptAllocationDto,
 } from './dto/ar.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { roundMoney } from '../../../common/money/money.util';
 
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// Single source of truth for cent rounding (see common/money).
+const round2 = roundMoney;
 
 @Injectable()
 export class ArService {

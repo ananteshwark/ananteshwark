@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
+import { roundMoney, sumMoney } from '../../../common/money/money.util';
 import { Iso20022Service } from './iso20022.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -12,7 +13,8 @@ import { PaymentMethod } from '../ap/entities/vendor-payment.entity';
 import { CashDiscountService } from '../cash-discount/cash-discount.service';
 import { CashDiscountType } from '../cash-discount/entities/cash-discount.entity';
 
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// Single source of truth for cent rounding (see common/money).
+const round2 = roundMoney;
 
 interface CreateProposalInput {
   dueByDate: string;
@@ -103,7 +105,7 @@ export class PaymentRunService {
       where: { tenantId, paymentRunId: runId },
     });
     const included = items.filter((i) => i.included);
-    const totalAmount = round2(included.reduce((s, i) => s + Number(i.amount), 0));
+    const totalAmount = sumMoney(included.map((i) => Number(i.amount)));
     const vendorCount = new Set(included.map((i) => i.vendorId)).size;
     await this.runRepo.update(
       { id: runId, tenantId },
@@ -213,7 +215,7 @@ export class PaymentRunService {
     const method = this.mapMethod(run.paymentMethod);
 
     for (const [vendorId, vendorItems] of byVendor.entries()) {
-      const gross = round2(vendorItems.reduce((s, i) => s + Number(i.amount), 0));
+      const gross = sumMoney(vendorItems.map((i) => Number(i.amount)));
       if (gross <= 0) continue;
 
       const vendor = vendorMap.get(vendorId);
