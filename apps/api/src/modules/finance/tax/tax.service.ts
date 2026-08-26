@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { TaxCode, TaxType } from './entities/tax-code.entity';
 import { TaxLine, TaxDocumentType } from './entities/tax-line.entity';
 import { CreateTaxCodeDto, UpdateTaxCodeDto } from './dto/tax.dto';
+import { roundMoney } from '../../../common/money/money.util';
 
 export interface TaxCalculationResult {
   componentName: string;
@@ -183,7 +184,9 @@ export class TaxService {
   // ── private helpers ────────────────────────────────────────────────────────
 
   private round(value: number): number {
-    return Math.round(value * 100) / 100;
+    // Robust half-away-from-zero cent rounding (fixes the 1.005 -> 1.00 float
+    // bug that naive Math.round(value * 100) / 100 has). See common/money.
+    return roundMoney(value);
   }
 
   private deriveDefaultComponents(type: TaxType, totalRate: number) {
