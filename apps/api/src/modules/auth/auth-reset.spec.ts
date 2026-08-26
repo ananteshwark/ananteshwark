@@ -71,4 +71,17 @@ describe('AuthService — password reset (C3) & refresh status (H5)', () => {
     userRepo.findOne.mockResolvedValue({ id: 'u1', status: UserStatus.LOCKED });
     await expect(service.refreshToken({ refreshToken: 'r' } as any)).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  it('refreshToken rejects a token minted before a password change (stale tokenVersion)', async () => {
+    jwt.verify.mockReturnValue({ sub: 'u1', tokenVersion: 0 }); // token from before the change
+    userRepo.findOne.mockResolvedValue({ id: 'u1', status: UserStatus.ACTIVE, tokenVersion: 1 });
+    await expect(service.refreshToken({ refreshToken: 'r' } as any)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('resetPassword bumps tokenVersion to revoke existing refresh tokens', async () => {
+    const user: any = { id: 'u1', status: UserStatus.ACTIVE, failedLoginAttempts: 0, tokenVersion: 3, passwordResetTokenHash: 'h', passwordResetExpiresAt: new Date(Date.now() + 10000) };
+    userRepo.findOne.mockResolvedValue(user);
+    await service.resetPassword({ token: 'rawtok', password: 'newpassw0rd' } as any);
+    expect(user.tokenVersion).toBe(4);
+  });
 });

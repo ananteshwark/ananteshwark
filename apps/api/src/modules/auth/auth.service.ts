@@ -192,6 +192,11 @@ export class AuthService {
       if (user.status !== UserStatus.ACTIVE) {
         throw new UnauthorizedException('Account is not active');
       }
+      // Reject refresh tokens minted before a credential change (password reset
+      // / change bumps tokenVersion), so a stolen token can't outlive it.
+      if ((payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+        throw new UnauthorizedException('Refresh token has been revoked');
+      }
       return this.generateTokens(user);
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -241,6 +246,9 @@ export class AuthService {
     // A successful reset also clears any lockout so the user can log in again.
     user.failedLoginAttempts = 0;
     if (user.status === UserStatus.LOCKED) user.status = UserStatus.ACTIVE;
+    // Revoke every refresh token issued before the reset (the reset is exactly
+    // the compromised-credential case).
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await this.userRepository.save(user);
     return { message: 'Password reset successful' };
   }
@@ -253,12 +261,20 @@ export class AuthService {
     if (!isValid) throw new BadRequestException('Current password is incorrect');
 
     user.passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    // Invalidate every refresh token issued before this change.
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await this.userRepository.save(user);
     return { message: 'Password changed successfully' };
   }
 
   private async generateTokens(user: User) {
-    const payload = { sub: user.id, email: user.email, tenantId: user.tenantId, isSuperAdmin: user.isSuperAdmin };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      tenantId: user.tenantId,
+      isSuperAdmin: user.isSuperAdmin,
+      tokenVersion: user.tokenVersion ?? 0,
+    };
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get('JWT_EXPIRATION', '15m'),
     });

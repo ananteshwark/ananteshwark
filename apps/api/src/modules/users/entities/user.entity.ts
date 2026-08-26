@@ -59,6 +59,12 @@ export class User {
   @Column({ name: 'failed_login_attempts', default: 0 })
   failedLoginAttempts: number;
 
+  // Bumped to invalidate all previously-issued refresh tokens (e.g. on a
+  // password change). Refresh tokens carry the value they were minted with;
+  // a mismatch on refresh is rejected. See AuthService.
+  @Column({ name: 'token_version', default: 0 })
+  tokenVersion: number;
+
   // Password reset: a SHA-256 hash of the emailed token plus its expiry. The raw
   // token is never stored, so a DB leak cannot be used to reset passwords.
   @Exclude()
