@@ -254,14 +254,21 @@ describe('catalog + export', () => {
     expect(described.columns.some((c: any) => c.field === 'employeeIdLabel')).toBe(true);
   });
 
-  it('exportCsv paginates through results up to the cap', async () => {
+  it('exportCsv fetches every row up to the cap in a SINGLE query', async () => {
     const { service, repo } = buildService();
-    repo.findAndCount
-      .mockResolvedValueOnce([[{ id: '1', firstName: 'A' }], 2])
-      .mockResolvedValueOnce([[{ id: '2', firstName: 'B' }], 2]);
+    repo.find.mockResolvedValue([
+      { id: '1', firstName: 'A' },
+      { id: '2', firstName: 'B' },
+    ]);
     const { csv, filename } = await service.exportCsv('u1', 't1', 'hr-employees', {});
     expect(filename).toMatch(/^hr-employees-/);
     expect(csv.split('\n')).toHaveLength(3); // header + 2 rows
+
+    // One statement capped at the export limit — not a page-by-page walk
+    // (which cost 20 round-trips, each with its own COUNT).
+    expect(repo.find).toHaveBeenCalledTimes(1);
+    expect(repo.findAndCount).not.toHaveBeenCalled();
+    expect(repo.find.mock.calls[0][0]).toMatchObject({ take: 10_000 });
   });
 });
 

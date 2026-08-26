@@ -223,6 +223,25 @@ export class ReportsService {
     return where;
   }
 
+  /**
+   * Shared setup for running a report: permission check, column/filter/sort
+   * resolution. Extracted so exports can reuse it without going through
+   * paginated run() calls.
+   */
+  private async prepare(userId: string, tenantId: string, code: string, query: RunQuery) {
+    const def = this.definition(code);
+    await this.assertAllowed(userId, tenantId, def);
+    const repo = this.dataSource.getRepository(def.entity as any);
+    const columns = this.columnsOf(def);
+    const where = this.buildWhere(def, tenantId, query.filters ?? [], columns);
+    const fields = columns.map((c) => c.field);
+    const sortBy =
+      query.sortBy ?? def.defaultSort ?? (fields.includes('createdAt') ? 'createdAt' : fields[0]);
+    if (!fields.includes(sortBy)) throw new BadRequestException(`Unknown sort field '${sortBy}'`);
+    const sortDir = query.sortDir === 'ASC' ? 'ASC' : 'DESC';
+    return { def, repo, columns, where, fields, sortBy, sortDir };
+  }
+
   async run(userId: string, tenantId: string, code: string, query: RunQuery) {
     const def = this.definition(code);
     await this.assertAllowed(userId, tenantId, def);
@@ -327,17 +346,22 @@ export class ReportsService {
   }
 
   async exportCsv(userId: string, tenantId: string, code: string, query: RunQuery): Promise<{ filename: string; csv: string }> {
-    const result = await this.run(userId, tenantId, code, { ...query, page: 1, limit: MAX_PAGE_SIZE });
-    // Pull the remaining pages up to the export cap so the CSV isn't a single page.
-    const rows = [...result.data];
-    let page = 2;
-    while (rows.length < Math.min(result.total, EXPORT_LIMIT)) {
-      const next = await this.run(userId, tenantId, code, { ...query, page, limit: MAX_PAGE_SIZE });
-      if (!next.data.length) break;
-      rows.push(...next.data);
-      page++;
-    }
-    const fields = result.columns.map((c) => c.field);
-    return { filename: `${code}-${tenantId.slice(0, 8)}.csv`, csv: ReportsService.toCsv(rows.slice(0, EXPORT_LIMIT), fields) };
+    // One query capped at the export limit. This previously walked run() page
+    // by page (EXPORT_LIMIT / MAX_PAGE_SIZE = 20 sequential round-trips, each
+    // with its own COUNT and its own enrichment pass) for a result the database
+    // can return in a single statement — and it runs inside the scheduler sweep,
+    // once per due schedule.
+    const { def, repo, columns, where, fields: baseFields, sortBy, sortDir } =
+      await this.prepare(userId, tenantId, code, query);
+    const rows = await repo.find({
+      select: baseFields as any,
+      where,
+      order: { [sortBy]: sortDir } as any,
+      take: EXPORT_LIMIT,
+    });
+    await this.enrich(def, tenantId, rows);
+    const allColumns = [...columns, ...ReportsService.labelColumns(def)];
+    const fields = allColumns.map((c) => c.field);
+    return { filename: `${code}-${tenantId.slice(0, 8)}.csv`, csv: ReportsService.toCsv(rows, fields) };
   }
 }
