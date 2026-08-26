@@ -64,6 +64,10 @@ apiClient.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
+            // Mark before retrying: if this replay also 401s (e.g. the new
+            // token is already revoked), it must fall through to logout rather
+            // than trigger yet another refresh cycle.
+            originalRequest._retry = true;
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return apiClient(originalRequest);
           })

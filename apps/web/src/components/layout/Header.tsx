@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -15,6 +16,7 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
   const { user, logout } = useAuthStore();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -23,6 +25,9 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
 
   const handleLogout = () => {
     logout();
+    // Drop every cached query so the next user on this browser can't see the
+    // previous session's data (users, audit logs, tenant settings…) flash in.
+    queryClient.clear();
     navigate('/login');
   };
 
