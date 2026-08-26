@@ -8,6 +8,8 @@ export const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Send the httpOnly refresh cookie (set by the server, same-origin in prod).
+  withCredentials: true,
 });
 
 // Request interceptor: add auth token and tenant header
@@ -79,13 +81,16 @@ apiClient.interceptors.response.use(
 
       const { refreshToken, setTokens, logout } = useAuthStore.getState();
 
-      if (!refreshToken) {
-        logout();
-        return Promise.reject(error);
-      }
-
       try {
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        // Refresh via the httpOnly cookie (browser, prod) with the in-memory
+        // token as a fallback for cross-origin/dev and non-browser clients.
+        // No early-out when refreshToken is absent: after a reload it lives only
+        // in the cookie, so we must still attempt the refresh.
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          refreshToken ? { refreshToken } : {},
+          { withCredentials: true },
+        );
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
         setTokens(newAccessToken, newRefreshToken);
         processQueue(null, newAccessToken);

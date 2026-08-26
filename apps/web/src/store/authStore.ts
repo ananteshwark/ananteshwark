@@ -61,11 +61,14 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'erp-auth',
+      // Deliberately DO NOT persist refreshToken: the long-lived token lives in
+      // memory only (and, in production, in an httpOnly cookie the server sets),
+      // so an XSS can't read it out of localStorage. On reload the client
+      // silently refreshes via the cookie to obtain a new access token.
       partialize: (state) => ({
         user: state.user,
         tenant: state.tenant,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
     },

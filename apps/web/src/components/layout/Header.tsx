@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { apiClient } from '../../api/client';
 import { useNotificationStore } from '../../store/notificationStore';
 import { Avatar } from '../ui/Avatar';
 import { useUnreadCount } from '../../api/hooks';
@@ -24,6 +25,8 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
   const unreadCount = unreadData?.count || 0;
 
   const handleLogout = () => {
+    // Best-effort: clear the server-side httpOnly refresh cookie too.
+    apiClient.post('/auth/logout').catch(() => {});
     logout();
     // Drop every cached query so the next user on this browser can't see the
     // previous session's data (users, audit logs, tenant settings…) flash in.
