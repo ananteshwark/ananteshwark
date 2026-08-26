@@ -55,12 +55,16 @@ This adds `contracts-backend` (FastAPI, runs migrations on boot) and
 `contracts-web` (nginx serving the built SPA), and gives the shared **Caddy** a
 second site block for `CONTRACTS_DOMAIN` with its own auto-provisioned HTTPS cert.
 
-**Database — shared instance, separate database.** To save memory on a small VM,
-the CMS does *not* run its own Postgres. It reuses the ERP's Postgres container
-in a separate database (`cms` by default), so the two schemas never mix while
-only one Postgres runs. A one-shot `contracts-db-init` service creates that
-database if it's missing — idempotent, and it works whether the Postgres volume
-is brand new or the ERP was already running before you enabled contracts.
+**Database — shared server, separate database, least-privilege role.** To save
+memory on a small VM, the CMS does *not* run its own Postgres. It reuses the
+ERP's Postgres container but connects as a dedicated **non-superuser** role
+(`cms_app`) that owns only its own database (`cms` by default) — never as the
+ERP superuser (`erp_user`). So even if the CMS (which ingests untrusted
+documents and calls an LLM) is compromised, its credentials cannot read or write
+the ERP database. A one-shot `contracts-db-init` service creates the role and
+database if missing (via `docker/contracts/init-cms-db.sql`) — idempotent, and
+it works whether the Postgres volume is brand new or the ERP was already running
+before you enabled contracts. Set `CONTRACTS_DB_PASSWORD` in `.env`.
 
 Why a subdomain: both apps serve routes under `/api`, so they can't share one
 origin. `contracts.example.com/api/*` → CMS backend; everything else → CMS SPA.
@@ -85,7 +89,7 @@ vendored this way). Instead each tenant gets a fully isolated **silo**:
 
 | Isolated per tenant | Shared |
 |---------------------|--------|
-| Database (`cms_<slug>`), backend + web containers, subdomain, JWT signing secret, upload/data volumes | The Postgres **server** process and the Caddy TLS front door |
+| Database (`cms_<slug>`), its own least-privilege DB role + password, backend + web containers, subdomain, JWT signing secret, upload/data volumes | The Postgres **server** process and the Caddy TLS front door |
 
 ### Provisioning a tenant
 
@@ -125,7 +129,8 @@ in per-tenant volumes (`erp_contracts_uploads_<slug>`) — back those up too.
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.contracts.yml` | Single-org overlay (shares the ERP Postgres, db `cms`) + Caddy wiring |
+| `docker-compose.contracts.yml` | Single-org overlay (shares the ERP Postgres, db `cms`, role `cms_app`) + Caddy wiring |
+| `docker/contracts/init-cms-db.sql` | Idempotently creates the least-privilege DB role + owned database |
 | `scripts/contracts-add-tenant.sh` | Generates an isolated per-tenant silo (own db/backend/web/subdomain/secret) |
 | `docker/contracts/contracts.caddy` | Caddy site block for the single-org contracts subdomain |
 | `docker/caddy/Caddyfile` | `import /etc/caddy/conf.d/*.caddy` (no-op until an overlay mounts a block) |

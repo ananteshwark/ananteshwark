@@ -32,17 +32,24 @@ DIR="$ROOT/deploy/contracts/$SLUG"
 DB="cms_${SLUG//-/_}"   # Postgres identifiers can't contain dashes
 mkdir -p "$DIR"
 
-# --- per-tenant JWT secret (generated once, never overwritten) ----------------
-# The CMS reads JWT_SECRET directly, so name it that: env_file values are
-# injected into the container but are NOT available for ${...} interpolation
-# in the compose file, so we can't remap the name there.
+# --- per-tenant secrets (generated once, never overwritten) -------------------
+# Each tenant gets its OWN least-privilege DB role (cms_<slug>) owning ONLY its
+# own database, plus its own JWT secret. Both live here, and the full
+# DATABASE_URL is built here too: env_file values are injected into the
+# container but are NOT available for ${...} interpolation in the compose file,
+# so the per-tenant password can't be referenced there — we bake the URL in.
 ENVFILE="$DIR/backend.env"
 if [ ! -f "$ENVFILE" ]; then
-  printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 32)" > "$ENVFILE"
+  DB_PW="$(openssl rand -hex 32)"
+  {
+    printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 32)"
+    printf 'CONTRACTS_DB_PASSWORD=%s\n' "$DB_PW"
+    printf 'DATABASE_URL=postgresql+psycopg2://%s:%s@postgres:5432/%s\n' "$DB" "$DB_PW" "$DB"
+  } > "$ENVFILE"
   chmod 600 "$ENVFILE"
-  echo ">> wrote a new per-tenant JWT secret to $ENVFILE"
+  echo ">> wrote new per-tenant secrets (JWT + DB role password) to $ENVFILE"
 else
-  echo ">> keeping the existing JWT secret in $ENVFILE"
+  echo ">> keeping the existing secrets in $ENVFILE"
 fi
 
 # --- Caddy site block: own subdomain, own auto-provisioned HTTPS cert ---------
@@ -69,7 +76,9 @@ x-logging: &log
   options: { max-size: '10m', max-file: '3' }
 
 services:
-  # Create this tenant's database in the shared Postgres if it's missing.
+  # Create this tenant's least-privilege role (cms_<slug>) and the database it
+  # owns, if missing. The tenant backend connects as that role, so it can reach
+  # neither the ERP database nor any other tenant's database.
   contracts-init-$SLUG:
     image: postgres:16-alpine
     restart: 'no'
@@ -79,14 +88,16 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: \${DATABASE_PASSWORD}
+    env_file:
+      - deploy/contracts/$SLUG/backend.env   # CONTRACTS_DB_PASSWORD (this tenant)
     entrypoint: ['sh', '-c']
     command:
       - >
-        psql -h postgres -U \${DATABASE_USER:-erp_user} -d postgres -tc
-        "SELECT 1 FROM pg_database WHERE datname='$DB'"
-        | grep -q 1 ||
-        psql -h postgres -U \${DATABASE_USER:-erp_user} -d postgres -c
-        "CREATE DATABASE $DB"
+        psql -h postgres -U \${DATABASE_USER:-erp_user} -d postgres -v ON_ERROR_STOP=1
+        -v role=$DB -v pw="\$\$CONTRACTS_DB_PASSWORD" -v db=$DB
+        -f /init/init-cms-db.sql
+    volumes:
+      - ./docker/contracts/init-cms-db.sql:/init/init-cms-db.sql:ro
 
   contracts-backend-$SLUG:
     build:
@@ -99,9 +110,9 @@ services:
       contracts-init-$SLUG:
         condition: service_completed_successfully
     env_file:
-      - deploy/contracts/$SLUG/backend.env   # JWT_SECRET (unique per tenant)
+      # JWT_SECRET + DATABASE_URL (with this tenant's own role + password).
+      - deploy/contracts/$SLUG/backend.env
     environment:
-      DATABASE_URL: postgresql+psycopg2://\${DATABASE_USER:-erp_user}:\${DATABASE_PASSWORD}@postgres:5432/$DB
       ANTHROPIC_API_KEY: \${ANTHROPIC_API_KEY:-}
       APP_BASE_URL: https://$DOMAIN
       WATCH_ENABLED: 'false'

@@ -17,10 +17,12 @@ x-logging: &default-logging
     max-file: '3'
 
 services:
-  # One-shot: create the CMS database inside the ERP's Postgres if it's missing.
-  # Idempotent, and works whether the Postgres volume is brand new or already
-  # initialised (an init-script in the base compose would only fire on a fresh
-  # volume, so this covers the "ERP already running, now add contracts" case).
+  # One-shot: inside the ERP's Postgres, create a LEAST-PRIVILEGE role (cms_app)
+  # and the CMS database it owns, if missing. The CMS connects as this
+  # non-superuser role — never as erp_user — so a compromised CMS cannot touch
+  # the ERP database. Idempotent, and works whether the Postgres volume is brand
+  # new or already initialised (an initdb.d script only fires on a fresh volume,
+  # so this also covers the "ERP already running, now add contracts" case).
   contracts-db-init:
     image: postgres:16-alpine
     restart: 'no'
@@ -30,14 +32,17 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: ${DATABASE_PASSWORD}
+      # $$ escapes compose interpolation so the password is expanded by the
+      # container shell at runtime, not baked into `docker compose config`.
+      CMS_DB_PASSWORD: ${CONTRACTS_DB_PASSWORD:?set CONTRACTS_DB_PASSWORD in .env}
     entrypoint: ['sh', '-c']
     command:
       - >
-        psql -h postgres -U ${DATABASE_USER:-erp_user} -d postgres -tc
-        "SELECT 1 FROM pg_database WHERE datname='${CONTRACTS_DB_NAME:-cms}'"
-        | grep -q 1 ||
-        psql -h postgres -U ${DATABASE_USER:-erp_user} -d postgres -c
-        "CREATE DATABASE ${CONTRACTS_DB_NAME:-cms}"
+        psql -h postgres -U ${DATABASE_USER:-erp_user} -d postgres -v ON_ERROR_STOP=1
+        -v role=cms_app -v pw="$$CMS_DB_PASSWORD" -v db="${CONTRACTS_DB_NAME:-cms}"
+        -f /init/init-cms-db.sql
+    volumes:
+      - ./docker/contracts/init-cms-db.sql:/init/init-cms-db.sql:ro
 
   contracts-backend:
     build:
@@ -51,8 +56,9 @@ services:
         condition: service_completed_successfully
     environment:
       # FastAPI uses SQLAlchemy's psycopg2 URL scheme. Shares the ERP Postgres
-      # (same host/creds) but a separate database, so the tables never mix.
-      DATABASE_URL: postgresql+psycopg2://${DATABASE_USER:-erp_user}:${DATABASE_PASSWORD}@postgres:5432/${CONTRACTS_DB_NAME:-cms}
+      # server but connects as the non-superuser cms_app role into its own
+      # database, so the tables never mix and the ERP data stays out of reach.
+      DATABASE_URL: postgresql+psycopg2://cms_app:${CONTRACTS_DB_PASSWORD}@postgres:5432/${CONTRACTS_DB_NAME:-cms}
       JWT_SECRET: ${CONTRACTS_JWT_SECRET:?set CONTRACTS_JWT_SECRET in .env}
       # Extraction needs a model key; also settable at runtime in Admin Settings.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

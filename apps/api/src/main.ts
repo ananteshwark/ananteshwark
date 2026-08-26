@@ -11,6 +11,22 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
 
+  // Fail closed: never boot production signing tokens with a missing or
+  // well-known default secret (an attacker who knows the default can forge a
+  // token for any user/tenant). Dev/test keep their fallbacks for convenience.
+  if (configService.get('APP_ENV') === 'production') {
+    const insecure = new Set(['', 'default-secret', 'refresh-secret']);
+    for (const key of ['JWT_SECRET', 'JWT_REFRESH_SECRET']) {
+      const value = configService.get<string>(key);
+      if (!value || insecure.has(value)) {
+        throw new Error(
+          `${key} is missing or set to an insecure default; refusing to start in production. ` +
+            `Set it to a strong random value (openssl rand -hex 32).`,
+        );
+      }
+    }
+  }
+
   // CORS
   const allowedOrigins = configService.get('ALLOWED_ORIGINS', 'http://localhost:5173');
   app.enableCors({
