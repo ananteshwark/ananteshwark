@@ -51,6 +51,26 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the stable third-party libraries into their own chunks so they
+        // cache across deploys instead of being re-downloaded with every app
+        // change, and so the app bundle isn't one monolithic file. Route-level
+        // code-splitting of the ~180 pages is a worthwhile follow-up.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react-router')) return 'vendor-router';
+          if (id.includes('@tanstack')) return 'vendor-query';
+          if (id.includes('i18next')) return 'vendor-i18n';
+          if (id.includes('lucide-react')) return 'vendor-icons';
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/'))
+            return 'vendor-react';
+          return 'vendor';
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
