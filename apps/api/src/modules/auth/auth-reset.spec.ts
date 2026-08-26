@@ -12,6 +12,7 @@ import { TenantsService } from '../tenants/tenants.service';
 const mockRepo = () => ({
   findOne: jest.fn().mockResolvedValue(null),
   save: jest.fn((x) => Promise.resolve(x)),
+  increment: jest.fn().mockResolvedValue({ affected: 1 }),
 });
 
 describe('AuthService — password reset (C3) & refresh status (H5)', () => {
@@ -76,6 +77,13 @@ describe('AuthService — password reset (C3) & refresh status (H5)', () => {
     jwt.verify.mockReturnValue({ sub: 'u1', tokenVersion: 0 }); // token from before the change
     userRepo.findOne.mockResolvedValue({ id: 'u1', status: UserStatus.ACTIVE, tokenVersion: 1 });
     await expect(service.refreshToken({ refreshToken: 'r' } as any)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('logout revokes outstanding refresh tokens by bumping tokenVersion', async () => {
+    // Clearing the cookie only drops the browser's copy; a captured token
+    // would otherwise stay valid for its full lifetime after "logging out".
+    await expect(service.logout('u1')).resolves.toEqual({ message: 'Logged out successfully' });
+    expect(userRepo.increment).toHaveBeenCalledWith({ id: 'u1' }, 'tokenVersion', 1);
   });
 
   it('resetPassword bumps tokenVersion to revoke existing refresh tokens', async () => {

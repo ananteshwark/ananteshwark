@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, UseGuards, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import {
@@ -22,21 +23,38 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 // HTTPS in production.
 const REFRESH_COOKIE = 'refresh_token';
 const REFRESH_COOKIE_PATH = '/api/auth';
-const REFRESH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const DEFAULT_REFRESH_EXPIRATION = '7d';
+
+/**
+ * Parse a JWT-style duration ('900s', '15m', '7d') into milliseconds so the
+ * cookie's lifetime is derived from the same JWT_REFRESH_EXPIRATION setting as
+ * the token itself, instead of drifting from a hardcoded constant.
+ */
+export function refreshMaxAgeMs(expiration: string): number {
+  const match = /^(\d+)\s*([smhd])?$/.exec((expiration ?? '').trim());
+  if (!match) return refreshMaxAgeMs(DEFAULT_REFRESH_EXPIRATION);
+  const unit = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 }[match[2] ?? 's'];
+  return Number(match[1]) * unit;
+}
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   private setRefreshCookie(res: Response, result: any): void {
     if (!result?.refreshToken) return;
     res.cookie(REFRESH_COOKIE, result.refreshToken, {
       httpOnly: true,
-      secure: process.env.APP_ENV === 'production',
+      secure: this.config.get('APP_ENV') === 'production',
       sameSite: 'strict',
       path: REFRESH_COOKIE_PATH,
-      maxAge: REFRESH_MAX_AGE_MS,
+      maxAge: refreshMaxAgeMs(
+        this.config.get('JWT_REFRESH_EXPIRATION', DEFAULT_REFRESH_EXPIRATION),
+      ),
     });
   }
 
@@ -132,8 +150,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @ApiOperation({ summary: 'Logout' })
-  logout(@Res({ passthrough: true }) res: Response) {
+  logout(@CurrentUser() user: any, @Res({ passthrough: true }) res: Response) {
     this.clearRefreshCookie(res);
-    return { message: 'Logged out successfully' };
+    // Also revoke server-side: clearing the cookie alone leaves any captured
+    // copy of the refresh token usable until it expires.
+    return this.authService.logout(user.id);
   }
 }

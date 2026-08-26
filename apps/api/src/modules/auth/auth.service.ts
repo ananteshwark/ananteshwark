@@ -267,6 +267,19 @@ export class AuthService {
     return { message: 'Password changed successfully' };
   }
 
+  /**
+   * Log out by invalidating every refresh token issued to this user so far.
+   * Clearing the cookie only removes the browser's copy; a token already
+   * captured elsewhere would otherwise stay valid for its full lifetime.
+   *
+   * tokenVersion is per-user, so this is "log out everywhere". Per-device
+   * logout would require a jti denylist / sessions table.
+   */
+  async logout(userId: string): Promise<{ message: string }> {
+    await this.userRepository.increment({ id: userId }, 'tokenVersion', 1);
+    return { message: 'Logged out successfully' };
+  }
+
   private async generateTokens(user: User) {
     const payload = {
       sub: user.id,
