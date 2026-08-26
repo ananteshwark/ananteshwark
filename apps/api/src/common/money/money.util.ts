@@ -26,7 +26,15 @@ export function roundMoney(value: number): number {
   return (sign * cents) / 100;
 }
 
-/** Sum money values without float drift by accumulating integer cents. */
+/**
+ * Sum money values without float drift by accumulating integer cents.
+ *
+ * Contract: inputs are 2-decimal money amounts. Each value is rounded to cents
+ * before being added, so this is NOT a general-purpose sum — feeding it
+ * higher-precision figures (e.g. 4dp unit prices) rounds each term first and
+ * will not match rounding the exact total. Multiply/extend at full precision,
+ * then sum the rounded line amounts.
+ */
 export function sumMoney(values: number[]): number {
   const cents = values.reduce((acc, v) => {
     if (!Number.isFinite(v)) return acc;

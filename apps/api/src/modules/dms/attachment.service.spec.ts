@@ -59,4 +59,15 @@ describe('AttachmentService', () => {
     expect(repo.delete).toHaveBeenCalled();
     expect(r).toEqual({ deleted: true });
   });
+
+  it('rejects traversal-shaped entity identifiers with 400 (not a 500 from the storage layer)', async () => {
+    const { BadRequestException } = require('@nestjs/common');
+    await expect(
+      service.upload('t1', 'expense', '../../etc', 'u1', file as any),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.upload('t1', '../secrets', 'e1', 'u1', file as any),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(fs.writeFileSync).not.toHaveBeenCalled();
+  });
 });

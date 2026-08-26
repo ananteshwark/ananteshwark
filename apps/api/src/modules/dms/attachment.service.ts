@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fs from 'fs';
@@ -17,6 +17,22 @@ export class AttachmentService {
     @Optional() private readonly storage?: ObjectStorageAdapter,
   ) {}
 
+  /**
+   * entityType/entityId are client-supplied and become path segments in the
+   * storage key. The storage adapter refuses traversal, but that surfaces as a
+   * 500; reject bad input up front as a 400 and keep the key space clean.
+   */
+  private assertSafeSegment(name: string, value: string): void {
+    if (!/^[A-Za-z0-9._-]{1,128}$/.test(value ?? '')) {
+      throw new BadRequestException(
+        `${name} must be 1-128 chars of letters, digits, dot, underscore or hyphen`,
+      );
+    }
+    if (value === '.' || value === '..') {
+      throw new BadRequestException(`${name} is not a valid identifier`);
+    }
+  }
+
   async upload(
     tenantId: string,
     entityType: string,
@@ -25,6 +41,8 @@ export class AttachmentService {
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
     description?: string,
   ): Promise<Attachment> {
+    this.assertSafeSegment('entityType', entityType);
+    this.assertSafeSegment('entityId', entityId);
     const safeName = file.originalname.replace(/[/\\]/g, '_');
     const fileName = `${crypto.randomUUID()}_${safeName}`;
 
@@ -55,6 +73,8 @@ export class AttachmentService {
   }
 
   async list(tenantId: string, entityType: string, entityId: string): Promise<Attachment[]> {
+    this.assertSafeSegment('entityType', entityType);
+    this.assertSafeSegment('entityId', entityId);
     return this.attachmentRepo.find({
       where: { tenantId, entityType, entityId },
       order: { createdAt: 'DESC' },
