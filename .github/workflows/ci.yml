@@ -1,0 +1,153 @@
+# CI for the ERP monorepo.
+#
+# The repository had none: every check in this file is one that was previously
+# run by hand, or (in the case of the migration job) could not be run at all in
+# the development sandbox because it needs a real Postgres.
+#
+# Deliberately NOT included:
+#   - eslint. Both apps declare a `lint` script but neither has eslint
+#     installed, so the step would fail on a missing binary. A gate that is red
+#     for a reason unrelated to the change is a gate people learn to ignore.
+#   - the vendored contracts/ app. It is a git subtree of ananteshwark/cms,
+#     which runs its own CI upstream; scripts/sync-contracts.sh only ever pulls
+#     code that passed it. Duplicating that suite here would double the runtime
+#     to re-test someone else's green build.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (build + 225 suites)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: apps/api/pnpm-lock.yaml
+      # --frozen-lockfile so CI resolves the exact tree the Dockerfiles build.
+      - run: pnpm install --frozen-lockfile --ignore-workspace
+      - run: pnpm run build
+      - run: pnpm test
+
+  web:
+    name: Web (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-workspace
+      # `build` is `tsc && vite build`, so this is the typecheck gate too.
+      - run: pnpm run build
+
+  migrations:
+    name: Migrations (real Postgres)
+    runs-on: ubuntu-latest
+    # The suite runs entirely on mocks and the product runs on Postgres. That
+    # gap is where migration bugs live: a migration that only ever ran in
+    # someone's head is not a migration. This applies them for real.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: erp_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:test@localhost:5432/erp_test
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: apps/api/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-workspace
+        working-directory: apps/api
+
+      - name: Apply migrations to an empty database
+        working-directory: apps/api
+        run: pnpm run migration:run
+
+      - name: Assert the expected schema exists
+        # Names the columns the recent migrations add, so a migration that
+        # silently no-ops cannot pass this job.
+        run: |
+          export PGPASSWORD=test
+          for pair in "workflow_instances:version" "users:token_version" "idempotency_keys:status"; do
+            table="${pair%%:*}"; column="${pair##*:}"
+            found=$(psql -h localhost -U postgres -d erp_test -tAc \
+              "SELECT 1 FROM information_schema.columns WHERE table_name='$table' AND column_name='$column'")
+            if [ "$found" != "1" ]; then
+              echo "::error::missing column $table.$column after migrations"; exit 1
+            fi
+            echo "ok: $table.$column"
+          done
+
+      - name: Re-run migrations (must be a no-op, not an error)
+        working-directory: apps/api
+        run: pnpm run migration:run
+
+  images:
+    name: Container images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Both Dockerfiles pin dependencies with --frozen-lockfile; this is what
+      # proves the lockfiles committed here actually satisfy that flag.
+      - name: Build API image
+        run: docker build -t erp-api:ci apps/api
+      - name: Build web image
+        run: docker build -t erp-web:ci --build-arg VITE_API_URL=/api apps/web
+
+  compose:
+    name: Compose config
+    runs-on: ubuntu-latest
+    # Catches the interpolation and merge errors that only appear when the
+    # production stack and the optional contracts overlay are combined.
+    env:
+      DOMAIN: erp.example.com
+      DATABASE_PASSWORD: ci-placeholder
+      JWT_SECRET: ci-placeholder
+      JWT_REFRESH_SECRET: ci-placeholder
+      CONTRACTS_DOMAIN: contracts.example.com
+      CONTRACTS_JWT_SECRET: ci-placeholder
+      CONTRACTS_DB_PASSWORD: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the production stack
+        run: docker compose -f docker-compose.prod.yml config -q
+      - name: Validate the stack with the contracts overlay
+        run: docker compose -f docker-compose.prod.yml -f docker-compose.contracts.yml config -q
+      - name: Validate a generated per-tenant silo
+        run: |
+          bash scripts/contracts-add-tenant.sh acme contracts.acme.example.com
+          docker compose -f docker-compose.prod.yml \
+            -f deploy/contracts/acme/compose.yml config -q
