@@ -11,6 +11,10 @@ import { DataSource } from 'typeorm';
  */
 const isCompiled = __filename.endsWith('.js');
 
+// Exactly ONE export of a DataSource: TypeORM's CLI (`loadDataSource`) counts
+// the exports of this file and refuses a file that has more than one, so a
+// `export default AppDataSource` alongside this named export made every
+// `migration:*` script fail before it opened a connection.
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
@@ -23,5 +27,3 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: ['error', 'migration'],
 });
-
-export default AppDataSource;
