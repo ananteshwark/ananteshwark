@@ -1,8 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  ConflictException,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { WorkflowDefinition } from './entities/workflow-definition.entity';
+import { In, Repository, OptimisticLockVersionMismatchError } from 'typeorm';
+import { WorkflowDefinition, WorkflowStep } from './entities/workflow-definition.entity';
 import { WorkflowInstance, WorkflowInstanceStatus } from './entities/workflow-instance.entity';
+import { Employee } from '../hr/employees/entities/employee.entity';
+import { PermissionsService } from '../rbac/permissions.service';
+import { AutomationService } from '../automation/automation.service';
 import { CreateWorkflowDefinitionDto, StartWorkflowDto, ApproveStepDto } from './dto/workflow.dto';
 
 @Injectable()
@@ -12,7 +22,108 @@ export class WorkflowService {
     private readonly definitionRepository: Repository<WorkflowDefinition>,
     @InjectRepository(WorkflowInstance)
     private readonly instanceRepository: Repository<WorkflowInstance>,
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
+    private readonly permissionsService: PermissionsService,
+    @Optional() private readonly automation?: AutomationService,
   ) {}
+
+  /**
+   * Save an instance under its optimistic version lock, translating a concurrent
+   * modification into a clean 409 instead of a 500. Two users approving the same
+   * step race here: the first save wins, the second sees a stale version.
+   */
+  private async saveWithOptimisticLock(instance: WorkflowInstance): Promise<WorkflowInstance> {
+    try {
+      return await this.instanceRepository.save(instance);
+    } catch (err) {
+      if (err instanceof OptimisticLockVersionMismatchError) {
+        throw new ConflictException(
+          'This request was just updated by someone else. Reload and try again.',
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Whether `userId` is an authorized approver for `step` on `instance`.
+   * - `user`    → the approver value is the user's id
+   * - `role`    → the user holds a role with that name (active, non-expired)
+   * - `manager` → the user is the initiator's direct manager (resolved via Employee)
+   * A step with no approvers defined is treated as unrestricted (callers still need
+   * the route permission), so we return true only for that explicit empty case.
+   */
+  private async isAuthorizedApprover(
+    instance: WorkflowInstance,
+    step: WorkflowStep | undefined,
+    userId: string,
+    tenantId: string,
+  ): Promise<boolean> {
+    // A step with no approvers is unrestricted (callers still need the route
+    // permission). Any explicit approver list requires a positive match.
+    const approvers = step?.approvers ?? [];
+    if (approvers.length === 0) return true;
+    return this.isAssignedApprover(instance, step, userId, tenantId);
+  }
+
+  /**
+   * Whether `userId` is EXPLICITLY named as an approver for `step` (user/role/
+   * manager). Unlike isAuthorizedApprover this never returns true for an empty
+   * approver list, so it can be used to build a user's own pending-approval
+   * list without matching every unrestricted step for every user.
+   */
+  private async isAssignedApprover(
+    instance: WorkflowInstance,
+    step: WorkflowStep | undefined,
+    userId: string,
+    tenantId: string,
+  ): Promise<boolean> {
+    const approvers = step?.approvers ?? [];
+    for (const approver of approvers) {
+      if (approver.type === 'user' && approver.value === userId) return true;
+      if (approver.type === 'role') {
+        const roleNames = await this.permissionsService.getUserRoleNames(userId, tenantId);
+        if (roleNames.includes(approver.value)) return true;
+      }
+      if (approver.type === 'manager') {
+        const initiatorEmp = await this.employeeRepository.findOne({
+          where: { tenantId, userId: instance.initiatorId },
+        });
+        if (initiatorEmp?.managerId) {
+          const managerEmp = await this.employeeRepository.findOne({
+            where: { tenantId, id: initiatorEmp.managerId },
+          });
+          if (managerEmp?.userId && managerEmp.userId === userId) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private async loadActionableInstance(
+    instanceId: string,
+    stepId: string,
+    userId: string,
+    tenantId: string,
+  ): Promise<{ instance: WorkflowInstance; step: WorkflowStep | undefined }> {
+    const instance = await this.instanceRepository.findOne({ where: { id: instanceId, tenantId } });
+    if (!instance) throw new NotFoundException('Workflow instance not found');
+    if (instance.currentStep !== stepId) {
+      throw new BadRequestException(`Step ${stepId} is not the current active step`);
+    }
+    if (instance.initiatorId && instance.initiatorId === userId) {
+      throw new ForbiddenException('You cannot approve or reject your own request');
+    }
+    const definition = await this.definitionRepository.findOne({
+      where: { id: instance.definitionId, tenantId },
+    });
+    const step = definition?.steps?.find(s => s.id === stepId);
+    if (!(await this.isAuthorizedApprover(instance, step, userId, tenantId))) {
+      throw new ForbiddenException('You are not an authorized approver for this step');
+    }
+    return { instance, step };
+  }
 
   async createDefinition(
     tenantId: string,
@@ -63,25 +174,31 @@ export class WorkflowService {
       status: firstStep ? WorkflowInstanceStatus.IN_PROGRESS : WorkflowInstanceStatus.APPROVED,
       history: [],
     });
-    return this.instanceRepository.save(instance);
+    const saved = await this.instanceRepository.save(instance);
+    await this.automation?.emit(tenantId, 'workflow.started', {
+      instanceId: saved.id,
+      definitionId: saved.definitionId,
+      definitionName: definition.name,
+      initiatorId,
+      subjectType: saved.subjectType,
+      subjectId: saved.subjectId,
+    });
+    return saved;
   }
 
   async approveStep(
     instanceId: string,
     stepId: string,
     userId: string,
+    tenantId: string,
     dto: ApproveStepDto,
   ): Promise<WorkflowInstance> {
-    const instance = await this.instanceRepository.findOne({ where: { id: instanceId } });
-    if (!instance) throw new NotFoundException('Workflow instance not found');
-    if (instance.currentStep !== stepId) {
-      throw new BadRequestException(`Step ${stepId} is not the current active step`);
-    }
-
-    const definition = await this.definitionRepository.findOne({
-      where: { id: instance.definitionId },
-    });
-    const currentStepDef = definition?.steps?.find(s => s.id === stepId);
+    const { instance, step: currentStepDef } = await this.loadActionableInstance(
+      instanceId,
+      stepId,
+      userId,
+      tenantId,
+    );
 
     instance.history = [
       ...instance.history,
@@ -103,17 +220,28 @@ export class WorkflowService {
       instance.currentStep = null;
     }
 
-    return this.instanceRepository.save(instance);
+    const saved = await this.saveWithOptimisticLock(instance);
+    if (saved.status === WorkflowInstanceStatus.APPROVED) {
+      await this.automation?.emit(tenantId, 'workflow.approved', {
+        instanceId: saved.id,
+        definitionId: saved.definitionId,
+        initiatorId: saved.initiatorId,
+        subjectType: saved.subjectType,
+        subjectId: saved.subjectId,
+        approvedBy: userId,
+      });
+    }
+    return saved;
   }
 
   async rejectStep(
     instanceId: string,
     stepId: string,
     userId: string,
+    tenantId: string,
     dto: ApproveStepDto,
   ): Promise<WorkflowInstance> {
-    const instance = await this.instanceRepository.findOne({ where: { id: instanceId } });
-    if (!instance) throw new NotFoundException('Workflow instance not found');
+    const { instance } = await this.loadActionableInstance(instanceId, stepId, userId, tenantId);
 
     instance.history = [
       ...instance.history,
@@ -128,22 +256,52 @@ export class WorkflowService {
     instance.status = WorkflowInstanceStatus.REJECTED;
     instance.currentStep = null;
 
-    return this.instanceRepository.save(instance);
+    const saved = await this.saveWithOptimisticLock(instance);
+    await this.automation?.emit(tenantId, 'workflow.rejected', {
+      instanceId: saved.id,
+      definitionId: saved.definitionId,
+      initiatorId: saved.initiatorId,
+      subjectType: saved.subjectType,
+      subjectId: saved.subjectId,
+      rejectedBy: userId,
+      comment: dto.comment ?? null,
+    });
+    return saved;
   }
 
   async getMyPendingApprovals(userId: string, tenantId: string): Promise<WorkflowInstance[]> {
-    return this.instanceRepository.find({
-      where: {
-        tenantId,
-        status: WorkflowInstanceStatus.IN_PROGRESS,
-      },
+    // Only the instances whose CURRENT step this user is actually an approver
+    // for — not every in-progress instance in the tenant. Bounded by a safety
+    // cap; definitions are batch-loaded to avoid an N+1 across instances.
+    const inProgress = await this.instanceRepository.find({
+      where: { tenantId, status: WorkflowInstanceStatus.IN_PROGRESS },
       order: { createdAt: 'DESC' },
+      take: 500,
     });
+    if (inProgress.length === 0) return [];
+
+    const definitionIds = [...new Set(inProgress.map(i => i.definitionId))];
+    const definitions = await this.definitionRepository.find({
+      where: { id: In(definitionIds), tenantId },
+    });
+    const definitionById = new Map(definitions.map(d => [d.id, d]));
+
+    const mine: WorkflowInstance[] = [];
+    for (const instance of inProgress) {
+      if (instance.initiatorId === userId) continue; // can't approve own request
+      const step = definitionById
+        .get(instance.definitionId)
+        ?.steps?.find(s => s.id === instance.currentStep);
+      if (await this.isAssignedApprover(instance, step, userId, tenantId)) {
+        mine.push(instance);
+      }
+    }
+    return mine;
   }
 
-  async getWorkflowHistory(subjectType: string, subjectId: string): Promise<WorkflowInstance[]> {
+  async getWorkflowHistory(tenantId: string, subjectType: string, subjectId: string): Promise<WorkflowInstance[]> {
     return this.instanceRepository.find({
-      where: { subjectType, subjectId },
+      where: { tenantId, subjectType, subjectId },
       order: { createdAt: 'DESC' },
     });
   }

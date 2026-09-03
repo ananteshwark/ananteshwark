@@ -1,0 +1,3 @@
+# Embedded by `git archive` via export-subst (see .gitattributes).
+# In a normal working checkout these keep the literal $Format...$ text.
+backend/app/_build_stamp.py export-subst

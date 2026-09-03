@@ -4,11 +4,13 @@ import { RbacService } from './rbac.service';
 import { PermissionsService } from './permissions.service';
 import { CreateRoleDto, UpdateRoleDto, AssignRoleDto } from './dto/rbac.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RbacGuard } from '../../common/guards/rbac.guard';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('rbac')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('rbac')
 export class RbacController {
   constructor(
@@ -17,48 +19,64 @@ export class RbacController {
   ) {}
 
   @Get('roles')
+  @RequirePermission('rbac:roles:read')
   @ApiOperation({ summary: 'List all roles' })
   findAll(@CurrentUser() user: any) {
     return this.rbacService.findAll(user.tenantId);
   }
 
   @Get('permissions')
+  @RequirePermission('rbac:roles:read')
   @ApiOperation({ summary: 'Get all available permissions grouped by module' })
   getPermissions() {
     return this.permissionsService.getAllPermissions();
   }
 
+  // No @RequirePermission: any authenticated user may read their OWN effective
+  // permissions. The UI uses this to decide which navigation to show.
+  @Get('me/permissions')
+  @ApiOperation({ summary: 'Get the current user\'s own effective permissions' })
+  getMyPermissions(@CurrentUser() user: any) {
+    return this.permissionsService.getUserPermissions(user.id, user.tenantId);
+  }
+
   @Post('roles')
+  @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Create a new role' })
   create(@CurrentUser() user: any, @Body() dto: CreateRoleDto) {
     return this.rbacService.createRole(user.tenantId, dto);
   }
 
   @Get('roles/:id')
+  @RequirePermission('rbac:roles:read')
   @ApiOperation({ summary: 'Get role by ID' })
-  findById(@Param('id') id: string) {
-    return this.rbacService.findById(id);
+  findById(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.rbacService.findById(id, user.tenantId);
   }
 
   @Patch('roles/:id')
+  @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Update a role' })
-  update(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
-    return this.rbacService.update(id, dto);
+  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateRoleDto) {
+    return this.rbacService.update(id, user.tenantId, dto);
   }
 
   @Delete('roles/:id')
+  @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Delete a role' })
-  delete(@Param('id') id: string) {
-    return this.rbacService.delete(id);
+  delete(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.rbacService.delete(id, user.tenantId);
   }
 
   @Get('users/:userId/permissions')
+  @RequirePermission('rbac:roles:read')
   @ApiOperation({ summary: 'Get user permissions' })
   getUserPermissions(@CurrentUser() user: any, @Param('userId') userId: string) {
     return this.permissionsService.getUserPermissions(userId, user.tenantId);
   }
 
   @Post('users/:userId/roles')
+  @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Assign role to user' })
   assignRole(
     @CurrentUser() user: any,
@@ -69,6 +87,7 @@ export class RbacController {
   }
 
   @Delete('users/:userId/roles/:roleId')
+  @RequirePermission('rbac:roles:manage')
   @ApiOperation({ summary: 'Revoke role from user' })
   revokeRole(
     @CurrentUser() user: any,

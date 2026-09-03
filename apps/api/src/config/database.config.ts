@@ -10,9 +10,16 @@ import { Notification } from '../modules/notifications/entities/notification.ent
 import { NotificationTemplate } from '../modules/notifications/entities/notification-template.entity';
 import { AuditLog } from '../modules/audit/entities/audit-log.entity';
 
+// Managed Postgres providers (Neon, Supabase, Render, most cloud DBs)
+// require TLS and often present a chain that fails default verification.
+// Opt in with DATABASE_SSL=true; the local/VM Postgres stays plaintext.
+const sslOption = (config: ConfigService): false | { rejectUnauthorized: boolean } =>
+  config.get('DATABASE_SSL') === 'true' ? { rejectUnauthorized: false } : false;
+
 export const getDatabaseConfig = (config: ConfigService): TypeOrmModuleOptions => ({
   type: 'postgres',
   url: config.get('DATABASE_URL'),
+  ssl: sslOption(config),
   entities: [
     Tenant,
     User,
@@ -24,8 +31,15 @@ export const getDatabaseConfig = (config: ConfigService): TypeOrmModuleOptions =
     NotificationTemplate,
     AuditLog,
   ],
+  // Pull in every entity registered via TypeOrmModule.forFeature() across all
+  // feature modules so synchronize can create their tables too.
+  autoLoadEntities: true,
+  // Development iterates via synchronize; production evolves the schema ONLY
+  // through versioned migrations (the baseline migration adopts schemas that
+  // were previously created by synchronize).
   synchronize: config.get('APP_ENV') === 'development',
   logging: config.get('APP_ENV') === 'development',
-  migrations: ['dist/database/migrations/*.js'],
-  migrationsRun: false,
+  migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
+  migrationsTableName: 'typeorm_migrations',
+  migrationsRun: config.get('APP_ENV') === 'production',
 });

@@ -8,6 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
 export enum UserStatus {
@@ -51,20 +52,42 @@ export class User {
   @Column({ name: 'last_login_at', nullable: true })
   lastLoginAt: Date;
 
+  @Exclude()
   @Column({ name: 'password_hash', nullable: true })
   passwordHash: string;
 
   @Column({ name: 'failed_login_attempts', default: 0 })
   failedLoginAttempts: number;
 
+  // Bumped to invalidate all previously-issued refresh tokens (e.g. on a
+  // password change). Refresh tokens carry the value they were minted with;
+  // a mismatch on refresh is rejected. See AuthService.
+  @Column({ name: 'token_version', default: 0 })
+  tokenVersion: number;
+
+  // Password reset: a SHA-256 hash of the emailed token plus its expiry. The raw
+  // token is never stored, so a DB leak cannot be used to reset passwords.
+  @Exclude()
+  @Column({ name: 'password_reset_token_hash', nullable: true })
+  passwordResetTokenHash: string | null;
+
+  @Column({ name: 'password_reset_expires_at', type: 'timestamp', nullable: true })
+  passwordResetExpiresAt: Date | null;
+
   @Column({ name: 'mfa_enabled', default: false })
   mfaEnabled: boolean;
 
+  @Exclude()
   @Column({ name: 'mfa_secret', nullable: true })
   mfaSecret: string;
 
   @Column({ name: 'employee_id', nullable: true })
   employeeId: string;
+
+  // Platform-level super admin: can manage all tenants and their licenses,
+  // independent of tenant-scoped RBAC.
+  @Column({ name: 'is_super_admin', default: false })
+  isSuperAdmin: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

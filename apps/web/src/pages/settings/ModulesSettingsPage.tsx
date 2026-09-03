@@ -1,92 +1,158 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { useState, useEffect } from 'react';
+import { ShieldCheck, Info } from 'lucide-react';
+import { Card, CardContent } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { useTenantSettings, useUpdateTenantSettings } from '../../api/hooks';
+import { useTenantModules, useUpdateTenantModules } from '../../api/hooks';
+import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
-const ALL_MODULES = [
-  { id: 'hr', label: 'Human Resources', description: 'Employees, attendance, leave management', icon: '👥' },
-  { id: 'finance', label: 'Finance', description: 'GL, AR, AP, invoicing', icon: '💰' },
-  { id: 'payroll', label: 'Payroll', description: 'Payroll processing and payslips', icon: '💳' },
-  { id: 'procurement', label: 'Procurement', description: 'Purchase orders and vendor management', icon: '🛒' },
-  { id: 'inventory', label: 'Inventory', description: 'Stock management and tracking', icon: '📦' },
-  { id: 'crm', label: 'CRM', description: 'Customer relationship management', icon: '🤝' },
-  { id: 'projects', label: 'Projects', description: 'Project tracking and timesheets', icon: '📋' },
-];
+// Catalog of every module label/description. What a tenant can run is bounded by
+// the license the platform (super admin) allocated; the tenant admin chooses
+// which of those licensed modules stay active.
+const MODULE_CATALOG: Record<string, { label: string; description: string; icon: string }> = {
+  hr: { label: 'Human Resources', description: 'Employees, attendance, leave management', icon: '👥' },
+  finance: { label: 'Finance', description: 'GL, AR, AP, invoicing', icon: '💰' },
+  payroll: { label: 'Payroll', description: 'Payroll processing and payslips', icon: '💳' },
+  procurement: { label: 'Procurement', description: 'Purchase orders and vendor management', icon: '🛒' },
+  inventory: { label: 'Inventory', description: 'Stock management and tracking', icon: '📦' },
+  crm: { label: 'CRM', description: 'Customer relationship management', icon: '🤝' },
+  sales: { label: 'Sales', description: 'Orders, pricing, fulfillment', icon: '📈' },
+  contracts: { label: 'Contracts', description: 'Contract lifecycle management', icon: '📄' },
+  projects: { label: 'Projects', description: 'Project tracking and timesheets', icon: '📋' },
+  expenses: { label: 'Expenses', description: 'Expense claims and reimbursements', icon: '🧾' },
+  talent: { label: 'Talent', description: 'Hiring, learning, performance', icon: '🎯' },
+  manufacturing: { label: 'Manufacturing', description: 'Production, MRP, routings', icon: '🏭' },
+  quality: { label: 'Quality', description: 'Inspection and results recording', icon: '✅' },
+  maintenance: { label: 'Maintenance', description: 'Assets and work orders', icon: '🔧' },
+  benefits: { label: 'Benefits', description: 'Enrollment and compensation', icon: '🎁' },
+  analytics: { label: 'Analytics', description: 'KPIs and report builder', icon: '📊' },
+  platform: { label: 'Platform', description: 'Platform administration', icon: '🛡️' },
+  licensing: { label: 'Licensing', description: 'License management', icon: '🔑' },
+};
+
+const describe = (id: string) => MODULE_CATALOG[id] ?? { label: id, description: '', icon: '🧩' };
 
 export default function ModulesSettingsPage() {
-  const { data: tenant, isLoading } = useTenantSettings();
-  const updateSettings = useUpdateTenantSettings();
+  const { data, isLoading } = useTenantModules();
+  const updateModules = useUpdateTenantModules();
+  const { tenant, setTenant } = useAuthStore();
+
+  const licensedModules: string[] = data?.licensedModules ?? tenant?.licensedModules ?? [];
+  const activeModules: string[] = data?.enabledModules ?? tenant?.settings?.enabledModules ?? licensedModules;
+
   const [enabledModules, setEnabledModules] = useState<string[]>([]);
 
   useEffect(() => {
-    if (tenant?.settings?.enabledModules) {
-      setEnabledModules(tenant.settings.enabledModules);
-    }
-  }, [tenant]);
+    setEnabledModules(activeModules);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const toggleModule = (id: string) => {
-    setEnabledModules(prev =>
-      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+    if (!licensedModules.includes(id)) return; // can't enable beyond the license
+    setEnabledModules((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id],
     );
   };
 
+  const dirty =
+    enabledModules.length !== activeModules.length ||
+    enabledModules.some((m) => !activeModules.includes(m));
+
   const handleSave = async () => {
     try {
-      await updateSettings.mutateAsync({ enabledModules });
+      const clamped = enabledModules.filter((m) => licensedModules.includes(m));
+      const res = await updateModules.mutateAsync(clamped);
+      // Reflect immediately in the sidebar (driven by the auth store).
+      if (tenant) {
+        setTenant({
+          ...tenant,
+          settings: { ...tenant.settings, enabledModules: res.enabledModules },
+        });
+      }
       toast.success('Module settings saved');
-    } catch {
-      toast.error('Failed to save settings');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed to save settings');
     }
   };
 
+  if (isLoading) {
+    return <div className="p-6 text-gray-500">Loading…</div>;
+  }
+
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <PageHeader
-        title="Module Settings"
-        description="Enable or disable modules for your organization"
+        title="Modules"
+        description="Turn the modules provisioned for your organization on or off"
       />
 
-      <Card>
-        <CardContent className="py-4 space-y-3">
-          {ALL_MODULES.map(mod => (
-            <div
-              key={mod.id}
-              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{mod.icon}</span>
-                <div>
-                  <p className="font-medium text-gray-900">{mod.label}</p>
-                  <p className="text-sm text-gray-500">{mod.description}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant={enabledModules.includes(mod.id) ? 'success' : 'default'}>
-                  {enabledModules.includes(mod.id) ? 'Enabled' : 'Disabled'}
-                </Badge>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={enabledModules.includes(mod.id)}
-                    onChange={() => toggleModule(mod.id)}
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
-                </label>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <div className="mt-4">
-        <Button onClick={handleSave} loading={updateSettings.isPending}>
-          Save Changes
-        </Button>
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-800">
+        <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
+        <p>
+          These modules were assigned to your organization by the platform
+          administrator. You can switch any of them off for your organization;
+          to add modules beyond your plan, contact your platform administrator.
+        </p>
       </div>
+
+      {licensedModules.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-gray-500">
+            No modules have been assigned to your organization yet. Please contact
+            your platform administrator.
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="py-4 space-y-3">
+            {licensedModules.map((id) => {
+              const mod = describe(id);
+              const isEnabled = enabledModules.includes(id);
+              return (
+                <div
+                  key={id}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{mod.icon}</span>
+                    <div>
+                      <p className="font-medium text-gray-900 flex items-center gap-1.5">
+                        {mod.label}
+                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" aria-label="Licensed" />
+                      </p>
+                      <p className="text-sm text-gray-500">{mod.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={isEnabled ? 'success' : 'default'}>
+                      {isEnabled ? 'Active' : 'Off'}
+                    </Badge>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={isEnabled}
+                        onChange={() => toggleModule(id)}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {licensedModules.length > 0 && (
+        <div className="mt-4">
+          <Button onClick={handleSave} loading={updateModules.isPending} disabled={!dirty}>
+            Save Changes
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

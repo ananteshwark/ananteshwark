@@ -1,0 +1,183 @@
+import {
+  Controller, Get, Post, Patch, Param, Body, Query, UseGuards,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { FixedAssetsService } from './fixed-assets.service';
+import { FaLifecycleService } from './fa-lifecycle.service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RbacGuard } from '../../../common/guards/rbac.guard';
+import { RequirePermission } from '../../../common/decorators/require-permission.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import {
+  CreateAssetCategoryDto, UpdateAssetCategoryDto,
+  CreateFixedAssetDto, UpdateFixedAssetDto,
+  DisposeAssetDto, RunDepreciationDto,
+} from './dto/fixed-assets.dto';
+
+@ApiTags('fixed-assets')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RbacGuard)
+@Controller('finance/fixed-assets')
+export class FixedAssetsController {
+  constructor(
+    private readonly service: FixedAssetsService,
+    private readonly lifecycle: FaLifecycleService,
+  ) {}
+
+  // Asset Categories
+  @Get('categories')
+  @RequirePermission('finance:fixed-assets:read')
+  listCategories(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
+    return this.service.listCategories(user.tenantId, pagination);
+  }
+
+  @Post('categories')
+  @RequirePermission('finance:fixed-assets:manage')
+  createCategory(@CurrentUser() user: any, @Body() dto: CreateAssetCategoryDto) {
+    return this.service.createCategory(user.tenantId, dto);
+  }
+
+  @Patch('categories/:id')
+  @RequirePermission('finance:fixed-assets:manage')
+  updateCategory(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateAssetCategoryDto) {
+    return this.service.updateCategory(user.tenantId, id, dto);
+  }
+
+  // Fixed Assets
+  @Get()
+  @RequirePermission('finance:fixed-assets:read')
+  listAssets(
+    @CurrentUser() user: any,
+    @Query() pagination: PaginationDto,
+    @Query('status') status?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.listAssets(user.tenantId, pagination, { status, categoryId, search });
+  }
+
+  // Depreciation Runs — declared before ':id' so the literal
+  // 'depreciation-runs' path isn't captured as an :id lookup.
+  @Get('depreciation-runs')
+  @RequirePermission('finance:fixed-assets:read')
+  listRuns(@CurrentUser() user: any, @Query() pagination: PaginationDto) {
+    return this.service.listDepreciationRuns(user.tenantId, pagination);
+  }
+
+  @Get('depreciation-runs/:id/lines')
+  @RequirePermission('finance:fixed-assets:read')
+  getRunLines(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.getDepreciationRunLines(user.tenantId, id);
+  }
+
+  @Get(':id')
+  @RequirePermission('finance:fixed-assets:read')
+  getAsset(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.findAsset(user.tenantId, id);
+  }
+
+  @Get(':id/schedule')
+  @RequirePermission('finance:fixed-assets:read')
+  getAssetSchedule(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.getAssetSchedule(user.tenantId, id);
+  }
+
+  @Post()
+  @RequirePermission('finance:fixed-assets:manage')
+  createAsset(@CurrentUser() user: any, @Body() dto: CreateFixedAssetDto) {
+    return this.service.createAsset(user.tenantId, dto);
+  }
+
+  @Patch(':id')
+  @RequirePermission('finance:fixed-assets:manage')
+  updateAsset(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateFixedAssetDto) {
+    return this.service.updateAsset(user.tenantId, id, dto);
+  }
+
+  @Post(':id/dispose')
+  @RequirePermission('finance:fixed-assets:manage')
+  disposeAsset(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: DisposeAssetDto) {
+    return this.service.disposeAsset(user.tenantId, id, dto, user.id);
+  }
+
+  // Depreciation Runs (mutations)
+  @Post('depreciation-runs')
+  @RequirePermission('finance:fixed-assets:manage')
+  runDepreciation(@CurrentUser() user: any, @Body() dto: RunDepreciationDto) {
+    return this.service.runDepreciation(user.tenantId, dto, user.id);
+  }
+
+  @Post('depreciation-runs/:id/post')
+  @RequirePermission('finance:fixed-assets:manage')
+  postRun(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.postDepreciationRun(user.tenantId, id, user.id);
+  }
+
+  // ─── Phase 71: Parallel Depreciation Areas ────────────────────────
+  @Get(':id/depreciation-areas')
+  @RequirePermission('finance:fixed-assets:read')
+  listAreas(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.service.listDepreciationAreas(user.tenantId, id);
+  }
+
+  @Post(':id/depreciation-areas')
+  @RequirePermission('finance:fixed-assets:manage')
+  createArea(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.service.createDepreciationArea(user.tenantId, id, body);
+  }
+
+  @Post('depreciation-areas/:areaId/run')
+  @RequirePermission('finance:fixed-assets:manage')
+  runAreaDepreciation(
+    @CurrentUser() user: any,
+    @Param('areaId') areaId: string,
+    @Body() body: { periodDate: string },
+  ) {
+    return this.service.runDepreciationForArea(user.tenantId, areaId, body.periodDate, user.id);
+  }
+
+  // ─── Ph-116: CIP assets ───────────────────────────────────────────
+  @Get('cip')
+  @RequirePermission('finance:assets:read')
+  listCip(@CurrentUser() user: any) {
+    return this.lifecycle.listCip(user.tenantId);
+  }
+
+  @Get('cip/:id')
+  @RequirePermission('finance:assets:read')
+  getCip(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.lifecycle.getCip(user.tenantId, id);
+  }
+
+  @Post('cip')
+  @RequirePermission('finance:assets:manage')
+  createCip(@CurrentUser() user: any, @Body() body: any) {
+    return this.lifecycle.createCip(user.tenantId, body);
+  }
+
+  @Post('cip/:id/costs')
+  @RequirePermission('finance:assets:manage')
+  addCipCost(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.addCipCost(user.tenantId, id, body);
+  }
+
+  @Post('cip/:id/capitalize')
+  @RequirePermission('finance:assets:manage')
+  capitalizeCip(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.capitalizeCip(user.tenantId, id, body, user.id);
+  }
+
+  // ─── Ph-119/120: Impairment & Revaluation ─────────────────────────
+  @Post(':id/impair')
+  @RequirePermission('finance:assets:manage')
+  impairAsset(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.recordImpairment(user.tenantId, id, body, user.id);
+  }
+
+  @Post(':id/revalue')
+  @RequirePermission('finance:assets:manage')
+  revalueAsset(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
+    return this.lifecycle.revalue(user.tenantId, id, body, user.id);
+  }
+}

@@ -52,6 +52,11 @@ export class Tenant {
   @Column({ type: 'jsonb', default: {} })
   settings: TenantSettings;
 
+  // Super-admin can hide a tenant from the management list without suspending
+  // or deleting it (e.g. archived / internal tenants).
+  @Column({ default: false })
+  hidden: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { apiClient } from '../../api/client';
 import { useNotificationStore } from '../../store/notificationStore';
 import { Avatar } from '../ui/Avatar';
 import { useUnreadCount } from '../../api/hooks';
@@ -15,6 +17,7 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
   const { user, logout } = useAuthStore();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -22,7 +25,12 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
   const unreadCount = unreadData?.count || 0;
 
   const handleLogout = () => {
+    // Best-effort: clear the server-side httpOnly refresh cookie too.
+    apiClient.post('/auth/logout').catch(() => {});
     logout();
+    // Drop every cached query so the next user on this browser can't see the
+    // previous session's data (users, audit logs, tenant settings…) flash in.
+    queryClient.clear();
     navigate('/login');
   };
 
@@ -37,15 +45,18 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
         >
           <Menu className="h-5 w-5" />
         </button>
-        {/* Search placeholder */}
-        <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 w-64">
+        {/* Global search trigger (opens command palette) */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+          className="hidden md:flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-1.5 w-64 text-left transition-colors"
+        >
           <Search className="h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder={t('common.search', 'Search...')}
-            className="bg-transparent text-sm outline-none flex-1 placeholder-gray-400"
-          />
-        </div>
+          <span className="text-sm text-gray-400 flex-1">{t('common.search', 'Search…')}</span>
+          <kbd className="text-[11px] font-medium text-gray-400 border border-gray-300 rounded px-1.5 py-0.5">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       <div className="flex items-center gap-2">

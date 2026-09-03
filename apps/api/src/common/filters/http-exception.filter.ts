@@ -32,7 +32,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = exceptionResponse as string;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      // Log the full detail server-side, but never return raw error text
+      // (DB/driver/stack internals) to the client — keep the generic 500.
       this.logger.error(exception.message, exception.stack);
     }
 

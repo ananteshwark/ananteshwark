@@ -1,0 +1,12 @@
+export { default as SalesOrdersPage } from './SalesOrdersPage';
+export { default as PricingConditionsPage } from './PricingConditionsPage';
+export { default as CreditManagementPage } from './CreditManagementPage';
+export { default as ATPDashboardPage } from './ATPDashboardPage';
+export { default as ReturnsPage } from './ReturnsPage';
+export { default as DeliveriesPage } from './DeliveriesPage';
+export { default as BillingPlansPage } from './BillingPlansPage';
+export { default as FulfillmentPage } from './FulfillmentPage';
+export { default as PromisingPage } from './PromisingPage';
+export { default as CpqPage } from './CpqPage';
+export { default as CtoPage } from './CtoPage';
+export { default as IncentivePage } from './IncentivePage';

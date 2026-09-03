@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum, MinLength, Matches } from 'class-validator';
+import { IsString, IsOptional, IsEnum, MinLength, Matches, IsArray } from 'class-validator';
 import { TenantPlan } from '../entities/tenant.entity';
 
 export class CreateTenantDto {
@@ -46,4 +46,12 @@ export class UpdateTenantSettingsDto {
   @ApiPropertyOptional()
   @IsOptional()
   enabledModules?: string[];
+}
+
+// Tenant-admin self-service: choose which of the licensed modules are active.
+export class UpdateTenantModulesDto {
+  @ApiProperty({ type: [String], description: 'Modules to keep active (must be a subset of the license)' })
+  @IsArray()
+  @IsString({ each: true })
+  enabledModules: string[];
 }

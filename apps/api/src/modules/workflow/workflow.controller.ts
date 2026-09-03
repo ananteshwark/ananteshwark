@@ -44,8 +44,12 @@ export class WorkflowController {
 
   @Get('history')
   @ApiOperation({ summary: 'Get workflow history for a subject' })
-  getHistory(@Query('subjectType') subjectType: string, @Query('subjectId') subjectId: string) {
-    return this.workflowService.getWorkflowHistory(subjectType, subjectId);
+  getHistory(
+    @CurrentUser() user: any,
+    @Query('subjectType') subjectType: string,
+    @Query('subjectId') subjectId: string,
+  ) {
+    return this.workflowService.getWorkflowHistory(user.tenantId, subjectType, subjectId);
   }
 
   @Post('instances/:id/steps/:stepId/approve')
@@ -56,7 +60,7 @@ export class WorkflowController {
     @CurrentUser() user: any,
     @Body() dto: ApproveStepDto,
   ) {
-    return this.workflowService.approveStep(id, stepId, user.id, dto);
+    return this.workflowService.approveStep(id, stepId, user.id, user.tenantId, dto);
   }
 
   @Post('instances/:id/steps/:stepId/reject')
@@ -67,6 +71,6 @@ export class WorkflowController {
     @CurrentUser() user: any,
     @Body() dto: ApproveStepDto,
   ) {
-    return this.workflowService.rejectStep(id, stepId, user.id, dto);
+    return this.workflowService.rejectStep(id, stepId, user.id, user.tenantId, dto);
   }
 }

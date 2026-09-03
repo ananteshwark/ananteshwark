@@ -1,0 +1,128 @@
+{
+  "common": {
+    "search": "بحث...",
+    "loading": "جارٍ التحميل...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "create": "إنشاء",
+    "submit": "إرسال",
+    "confirm": "تأكيد",
+    "back": "رجوع",
+    "next": "التالي",
+    "finish": "إنهاء",
+    "yes": "نعم",
+    "no": "لا",
+    "all": "الكل",
+    "none": "لا شيء",
+    "noData": "لا توجد بيانات",
+    "error": "حدث خطأ",
+    "success": "تمت العملية بنجاح",
+    "required": "هذا الحقل مطلوب",
+    "actions": "إجراءات"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "users": "المستخدمون",
+    "roles": "الأدوار والصلاحيات",
+    "workflows": "سير العمل",
+    "notifications": "الإشعارات",
+    "audit": "سجل التدقيق",
+    "settings": "الإعدادات",
+    "hr": "الموارد البشرية",
+    "finance": "المالية",
+    "payroll": "الرواتب",
+    "procurement": "المشتريات"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "register": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "rememberMe": "تذكرني",
+    "noAccount": "ليس لديك حساب؟",
+    "hasAccount": "لديك حساب بالفعل؟",
+    "welcomeBack": "مرحباً بعودتك",
+    "signInSubtitle": "سجّل الدخول إلى حسابك في نظام ERP"
+  },
+  "users": {
+    "title": "المستخدمون",
+    "description": "إدارة المستخدمين وصلاحياتهم",
+    "invite": "دعوة مستخدم",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "role": "الدور",
+    "status": "الحالة",
+    "lastLogin": "آخر تسجيل دخول",
+    "joined": "تاريخ الانضمام",
+    "deactivate": "تعطيل",
+    "resendInvite": "إعادة إرسال الدعوة",
+    "noUsers": "لا يوجد مستخدمون",
+    "inviteDescription": "دعوة أعضاء الفريق للانضمام إلى مؤسستك"
+  },
+  "roles": {
+    "title": "الأدوار والصلاحيات",
+    "create": "إنشاء دور",
+    "name": "اسم الدور",
+    "description": "الوصف",
+    "permissions": "الصلاحيات",
+    "systemRole": "دور النظام",
+    "noRoles": "لا توجد أدوار"
+  },
+  "workflow": {
+    "title": "سير العمل",
+    "definitions": "التعريفات",
+    "pending": "الموافقات المعلقة",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "comment": "تعليق",
+    "noPending": "لا توجد موافقات معلقة",
+    "allCaughtUp": "أنت على اطلاع بكل شيء!"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تعليم الكل كمقروء",
+    "noNotifications": "لا توجد إشعارات",
+    "allCaughtUp": "أنت على اطلاع بكل شيء!"
+  },
+  "audit": {
+    "title": "سجل التدقيق",
+    "description": "سجل دائم بجميع إجراءات النظام",
+    "user": "المستخدم",
+    "action": "الإجراء",
+    "resource": "المورد",
+    "timestamp": "الطابع الزمني",
+    "noLogs": "لا توجد سجلات تدقيق"
+  },
+  "settings": {
+    "general": "الإعدادات العامة",
+    "modules": "إعدادات الوحدات",
+    "branding": "العلامة التجارية",
+    "primaryColor": "اللون الأساسي",
+    "logoUrl": "رابط الشعار",
+    "companyInfo": "معلومات الشركة"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "welcome": "صباح الخير",
+    "totalUsers": "إجمالي المستخدمين",
+    "pendingApprovals": "الموافقات المعلقة",
+    "unreadNotifications": "الإشعارات غير المقروءة",
+    "systemStatus": "حالة النظام",
+    "quickActions": "إجراءات سريعة",
+    "myPendingApprovals": "موافقاتي المعلقة"
+  },
+  "onboarding": {
+    "title": "إعداد نظام ERP",
+    "subtitle": "خطوات بسيطة للبدء",
+    "companyInfo": "معلومات الشركة",
+    "fiscalYear": "السنة المالية والعملة",
+    "modules": "تحديد الوحدات",
+    "adminAccount": "حساب المسؤول",
+    "done": "تم",
+    "ready": "نظام ERP جاهز!"
+  }
+}

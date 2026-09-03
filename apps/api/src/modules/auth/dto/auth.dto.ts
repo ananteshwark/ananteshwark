@@ -40,9 +40,13 @@ export class RegisterDto {
 }
 
 export class RefreshTokenDto {
-  @ApiProperty()
+  // Optional: the browser client sends the refresh token via an httpOnly
+  // cookie instead of the body, so this may be absent. Non-browser/API clients
+  // still pass it here.
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  refreshToken: string;
+  refreshToken?: string;
 }
 
 export class ForgotPasswordDto {
@@ -76,4 +80,9 @@ export class ChangePasswordDto {
   @IsString()
   @MinLength(8)
   newPassword: string;
+}
+
+export class MfaVerifyDto {
+  mfaToken: string;
+  code: string;
 }

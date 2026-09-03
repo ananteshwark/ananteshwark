@@ -75,6 +75,15 @@ export const usePermissions = () => {
   });
 };
 
+// The current user's own effective permissions — used to gate navigation.
+export const useMyPermissions = () => {
+  return useQuery<string[]>({
+    queryKey: ['my-permissions'],
+    queryFn: () => apiClient.get('/rbac/me/permissions').then((r) => r.data?.data ?? r.data ?? []),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
 export const useCreateRole = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -113,6 +122,25 @@ export const useApproveStep = () => {
     }) =>
       apiClient
         .post(`/workflows/instances/${instanceId}/steps/${stepId}/approve`, { comment })
+        .then((r) => r.data.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] }),
+  });
+};
+
+export const useRejectStep = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      instanceId,
+      stepId,
+      comment,
+    }: {
+      instanceId: string;
+      stepId: string;
+      comment?: string;
+    }) =>
+      apiClient
+        .post(`/workflows/instances/${instanceId}/steps/${stepId}/reject`, { comment })
         .then((r) => r.data.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] }),
   });
@@ -192,5 +220,26 @@ export const useUpdateTenantSettings = () => {
         .patch(`/tenants/${tenant?.id}/settings`, data)
         .then((r) => r.data.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tenantSettings'] }),
+  });
+};
+
+// Tenant-admin module management: the licensed set (assigned by the super admin)
+// and which of those are currently active for this tenant. Tenant-scoped, so it
+// works for tenant admins (not just super admins).
+export const useTenantModules = () => {
+  const { tenant } = useAuthStore();
+  return useQuery<{ licensedModules: string[]; enabledModules: string[] }>({
+    queryKey: ['tenantModules', tenant?.id],
+    queryFn: () => apiClient.get('/tenant/modules').then((r) => r.data.data),
+    enabled: !!tenant?.id,
+  });
+};
+
+export const useUpdateTenantModules = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (enabledModules: string[]) =>
+      apiClient.patch('/tenant/modules', { enabledModules }).then((r) => r.data.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tenantModules'] }),
   });
 };

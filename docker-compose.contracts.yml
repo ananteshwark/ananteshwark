@@ -1,0 +1,122 @@
+# Opt-in overlay: co-deploys the vendored Contract Management System
+# (contracts/, a FastAPI + React app) alongside the ERP, on its own subdomain.
+#
+#   # in .env: set CONTRACTS_DOMAIN, CONTRACTS_JWT_SECRET,
+#   #          and ANTHROPIC_API_KEY (the CMS needs it for extraction).
+#   docker compose -f docker-compose.prod.yml -f docker-compose.contracts.yml up -d --build
+#
+# Point a DNS A record for CONTRACTS_DOMAIN at the same VM; Caddy gets the cert.
+# To save memory on a small VM, the CMS shares the ERP's Postgres instance in a
+# SEPARATE database (default: cms) rather than running its own — the schema and
+# migrations still stay fully isolated from the ERP's. See CONTRACTS.md.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  # One-shot: inside the ERP's Postgres, create a LEAST-PRIVILEGE role (cms_app)
+  # and the CMS database it owns, if missing. The CMS connects as this
+  # non-superuser role — never as erp_user — so a compromised CMS cannot touch
+  # the ERP database. Idempotent, and works whether the Postgres volume is brand
+  # new or already initialised (an initdb.d script only fires on a fresh volume,
+  # so this also covers the "ERP already running, now add contracts" case).
+  contracts-db-init:
+    image: postgres:16-alpine
+    restart: 'no'
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DATABASE_PASSWORD}
+      # $$ escapes compose interpolation so the password is expanded by the
+      # container shell at runtime, not baked into `docker compose config`.
+      CMS_DB_PASSWORD: ${CONTRACTS_DB_PASSWORD:?set CONTRACTS_DB_PASSWORD in .env}
+    entrypoint: ['sh', '-c']
+    command:
+      - >
+        psql -h postgres -U ${DATABASE_USER:-erp_user} -d postgres -v ON_ERROR_STOP=1
+        -v role=cms_app -v pw="$$CMS_DB_PASSWORD" -v db="${CONTRACTS_DB_NAME:-cms}"
+        -f /init/init-cms-db.sql
+    volumes:
+      - ./docker/contracts/init-cms-db.sql:/init/init-cms-db.sql:ro
+
+  contracts-backend:
+    build:
+      context: ./contracts/backend
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      contracts-db-init:
+        condition: service_completed_successfully
+    environment:
+      # FastAPI uses SQLAlchemy's psycopg2 URL scheme. Shares the ERP Postgres
+      # server but connects as the non-superuser cms_app role into its own
+      # database, so the tables never mix and the ERP data stays out of reach.
+      DATABASE_URL: postgresql+psycopg2://cms_app:${CONTRACTS_DB_PASSWORD}@postgres:5432/${CONTRACTS_DB_NAME:-cms}
+      JWT_SECRET: ${CONTRACTS_JWT_SECRET:?set CONTRACTS_JWT_SECRET in .env}
+      # Extraction needs a model key; also settable at runtime in Admin Settings.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Used for reminder-email links and CORS; same-origin so CORS is moot.
+      APP_BASE_URL: https://${CONTRACTS_DOMAIN:?set CONTRACTS_DOMAIN in .env}
+      # Business-unit letterhead artwork. Pinned explicitly (rather than left to
+      # the app default) so the mount below and the setting can never drift.
+      LETTERHEAD_DIR: /app/letterheads
+      # No host folder-watcher in the container deploy by default.
+      WATCH_ENABLED: ${CONTRACTS_WATCH_ENABLED:-false}
+      EMAIL_DRY_RUN: ${CONTRACTS_EMAIL_DRY_RUN:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      TIMEZONE: ${CONTRACTS_TIMEZONE:-Asia/Kolkata}
+    volumes:
+      - contracts_data:/app/data
+      - contracts_uploads:/app/attachments
+      - contracts_watched:/watched
+      # Uploaded per-BU letterheads. On a named volume because losing them is
+      # silent: an export just comes out on plain paper, naming no entity.
+      - contracts_letterheads:/app/letterheads
+    healthcheck:
+      # Python image has no curl; probe /api/health with urllib.
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status==200 else 1)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  contracts-web:
+    build:
+      context: ./contracts/frontend
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - contracts-backend
+
+  # Merge into the existing Caddy service: give it the contracts subdomain and
+  # the extra site block. Deliberately NO depends_on the contracts services —
+  # Caddy resolves upstreams lazily, so a broken/absent CMS just 502s its own
+  # subdomain and can never block the ERP's frontend from starting.
+  caddy:
+    environment:
+      CONTRACTS_DOMAIN: ${CONTRACTS_DOMAIN}
+    volumes:
+      - ./docker/contracts/contracts.caddy:/etc/caddy/conf.d/contracts.caddy:ro
+
+volumes:
+  contracts_data:
+  contracts_uploads:
+  contracts_watched:
+  contracts_letterheads:

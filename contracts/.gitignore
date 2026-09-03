@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.env
+*.db
+backend/watched/
+backend/gdrive_staging/
+gdrive_staging/
+backend/manual_uploads/
+manual_uploads/
+backend/attachments/
+attachments/
+node_modules/
+frontend/dist/
+.pytest_cache/
+.vscode/
+.idea/
+
+# Offline deploy tarballs (build artifacts, never committed)
+cms-offline-*.tar.gz

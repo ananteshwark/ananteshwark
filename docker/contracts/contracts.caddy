@@ -1,0 +1,17 @@
+# Contract Management System — served on its own subdomain so it doesn't
+# collide with the ERP (both apps serve routes under /api).
+#
+# Mounted into the Caddy container only when the contracts overlay is enabled
+# (docker-compose.contracts.yml). Caddy provisions HTTPS for CONTRACTS_DOMAIN
+# automatically. The CMS backend serves /api/* directly (no prefix strip).
+{$CONTRACTS_DOMAIN} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy contracts-backend:8000
+	}
+
+	handle {
+		reverse_proxy contracts-web:80
+	}
+}

@@ -1,0 +1,15 @@
+export { default as RequisitionsPage } from './RequisitionsPage';
+export { default as RFQPage } from './RFQPage';
+export { default as PurchaseOrdersPage } from './PurchaseOrdersPage';
+export { default as GRNPage } from './GRNPage';
+export { default as VendorInvoicesPage } from './VendorInvoicesPage';
+export { ProcurementSettingsPage } from './ProcurementSettingsPage';
+export { default as InfoRecordsPage } from './InfoRecordsPage';
+export { default as ServiceEntrySheetPage } from './ServiceEntrySheetPage';
+export { default as PurchaseReturnsPage } from './PurchaseReturnsPage';
+export { default as ToleranceSettingsPage } from './ToleranceSettingsPage';
+export { default as OutlineAgreementsPage } from './OutlineAgreementsPage';
+export { default as SourceDeterminationPage } from './SourceDeterminationPage';
+export { default as SourcingPage } from './SourcingPage';
+export { default as SupplierQualificationPage } from './SupplierQualificationPage';
+export { default as SpendAnalysisPage } from './SpendAnalysisPage';

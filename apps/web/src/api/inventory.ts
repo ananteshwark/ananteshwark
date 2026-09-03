@@ -1,0 +1,151 @@
+import { apiClient } from './client';
+
+export const inventoryApi = {
+  // Warehouses
+  getWarehouses: (params?: any) => apiClient.get('/inventory/warehouses', { params }),
+  createWarehouse: (data: any) => apiClient.post('/inventory/warehouses', data),
+  updateWarehouse: (id: string, data: any) => apiClient.patch(`/inventory/warehouses/${id}`, data),
+
+  // Item Categories
+  getCategories: (params?: any) => apiClient.get('/inventory/categories', { params }),
+  createCategory: (data: any) => apiClient.post('/inventory/categories', data),
+
+  // Items
+  getItems: (params?: any) => apiClient.get('/inventory/items', { params }),
+  getItem: (id: string) => apiClient.get(`/inventory/items/${id}`),
+  createItem: (data: any) => apiClient.post('/inventory/items', data),
+  updateItem: (id: string, data: any) => apiClient.patch(`/inventory/items/${id}`, data),
+
+  // Stock
+  getStockBalances: (params?: any) => apiClient.get('/inventory/stock/balances', { params }),
+  getStockLedger: (params?: any) => apiClient.get('/inventory/stock/ledger', { params }),
+  receiveStock: (data: any) => apiClient.post('/inventory/stock/receive', data),
+  issueStock: (data: any) => apiClient.post('/inventory/stock/issue', data),
+  transferStock: (data: any) => apiClient.post('/inventory/stock/transfer', data),
+  getFifoLayers: (itemId: string, warehouseId?: string) =>
+    apiClient.get('/inventory/stock/fifo-layers', { params: { itemId, ...(warehouseId ? { warehouseId } : {}) } }),
+
+  // Adjustments
+  getAdjustments: (params?: any) => apiClient.get('/inventory/adjustments', { params }),
+  createAdjustment: (data: any) => apiClient.post('/inventory/adjustments', data),
+  postAdjustment: (id: string) => apiClient.post(`/inventory/adjustments/${id}/post`),
+
+  // Phase 18 - Bin Locations
+  getBins: (warehouseId?: string) => apiClient.get('/inventory/v2/bins', { params: warehouseId ? { warehouseId } : {} }),
+  createBin: (data: any) => apiClient.post('/inventory/v2/bins', data),
+
+  // Phase 18 - Lot / Serial
+  getLots: (itemId?: string) => apiClient.get('/inventory/v2/lots', { params: itemId ? { itemId } : {} }),
+  receiveLot: (data: any) => apiClient.post('/inventory/v2/lots', data),
+  quarantineLot: (id: string) => apiClient.patch(`/inventory/v2/lots/${id}/quarantine`),
+
+  // Phase 18 - UoM Conversions
+  getUomConversions: (itemId?: string) => apiClient.get('/inventory/v2/uom-conversions', { params: itemId ? { itemId } : {} }),
+  createUomConversion: (data: any) => apiClient.post('/inventory/v2/uom-conversions', data),
+
+  // Phase 18 - Cycle Counts
+  getCycleCounts: (params?: any) => apiClient.get('/inventory/v2/cycle-counts', { params }),
+  createCycleCount: (data: any) => apiClient.post('/inventory/v2/cycle-counts', data),
+  getCountLines: (countId: string) => apiClient.get(`/inventory/v2/cycle-counts/${countId}/lines`),
+  enterCount: (countId: string, lineId: string, countedQty: number) => apiClient.patch(`/inventory/v2/cycle-counts/${countId}/lines/${lineId}/count`, { countedQty }),
+  postCycleCount: (id: string) => apiClient.post(`/inventory/v2/cycle-counts/${id}/post`),
+
+  // Phase 18 - RMA
+  getRmas: (params?: any) => apiClient.get('/inventory/v2/rmas', { params }),
+  createRma: (data: any) => apiClient.post('/inventory/v2/rmas', data),
+  approveRma: (id: string) => apiClient.post(`/inventory/v2/rmas/${id}/approve`),
+  receiveRma: (id: string, receivedDate: string) => apiClient.post(`/inventory/v2/rmas/${id}/receive`, { receivedDate }),
+
+  // Phase 73 — Special Procurement
+  // Subcontracting
+  getSubcontracts: (params?: any) => apiClient.get('/inventory/special-procurement/subcontracts', { params }),
+  getSubcontract: (id: string) => apiClient.get(`/inventory/special-procurement/subcontracts/${id}`),
+  createSubcontract: (data: any) => apiClient.post('/inventory/special-procurement/subcontracts', data),
+  sendComponents: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/subcontracts/${id}/send-components`, { date }),
+  receiveFinishedGoods: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/subcontracts/${id}/receive-finished`, { date }),
+  completeSubcontract: (id: string) => apiClient.post(`/inventory/special-procurement/subcontracts/${id}/complete`),
+
+  // Consignment
+  getConsignmentStock: (params?: any) => apiClient.get('/inventory/special-procurement/consignment', { params }),
+  receiveConsignment: (data: any) => apiClient.post('/inventory/special-procurement/consignment/receive', data),
+  consumeConsignment: (id: string, qty: number, date?: string) => apiClient.post(`/inventory/special-procurement/consignment/${id}/consume`, { qty, date }),
+  returnConsignment: (id: string, qty: number, date?: string) => apiClient.post(`/inventory/special-procurement/consignment/${id}/return`, { qty, date }),
+
+  // Stock Transfer Orders
+  getStos: (params?: any) => apiClient.get('/inventory/special-procurement/stos', { params }),
+  getSto: (id: string) => apiClient.get(`/inventory/special-procurement/stos/${id}`),
+  createSto: (data: any) => apiClient.post('/inventory/special-procurement/stos', data),
+  approveSto: (id: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/approve`),
+  issueGoodsSto: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/issue-goods`, { date }),
+  receiveGoodsSto: (id: string, date?: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/receive-goods`, { date }),
+  completeSto: (id: string) => apiClient.post(`/inventory/special-procurement/stos/${id}/complete`),
+
+  // Phase 78: Batch Management
+  getBatchCharacteristics: (lotSerialId: string) => apiClient.get(`/inventory/wms/batch/${lotSerialId}/characteristics`),
+  recordBatchCharacteristics: (lotSerialId: string, characteristics: any[]) => apiClient.post(`/inventory/wms/batch/${lotSerialId}/characteristics`, { characteristics }),
+  releaseBatch: (lotSerialId: string) => apiClient.post(`/inventory/wms/batch/${lotSerialId}/release`),
+  quarantineBatch: (lotSerialId: string) => apiClient.post(`/inventory/wms/batch/${lotSerialId}/quarantine`),
+  fefoPickSuggestion: (itemId: string, warehouseId: string, qty: number) => apiClient.get('/inventory/wms/batch/fefo-suggestion', { params: { itemId, warehouseId, qty } }),
+
+  // Phase 78: Extended WMS
+  getBinStock: (params?: any) => apiClient.get('/inventory/wms/bin-stock', { params }),
+  suggestPutawayBin: (data: any) => apiClient.post('/inventory/wms/bin-stock/suggest-putaway', data),
+  getWarehouseTasks: (params?: any) => apiClient.get('/inventory/wms/tasks', { params }),
+  getWarehouseTask: (id: string) => apiClient.get(`/inventory/wms/tasks/${id}`),
+  createWarehouseTask: (data: any) => apiClient.post('/inventory/wms/tasks', data),
+  assignWarehouseTask: (id: string, userId?: string) => apiClient.patch(`/inventory/wms/tasks/${id}/assign`, { userId }),
+  completeWarehouseTask: (id: string) => apiClient.post(`/inventory/wms/tasks/${id}/complete`),
+  cancelWarehouseTask: (id: string) => apiClient.post(`/inventory/wms/tasks/${id}/cancel`),
+
+  // Phase 92: Putaway Strategies
+  listPutawayRules: (warehouseId?: string) => apiClient.get('/inventory/wms/putaway-rules', { params: warehouseId ? { warehouseId } : {} }),
+  createPutawayRule: (data: any) => apiClient.post('/inventory/wms/putaway-rules', data),
+  updatePutawayRule: (id: string, data: any) => apiClient.patch(`/inventory/wms/putaway-rules/${id}`, data),
+  deletePutawayRule: (id: string) => apiClient.delete(`/inventory/wms/putaway-rules/${id}`),
+  suggestPutaway: (data: any) => apiClient.post('/inventory/wms/putaway-suggest', data),
+
+  // Phase 92: Directed Pick Suggestions
+  suggestPicks: (params: { warehouseId: string; itemId: string; qty: number; strategy?: string }) =>
+    apiClient.get('/inventory/wms/pick-suggest', { params }),
+
+  // Phase 92: Pick Waves
+  listWaves: (params?: any) => apiClient.get('/inventory/wms/waves', { params }),
+  createWave: (data: any) => apiClient.post('/inventory/wms/waves', data),
+  getWave: (id: string) => apiClient.get(`/inventory/wms/waves/${id}`),
+  addTasksToWave: (id: string, taskIds: string[]) => apiClient.post(`/inventory/wms/waves/${id}/tasks`, { taskIds }),
+  releaseWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/release`),
+  completeWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/complete`),
+  cancelWave: (id: string) => apiClient.post(`/inventory/wms/waves/${id}/cancel`),
+
+  // Phase 134-136: Multi-Org Inventory
+  listOrgs: () => apiClient.get('/inventory/orgs'),
+  getOrgHierarchy: () => apiClient.get('/inventory/orgs/hierarchy'),
+  createOrg: (data: any) => apiClient.post('/inventory/orgs', data),
+  updateOrg: (id: string, data: any) => apiClient.patch(`/inventory/orgs/${id}`, data),
+  listItemOrgAssignments: (params?: { itemId?: string; organizationId?: string }) => apiClient.get('/inventory/orgs/assignments', { params }),
+  assignItemToOrg: (data: any) => apiClient.post('/inventory/orgs/assignments', data),
+  updateItemOrgAssignment: (id: string, data: any) => apiClient.patch(`/inventory/orgs/assignments/${id}`, data),
+  listInterOrgTransfers: (status?: string) => apiClient.get('/inventory/orgs/transfers', { params: status ? { status } : {} }),
+  createInterOrgTransfer: (data: any) => apiClient.post('/inventory/orgs/transfers', data),
+  shipInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/ship`),
+  receiveInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/receive`),
+  cancelInterOrgTransfer: (id: string) => apiClient.post(`/inventory/orgs/transfers/${id}/cancel`),
+
+  // Phase 137-140: Cost Accounting
+  wacPreview: (data: any) => apiClient.post('/inventory/costing/wac-preview', data),
+  listStandardCosts: (itemId?: string) => apiClient.get('/inventory/costing/standard-costs', { params: itemId ? { itemId } : {} }),
+  setStandardCost: (data: any) => apiClient.post('/inventory/costing/standard-costs', data),
+  recordPpv: (data: any) => apiClient.post('/inventory/costing/ppv', data),
+  listCostUpdates: (itemId?: string) => apiClient.get('/inventory/costing/cost-updates', { params: itemId ? { itemId } : {} }),
+  runCostUpdate: (data: any) => apiClient.post('/inventory/costing/cost-updates', data),
+  listCostVariances: (params?: { varianceType?: string; itemId?: string }) => apiClient.get('/inventory/costing/variances', { params }),
+  costVarianceDashboard: (params?: { from?: string; to?: string }) => apiClient.get('/inventory/costing/variance-dashboard', { params }),
+
+  // Phase 141-144: Lot Genealogy
+  listGenealogyEdges: (params?: { parentLotId?: string; childLotId?: string }) => apiClient.get('/inventory/genealogy/edges', { params }),
+  recordGenealogyEdge: (data: any) => apiClient.post('/inventory/genealogy/edges', data),
+  recordProductionGenealogy: (data: any) => apiClient.post('/inventory/genealogy/production', data),
+  backwardTrace: (lotId: string) => apiClient.get(`/inventory/genealogy/backward/${lotId}`),
+  forwardTrace: (lotId: string) => apiClient.get(`/inventory/genealogy/forward/${lotId}`),
+  recallImpact: (lotId: string) => apiClient.get(`/inventory/genealogy/recall/${lotId}`),
+};

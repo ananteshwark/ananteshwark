@@ -2,12 +2,17 @@ FROM node:20-alpine as build
 
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.4
 
-COPY package.json ./
-RUN pnpm install
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
+# Base URL the SPA uses for API calls. Empty keeps the dev default
+# (http://localhost:3000); production passes /api so Caddy/nginx can proxy
+# same-origin.
+ARG VITE_API_URL=
+ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm build
 
 FROM nginx:alpine

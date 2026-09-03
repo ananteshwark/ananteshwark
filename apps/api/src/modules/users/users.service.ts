@@ -32,7 +32,7 @@ export class UsersService {
       passwordHash,
       status: UserStatus.ACTIVE,
     });
-    return this.userRepository.save(user);
+    return this.saveNewUser(user);
   }
 
   async findAll(
@@ -91,6 +91,30 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
+  /** Clear a lockout: reset failed-login count and re-activate a LOCKED account. */
+  async unlock(id: string, tenantId: string): Promise<User> {
+    const user = await this.findById(id, tenantId);
+    user.failedLoginAttempts = 0;
+    if (user.status === UserStatus.LOCKED) user.status = UserStatus.ACTIVE;
+    return this.userRepository.save(user);
+  }
+
+  /**
+   * Persist a newly-created user, translating a unique-violation (Postgres
+   * 23505) into a 409 instead of a 500. The pre-checks above catch the common
+   * case; this closes the check-then-act race where two concurrent creates both
+   * pass the check and the second hits the unique index.
+   */
+  private async saveNewUser(user: User): Promise<User> {
+    try {
+      return await this.userRepository.save(user);
+    } catch (err: any) {
+      const code = err?.code ?? err?.driverError?.code;
+      if (code === '23505') throw new ConflictException('Email already in use');
+      throw err;
+    }
+  }
+
   async invite(tenantId: string, dto: InviteUserDto): Promise<User> {
     const existing = await this.userRepository.findOne({
       where: { email: dto.email.toLowerCase(), tenantId },
@@ -105,7 +129,7 @@ export class UsersService {
       status: UserStatus.INVITED,
       passwordHash: await bcrypt.hash(uuidv4(), 12),
     });
-    return this.userRepository.save(user);
+    return this.saveNewUser(user);
   }
 
   async bulkInvite(tenantId: string, dto: BulkInviteDto): Promise<User[]> {

@@ -1,0 +1,11 @@
+export { default as PayComponentsPage } from './PayComponentsPage';
+export { default as EmployeeSalaryPage } from './EmployeeSalaryPage';
+export { default as PayrollRunsPage } from './PayrollRunsPage';
+export { default as PayrollRunDetailPage } from './PayrollRunDetailPage';
+export { default as PayslipPage } from './PayslipPage';
+export { default as PayslipsListPage } from './PayslipsListPage';
+export { default as StatutoryPage } from './StatutoryPage';
+export { default as PayrollGlMappingsPage } from './PayrollGlMappingsPage';
+export { default as RetroPayrollPage } from './RetroPayrollPage';
+export { default as BankFilesPage } from './BankFilesPage';
+export { default as StatutoryFormsPage } from './StatutoryFormsPage';

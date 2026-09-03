@@ -1,0 +1,801 @@
+<title>Where the AI Falls Short</title>
+<style>
+  /* ---- Tokens: complete light palette on bare :root ---- */
+  :root {
+    --ground:      #F6F8FA;
+    --surface:     #FFFFFF;
+    --surface-sunk:#EEF1F5;
+    --ink:         #131820;
+    --ink-soft:    #47535F;
+    --ink-faint:   #75828F;
+    --rule:        #DCE2E9;
+    --rule-strong: #C3CCD6;
+
+    --accent:      #1F4E5F;   /* deep petrol — the one bold note */
+    --accent-soft: #E3EDF0;
+
+    --sev-crit:    #9E2A31;   /* redline oxblood */
+    --sev-crit-bg: #F7E7E8;
+    --sev-warn:    #9A6714;
+    --sev-warn-bg: #F8EEDC;
+    --sev-info:    #3F5567;
+    --sev-info-bg: #E7ECF1;
+
+    --shadow: 0 1px 2px rgba(19,24,32,.05), 0 8px 24px -16px rgba(19,24,32,.18);
+
+    --font-head: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-body: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --font-data: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0D1116;
+      --surface:     #141A21;
+      --surface-sunk:#1A222B;
+      --ink:         #E4EAF0;
+      --ink-soft:    #A9B6C2;
+      --ink-faint:   #7C8A97;
+      --rule:        #262F3A;
+      --rule-strong: #38434F;
+
+      --accent:      #6FB2C6;
+      --accent-soft: #17303A;
+
+      --sev-crit:    #E8848A;
+      --sev-crit-bg: #35191C;
+      --sev-warn:    #DFAE5E;
+      --sev-warn-bg: #332715;
+      --sev-info:    #9FB4C6;
+      --sev-info-bg: #1C242D;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #0D1116;
+    --surface:     #141A21;
+    --surface-sunk:#1A222B;
+    --ink:         #E4EAF0;
+    --ink-soft:    #A9B6C2;
+    --ink-faint:   #7C8A97;
+    --rule:        #262F3A;
+    --rule-strong: #38434F;
+
+    --accent:      #6FB2C6;
+    --accent-soft: #17303A;
+
+    --sev-crit:    #E8848A;
+    --sev-crit-bg: #35191C;
+    --sev-warn:    #DFAE5E;
+    --sev-warn-bg: #332715;
+    --sev-info:    #9FB4C6;
+    --sev-info-bg: #1C242D;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+  }
+  .col { max-width: 68ch; }
+
+  /* ---- Masthead ---- */
+  .masthead {
+    display: flex; flex-direction: column; gap: 20px;
+    padding: 72px 0 40px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--font-data);
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); margin: 0;
+  }
+  h1 {
+    font-family: var(--font-head);
+    font-size: clamp(2.4rem, 6vw, 3.9rem);
+    line-height: 1.02; letter-spacing: -.035em; font-weight: 780;
+    margin: 0; text-wrap: balance;
+  }
+  .standfirst {
+    margin: 0; max-width: 62ch;
+    font-size: 1.19rem; color: var(--ink-soft);
+  }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 28px;
+    font-family: var(--font-data); font-size: 12.5px;
+    color: var(--ink-faint); font-variant-numeric: tabular-nums;
+  }
+  .meta b { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---- Section scaffolding ---- */
+  section { padding-top: 64px; }
+  h2 {
+    font-family: var(--font-head);
+    font-size: 1.62rem; letter-spacing: -.02em; font-weight: 700;
+    margin: 0 0 8px; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--font-head);
+    font-size: 1.06rem; letter-spacing: -.008em; font-weight: 680;
+    margin: 0 0 6px;
+  }
+  .lede { margin: 0 0 28px; color: var(--ink-soft); max-width: 66ch; }
+  p { margin: 0 0 16px; }
+  a { color: var(--accent); }
+
+  /* ---- Readout: the measured evidence ---- */
+  .readout {
+    margin-top: 44px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .readout-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-sunk);
+  }
+  .readout-head h3 { margin: 0; }
+  .readout-head span {
+    font-family: var(--font-data); font-size: 12px; color: var(--ink-faint);
+  }
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 70px 120px;
+    align-items: center; gap: 18px;
+    padding: 15px 24px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .row:last-child { border-bottom: 0; }
+  .row.flag { background: var(--sev-crit-bg); }
+  .pair { font-size: 14.5px; line-height: 1.45; min-width: 0; }
+  .pair em {
+    font-style: normal; font-family: var(--font-data); font-size: 13px;
+    color: var(--ink);
+  }
+  .pair small { display: block; color: var(--ink-faint); font-size: 12.5px; margin-top: 3px; }
+  .score {
+    font-family: var(--font-data); font-size: 1.06rem; font-weight: 600;
+    font-variant-numeric: tabular-nums; text-align: right;
+  }
+  .row.flag .score, .row.flag .pair em { color: var(--sev-crit); }
+  .bar { height: 7px; background: var(--surface-sunk); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+  .row.flag .bar i { background: var(--sev-crit); }
+  .readout-foot {
+    padding: 16px 24px; border-top: 1px solid var(--rule-strong);
+    background: var(--surface-sunk); font-size: 14.5px; color: var(--ink-soft);
+  }
+  .readout-foot b { color: var(--ink); }
+
+  /* ---- Verdict cards ---- */
+  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(248px,1fr)); gap: 18px; }
+  .vcard {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-top: 3px solid var(--accent);
+    border-radius: 3px; padding: 22px; box-shadow: var(--shadow);
+  }
+  .vcard p { margin: 0; font-size: 15px; color: var(--ink-soft); }
+  .vcard.crit { border-top-color: var(--sev-crit); }
+  .vcard.warn { border-top-color: var(--sev-warn); }
+
+  /* ---- Findings ---- */
+  .class-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px;
+    margin: 40px 0 4px;
+  }
+  .tag {
+    font-family: var(--font-data); font-size: 11px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 2px;
+  }
+  .tag.crit { color: var(--sev-crit); background: var(--sev-crit-bg); }
+  .tag.warn { color: var(--sev-warn); background: var(--sev-warn-bg); }
+  .tag.info { color: var(--sev-info); background: var(--sev-info-bg); }
+
+  .findings { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .finding {
+    display: grid; grid-template-columns: 46px minmax(0,1fr);
+    background: var(--surface); border: 1px solid var(--rule);
+    border-left: 4px solid var(--sev-info);
+    border-radius: 3px; overflow: hidden;
+  }
+  .finding.crit { border-left-color: var(--sev-crit); }
+  .finding.warn { border-left-color: var(--sev-warn); }
+  .fnum {
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 17px 0 0;
+    font-family: var(--font-data); font-size: 13px; font-weight: 600;
+    color: var(--ink-faint); font-variant-numeric: tabular-nums;
+  }
+  .fbody { padding: 15px 20px 16px 0; }
+  .fbody p { margin: 0; font-size: 15px; color: var(--ink-soft); }
+  .evidence {
+    display: inline-block; margin-top: 9px;
+    font-family: var(--font-data); font-size: 12.5px;
+    color: var(--ink-faint);
+    padding: 3px 8px; border-radius: 2px; background: var(--surface-sunk);
+  }
+
+  /* ---- Tables ---- */
+  .scroll { overflow-x: auto; margin-top: 22px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  th, td {
+    text-align: left; padding: 12px 18px;
+    border-bottom: 1px solid var(--rule); font-size: 14.5px;
+  }
+  thead th {
+    font-family: var(--font-head); font-size: 12px; font-weight: 700;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint);
+    background: var(--surface-sunk); border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.mark { font-family: var(--font-data); white-space: nowrap; }
+  .yes { color: var(--accent); font-weight: 600; }
+  .no  { color: var(--sev-crit); font-weight: 600; }
+  .part{ color: var(--sev-warn); font-weight: 600; }
+
+  /* ---- Roadmap ---- */
+  .phases { display: flex; flex-direction: column; gap: 20px; margin-top: 26px; }
+  .phase {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 3px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .phase-head {
+    display: grid; grid-template-columns: 58px minmax(0,1fr);
+    align-items: center;
+    border-bottom: 1px solid var(--rule); background: var(--surface-sunk);
+  }
+  .pletter {
+    align-self: stretch;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-head); font-size: 1.5rem; font-weight: 780;
+    color: var(--surface); background: var(--accent);
+  }
+  .phase-head div { padding: 15px 20px; }
+  .phase-head h3 { margin: 0 0 2px; }
+  .phase-head p { margin: 0; font-size: 14px; color: var(--ink-faint); }
+  .items { display: flex; flex-direction: column; }
+  .item {
+    display: grid; grid-template-columns: 62px minmax(0,1fr) 40px;
+    gap: 14px; align-items: baseline;
+    padding: 13px 20px; border-bottom: 1px solid var(--rule);
+  }
+  .item:last-child { border-bottom: 0; }
+  .icode {
+    font-family: var(--font-data); font-size: 12.5px; font-weight: 600;
+    color: var(--accent);
+  }
+  .item p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+  .item p b { color: var(--ink); font-weight: 600; }
+  .effort {
+    font-family: var(--font-data); font-size: 11px; font-weight: 700;
+    text-align: center; color: var(--ink-faint);
+    border: 1px solid var(--rule-strong); border-radius: 2px; padding: 1px 0;
+  }
+
+  /* ---- Sequencing ---- */
+  .steps { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+  .step {
+    display: grid; grid-template-columns: 108px minmax(0,1fr); gap: 18px;
+    align-items: baseline;
+    padding: 15px 18px; background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 3px;
+  }
+  .when {
+    font-family: var(--font-data); font-size: 12px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--accent);
+  }
+  .step p { margin: 0; font-size: 15px; color: var(--ink-soft); }
+  .step p b { color: var(--ink); font-family: var(--font-data); font-weight: 600; font-size: 14px; }
+
+  /* ---- Risk note ---- */
+  .risk {
+    margin-top: 30px; padding: 26px 28px;
+    background: var(--sev-crit-bg);
+    border: 1px solid var(--sev-crit);
+    border-radius: 3px;
+  }
+  .risk h2 { color: var(--sev-crit); margin-bottom: 10px; }
+  .risk p { color: var(--ink); margin-bottom: 0; max-width: 66ch; }
+  .risk p + p { margin-top: 14px; }
+
+  footer {
+    margin-top: 72px; padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-data); font-size: 12.5px; color: var(--ink-faint);
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .row { grid-template-columns: minmax(0,1fr) 60px; }
+    .row .bar { display: none; }
+    .item { grid-template-columns: 54px minmax(0,1fr); }
+    .item .effort { display: none; }
+    .step { grid-template-columns: 1fr; gap: 6px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Test report · Round 2</p>
+    <h1>Where the AI Falls Short</h1>
+    <p class="standfirst">
+      The contract system now matches the incumbent CLM suites on features. Benchmarked
+      against the tools whose whole pitch is AI, two things separate us: the AI never
+      acts, and nothing guarantees it is right.
+    </p>
+    <div class="meta">
+      <span><b>Tested</b> 14 Aug 2026</span>
+      <span><b>Build</b> post-Phase-E</span>
+      <span><b>Suite</b> 551 passing</span>
+      <span><b>Method</b> live instance + static audit + measurement</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>The measurement that matters</h2>
+    <p class="lede">
+      Semantic search and the “ask your contracts” feature both present as working —
+      endpoints return results, tests pass, the interface is finished. So I scored known
+      paraphrase pairs directly through the production embedding function.
+    </p>
+
+    <div class="readout">
+      <div class="readout-head">
+        <h3>Cosine similarity, production embedding</h3>
+        <span>services/embeddings.embed · 256-dim hashing vector</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="pair">
+            <em>“teleradiology imaging interpretation”</em>
+            <small>vs “radiology scan reading services” — shared vocabulary</small>
+          </div>
+          <div class="score">0.564</div>
+          <div class="bar"><i style="width:94%"></i></div>
+        </div>
+        <div class="row flag">
+          <div class="pair">
+            <em>“the vendor shall indemnify the company”</em>
+            <small>vs “the supplier will hold us harmless” — same meaning, no shared words</small>
+          </div>
+          <div class="score">0.165</div>
+          <div class="bar"><i style="width:27%"></i></div>
+        </div>
+        <div class="row flag">
+          <div class="pair">
+            <em>“payment due within thirty days”</em>
+            <small>vs “invoices payable in 30 days” — same meaning, no shared words</small>
+          </div>
+          <div class="score">0.150</div>
+          <div class="bar"><i style="width:25%"></i></div>
+        </div>
+        <div class="row">
+          <div class="pair">
+            <em>“teleradiology imaging interpretation”</em>
+            <small>vs “cafeteria catering and food services” — unrelated baseline</small>
+          </div>
+          <div class="score">0.174</div>
+          <div class="bar"><i style="width:29%"></i></div>
+        </div>
+      </div>
+      <div class="readout-foot">
+        Two genuine paraphrases score <b>below the unrelated baseline</b>. The embedding
+        matches characters, not meaning — so “semantic” search and the retrieval feeding
+        Q&amp;A are fuzzy keyword matching. Tests pass because their fixtures share vocabulary.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Verdict</h2>
+    <p class="lede">Three findings, in the order they should be acted on.</p>
+    <div class="verdict">
+      <div class="vcard crit">
+        <h3>The AI has no quality floor</h3>
+        <p>
+          Retrieval is lexical, citations are never validated, there is no eval set and no
+          record of whether a human accepted any AI output. Nothing would reveal a
+          regression tomorrow.
+        </p>
+      </div>
+      <div class="vcard warn">
+        <h3>The AI is advisory, never agentic</h3>
+        <p>
+          We detect, flag and summarise. The leaders propose the actual redline, draft the
+          counter-offer and pre-fill the intake. A reviewer still does every keystroke here.
+        </p>
+      </div>
+      <div class="vcard">
+        <h3>Shipped work sits disconnected</h3>
+        <p>
+          Playbooks, obligations, risk and spend all work individually but were never wired
+          to each other — or onto the dashboard. Cheap to fix, immediately visible.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How this was tested</h2>
+    <div class="col">
+      <p>
+        Not a paper review. I booted the app on a clean database, seeded a super-admin and
+        probed the REST surface with a real token — 33 routers, roughly 200 endpoints. I
+        walked the full path a contract takes (register → draft → review → approval →
+        signature → obligation) looking for breaks between the features shipped across
+        Phases A–E, audited statically whether each feature actually feeds the next, and
+        measured retrieval quality directly rather than trusting that the endpoint returned
+        rows.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Findings</h2>
+    <p class="lede">
+      Twenty gaps, grouped by the kind of work each needs. The stripe encodes class, not
+      priority — sequencing comes later.
+    </p>
+
+    <div class="class-head">
+      <span class="tag crit">Class 2</span>
+      <h3>AI quality &amp; trust — highest risk</h3>
+    </div>
+    <div class="findings">
+      <div class="finding crit">
+        <div class="fnum">09</div>
+        <div class="fbody">
+          <h3>“Semantic” search is lexical</h3>
+          <p>The hashing embedding scores character n-grams, not meaning. A true paraphrase can score below unrelated text, so both search and RAG retrieval are fuzzy keyword matching.</p>
+          <span class="evidence">measured: 0.165 paraphrase &lt; 0.174 noise</span>
+        </div>
+      </div>
+      <div class="finding crit">
+        <div class="fnum">10</div>
+        <div class="fbody">
+          <h3>Citations are never verified</h3>
+          <p>The prompt asks the model to cite <code>[#n]</code>. Nothing checks that the cited contract was retrieved, or that the claim appears in it. A confident wrong answer looks exactly like a right one.</p>
+          <span class="evidence">no validation in repository_ai_api.ask</span>
+        </div>
+      </div>
+      <div class="finding crit">
+        <div class="fnum">11</div>
+        <div class="fbody">
+          <h3>No record of AI output</h3>
+          <p>Nothing stores what the model produced, which prompt and model version made it, or whether the human accepted it — required by most legal-ops AI policies, and the signal needed to improve.</p>
+        </div>
+      </div>
+      <div class="finding crit">
+        <div class="fnum">12</div>
+        <div class="fbody">
+          <h3>No eval harness</h3>
+          <p>No golden set, no regression gate. Any prompt or model change ships blind.</p>
+        </div>
+      </div>
+      <div class="finding warn">
+        <div class="fnum">13</div>
+        <div class="fbody">
+          <h3>One model for every task</h3>
+          <p>Extraction, summarisation, obligations, gap analysis and Q&amp;A share a single configured model — no per-feature routing, no cheap/expensive tiering, no fallback chain.</p>
+        </div>
+      </div>
+      <div class="finding warn">
+        <div class="fnum">14</div>
+        <div class="fbody">
+          <h3>Retrieval is O(n) in Python</h3>
+          <p>Every contract's vector is loaded and scored per query. Fine at hundreds, unusable at 50k. No ANN index, no pgvector.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="class-head">
+      <span class="tag warn">Class 3</span>
+      <h3>Agentic capability — the frontier gap</h3>
+    </div>
+    <div class="findings">
+      <div class="finding warn">
+        <div class="fnum">15</div>
+        <div class="fbody">
+          <h3>No auto-redline</h3>
+          <p>We map third-party clauses and score deviation, then stop. The leaders emit the concrete replacement text as tracked changes, ready to accept.</p>
+        </div>
+      </div>
+      <div class="finding warn">
+        <div class="fnum">16</div>
+        <div class="fbody">
+          <h3>No negotiation copilot</h3>
+          <p>No counter-language with rationale, no recall of what this counterparty conceded last time — despite a negotiation ledger already existing.</p>
+        </div>
+      </div>
+      <div class="finding warn">
+        <div class="fnum">17</div>
+        <div class="fbody">
+          <h3>No per-contract Q&amp;A</h3>
+          <p>Ask is repository-wide only. You cannot interrogate the contract you are currently reading — table stakes elsewhere.</p>
+        </div>
+      </div>
+      <div class="finding warn">
+        <div class="fnum">18</div>
+        <div class="fbody">
+          <h3>No multi-contract comparison</h3>
+          <p>“Compare the liability caps across these five NDAs” has no answer short of opening each one.</p>
+        </div>
+      </div>
+      <div class="finding warn">
+        <div class="fnum">19</div>
+        <div class="fbody">
+          <h3>No intake copilot</h3>
+          <p>Requests are typed into a form by hand. No natural-language intake that classifies the type, picks the template and pre-fills the draft.</p>
+        </div>
+      </div>
+      <div class="finding warn">
+        <div class="fnum">20</div>
+        <div class="fbody">
+          <h3>No email or mobile approval</h3>
+          <p>Approvers must log into the app. The tokenized-action pattern already built for renewals would cover this.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="class-head">
+      <span class="tag info">Class 1</span>
+      <h3>Integration debt — built, never connected</h3>
+    </div>
+    <div class="findings">
+      <div class="finding">
+        <div class="fnum">01</div>
+        <div class="fbody">
+          <h3>Six pages are ungoverned</h3>
+          <p>Reviews, Requests, Tasks, Repository AI, Obligations and Report Builder are missing from the page-access catalogue, so admins cannot restrict them. Unknown keys default to visible.</p>
+          <span class="evidence">catalogue lists 17 pages; nav renders 23</span>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="fnum">02</div>
+        <div class="fbody">
+          <h3>Obligations never trigger reminders</h3>
+          <p>They appear in the digest only. The reminder engine — with offsets, escalation and recipients — knows contract expiry but not obligation due dates, so the extract→track→chase loop never closes.</p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="fnum">03</div>
+        <div class="fbody">
+          <h3>The dashboard predates four phases of work</h3>
+          <p>No obligations, no risk, no cycle-time, no spend. Everything built since Phase A is invisible on the landing page.</p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="fnum">04</div>
+        <div class="fbody">
+          <h3>Obligation extraction is manual</h3>
+          <p>The AI abstract and embedding run automatically at validation; obligations require someone to click, per contract.</p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="fnum">05</div>
+        <div class="fbody">
+          <h3>Only drafts can be risk-scored</h3>
+          <p>Executed contracts in the register cannot be scored against the playbook at all, so there is no portfolio risk position.</p>
+          <span class="evidence">GET /contracts/{id}/deviations → 404</span>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="fnum">06</div>
+        <div class="fbody">
+          <h3>Risk scores are computed then discarded</h3>
+          <p>Never persisted — so no trend, no report column, no filter, no approval gate, no alerting.</p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="fnum">07</div>
+        <div class="fbody">
+          <h3>Global search misses half the system</h3>
+          <p>Returns contracts, vendors and text matches — not drafts, clauses or obligations.</p>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="fnum">08</div>
+        <div class="fbody">
+          <h3>No bulk obligation actions</h3>
+          <p>The portfolio view lists hundreds; each must be ticked individually.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Against the AI-native tier</h2>
+    <p class="lede">
+      Ironclad, Icertis Copilot, Luminance, Robin AI, Spellbook, Sirion, Evisort, LinkSquares.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Capability</th><th>Us today</th><th>AI-native tier</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Clause playbook &amp; deviation detection</td><td class="mark"><span class="yes">Strong</span></td><td class="mark"><span class="yes">Yes</span></td></tr>
+          <tr><td>Third-party paper clause mapping</td><td class="mark"><span class="yes">Yes</span></td><td class="mark"><span class="yes">Yes</span></td></tr>
+          <tr><td><b>Proposes the redline</b></td><td class="mark"><span class="no">None</span></td><td class="mark"><span class="yes">Yes</span></td></tr>
+          <tr><td><b>Negotiation copilot</b></td><td class="mark"><span class="no">None</span></td><td class="mark"><span class="yes">Yes</span></td></tr>
+          <tr><td>Contract abstract &amp; key terms</td><td class="mark"><span class="yes">Yes</span></td><td class="mark"><span class="yes">Yes</span></td></tr>
+          <tr><td>Obligation extraction</td><td class="mark"><span class="part">Manual trigger</span></td><td class="mark"><span class="yes">Auto + tracked</span></td></tr>
+          <tr><td>Repository Q&amp;A with citations</td><td class="mark"><span class="part">Unverified</span></td><td class="mark"><span class="yes">Grounded</span></td></tr>
+          <tr><td><b>Semantic retrieval</b></td><td class="mark"><span class="no">Lexical only</span></td><td class="mark"><span class="yes">Embeddings</span></td></tr>
+          <tr><td>Per-document Q&amp;A &amp; comparison</td><td class="mark"><span class="no">None</span></td><td class="mark"><span class="yes">Yes</span></td></tr>
+          <tr><td>Portfolio risk scoring &amp; trend</td><td class="mark"><span class="no">None</span></td><td class="mark"><span class="yes">Yes</span></td></tr>
+          <tr><td>AI governance: evals, audit, versioning</td><td class="mark"><span class="no">None</span></td><td class="mark"><span class="yes">Required</span></td></tr>
+          <tr><td><b>Runs fully air-gapped</b></td><td class="mark"><span class="yes">Yes</span></td><td class="mark"><span class="part">Cloud-bound</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:18px;max-width:66ch;color:var(--ink-soft);">
+      On-prem operation with no external dependency stays our differentiator. Every
+      recommendation below preserves it — each degrades gracefully when no model is configured.
+    </p>
+  </section>
+
+  <section>
+    <h2>Roadmap</h2>
+    <p class="lede">
+      Five phases, lettered to continue from the shipped A–E. The order encodes dependency:
+      G unblocks H and J, and I ships alongside H rather than after it.
+    </p>
+
+    <div class="phases">
+
+      <article class="phase">
+        <div class="phase-head">
+          <div class="pletter">F</div>
+          <div>
+            <h3>Close the loop</h3>
+            <p>Connect what already exists. Days, not weeks — highest value ÷ effort.</p>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item"><span class="icode">F1</span><p><b>Page-access registry.</b> Register the six missing pages with role defaults.</p><span class="effort">S</span></div>
+          <div class="item"><span class="icode">F2</span><p><b>Obligations → reminders.</b> Route due dates through the existing offset, escalation and recipient engine.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">F3</span><p><b>Dashboard 2.0.</b> Obligation status, portfolio risk, cycle-time and spend, role-aware.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">F4</span><p><b>Auto-extract obligations</b> at validation, plus a bounded backfill — mirroring the AI abstract.</p><span class="effort">S</span></div>
+          <div class="item"><span class="icode">F5</span><p><b>Score contracts, not just drafts.</b> Persist the score; expose as column, filter and approval gate.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">F6</span><p><b>Unified search</b> across drafts, clauses and obligations.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">F7</span><p><b>Bulk obligation actions</b> — multi-select complete, assign, re-date.</p><span class="effort">S</span></div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div class="pletter">G</div>
+          <div>
+            <h3>Make retrieval real</h3>
+            <p>The foundation every other AI feature stands on. Treat as correctness, not enhancement.</p>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item"><span class="icode">G1</span><p><b>Real embeddings, offline.</b> Bundle a small CPU sentence-transformer (~80 MB) in the tarball; keep hashing as the no-model fallback; re-index in place.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">G2</span><p><b>Vector index at scale.</b> pgvector + HNSW on Postgres, in-memory path retained for SQLite.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">G3</span><p><b>Hybrid retrieval.</b> Trigram/BM25 fused with vector by reciprocal rank — each covers the other's failure mode.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">G4</span><p><b>Citation enforcement.</b> Validate every <code>[#n]</code> against what was retrieved and the supporting span; strip or flag unsupported claims.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">G5</span><p><b>Per-contract Q&amp;A and comparison</b> across N contracts as a structured table.</p><span class="effort">M</span></div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div class="pletter">H</div>
+          <div>
+            <h3>Agentic drafting &amp; negotiation</h3>
+            <p>The differentiator. Builds on playbook tiers and the tracked-changes engine already shipped.</p>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item"><span class="icode">H1</span><p><b>Auto-redline third-party paper.</b> Generate the replacement from the standard or fallback tier and emit it as individually accept/rejectable tracked changes.</p><span class="effort">L</span></div>
+          <div class="item"><span class="icode">H2</span><p><b>Negotiation copilot.</b> Counter-proposal with rationale, informed by this counterparty's concession history; drafts the reply.</p><span class="effort">L</span></div>
+          <div class="item"><span class="icode">H3</span><p><b>Intake copilot.</b> Natural language → classify type → select template → pre-fill → route.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">H4</span><p><b>Email and mobile approval</b> via signed one-tap links, reusing the renewal token pattern.</p><span class="effort">M</span></div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div class="pletter">I</div>
+          <div>
+            <h3>AI governance &amp; trust</h3>
+            <p>Ships with H, not after. Legal teams will not run agentic AI without it.</p>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item"><span class="icode">I1</span><p><b>AI output audit.</b> Persist feature, prompt version, model, input hash, output, latency and the human accept / reject / edit.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">I2</span><p><b>Eval harness.</b> A golden set per feature with scored regression runs in CI.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">I3</span><p><b>Prompt &amp; model registry.</b> Versioned prompts per feature, per-feature routing, fallback chain, cost and latency budget.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">I4</span><p><b>Confidence &amp; abstention.</b> Surface retrieval confidence; abstain rather than guess on weak evidence.</p><span class="effort">S</span></div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div class="pletter">J</div>
+          <div>
+            <h3>Portfolio intelligence</h3>
+            <p>Needs F and G landed first — structured extraction is only as good as retrieval.</p>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item"><span class="icode">J1</span><p><b>Structured clause attributes.</b> Extract “liability cap = 12 months fees” as queryable data, so “every contract with uncapped liability” is a filter, not a search.</p><span class="effort">L</span></div>
+          <div class="item"><span class="icode">J2</span><p><b>Risk trending &amp; alerts.</b> Portfolio risk over time, concentration and exposure analytics, threshold alerts.</p><span class="effort">M</span></div>
+          <div class="item"><span class="icode">J3</span><p><b>Bulk AI operations.</b> Batch summarise, extract and score with progress and resumability.</p><span class="effort">M</span></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Recommended sequencing</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="when">First, ~2 wks</span>
+        <p><b>F1 · F4 · F7 · I4</b> — small, self-contained, and they make four phases of existing investment visible.</p>
+      </div>
+      <div class="step">
+        <span class="when">The unlock</span>
+        <p><b>G1 → G2 → G3 → G4</b> — until retrieval is real, every AI feature built on top inherits a weak foundation. G1 alone is the highest-leverage change in this document.</p>
+      </div>
+      <div class="step">
+        <span class="when">Differentiator</span>
+        <p><b>F5 → H1 → H2</b>, shipped with <b>I1 + I2</b> so agentic output is auditable and regression-tested from day one.</p>
+      </div>
+      <div class="step">
+        <span class="when">Then</span>
+        <p><b>F2 · F3 · F6 · H3 · H4</b>, then Phase J.</p>
+      </div>
+      <div class="step">
+        <span class="when">Still out</span>
+        <p>Cloud model APIs as a hard dependency, public-IdP SCIM, SaaS procurement connectors, vendor-hosted analytics — all remain out of scope for an air-gapped install.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="risk">
+    <h2>One risk to flag explicitly</h2>
+    <p>
+      Finding 09 is the most under-appreciated item here. Semantic search and Q&amp;A both
+      look finished — endpoints return results, tests pass, the UI is complete — but
+      retrieval cannot match a paraphrase. Users will trust the answers precisely because
+      the interface presents them confidently.
+    </p>
+    <p>
+      Combined with finding 10, unverified citations, that is the highest-risk behaviour in
+      the system today. <b>G1 and G4 should be scheduled as correctness fixes, not
+      enhancements.</b>
+    </p>
+  </section>
+
+  <footer>
+    Contract Management System · gap analysis round 2 · supersedes nothing in round 1, which
+    covered the incumbent CLM suites and shipped as Phases A–E.
+  </footer>
+
+</div>

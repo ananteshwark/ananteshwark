@@ -8,17 +8,20 @@ export const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Send the httpOnly refresh cookie (set by the server, same-origin in prod).
+  withCredentials: true,
 });
 
 // Request interceptor: add auth token and tenant header
 apiClient.interceptors.request.use(
   (config) => {
-    const { accessToken, tenant } = useAuthStore.getState();
+    const { accessToken, tenant, user } = useAuthStore.getState();
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
-    if (tenant?.id) {
-      config.headers['X-Tenant-ID'] = tenant.id;
+    const tenantId = tenant?.id ?? user?.tenantId;
+    if (tenantId) {
+      config.headers['X-Tenant-ID'] = tenantId;
     }
     return config;
   },
@@ -41,7 +44,19 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // The API wraps payloads as { success, data, meta }. For paginated lists
+    // the array lives at data.data.items. Pages read it inconsistently
+    // (res.data.items vs res.data.data.items), so lift items/total to the top
+    // level of the body so every access pattern resolves to the same array.
+    const body = response.data;
+    if (body && body.success === true && body.data && typeof body.data === 'object'
+        && Array.isArray((body.data as any).items)) {
+      (body as any).items = (body.data as any).items;
+      (body as any).total = (body.data as any).total;
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
@@ -51,6 +66,10 @@ apiClient.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
+            // Mark before retrying: if this replay also 401s (e.g. the new
+            // token is already revoked), it must fall through to logout rather
+            // than trigger yet another refresh cycle.
+            originalRequest._retry = true;
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return apiClient(originalRequest);
           })
@@ -62,13 +81,16 @@ apiClient.interceptors.response.use(
 
       const { refreshToken, setTokens, logout } = useAuthStore.getState();
 
-      if (!refreshToken) {
-        logout();
-        return Promise.reject(error);
-      }
-
       try {
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        // Refresh via the httpOnly cookie (browser, prod) with the in-memory
+        // token as a fallback for cross-origin/dev and non-browser clients.
+        // No early-out when refreshToken is absent: after a reload it lives only
+        // in the cookie, so we must still attempt the refresh.
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          refreshToken ? { refreshToken } : {},
+          { withCredentials: true },
+        );
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
         setTokens(newAccessToken, newRefreshToken);
         processQueue(null, newAccessToken);
