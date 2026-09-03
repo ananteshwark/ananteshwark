@@ -53,7 +53,24 @@ shall may not no nor if then than there so but do does done
 
 # Bump when a provider's output space changes so stale vectors are re-indexed.
 # concept: 2 = single hashed bag, 4 = two-channel (see embed_concept).
-EMBEDDING_VERSIONS = {"hashing": 1, "concept": 4, "sentence_transformers": 3}
+#
+# Also bumped when the *text fed to the index* changes shape, which is the case
+# here: the counterparty used to resolve to our own signing entity, so both the
+# stored abstracts and the vectors built from them describe the wrong party.
+# Bumping makes every contract stale, and re-index regenerates the abstract as
+# well as the vector — otherwise the corrected code would only ever apply to
+# contracts indexed after the upgrade.
+#
+# 6: the lexicon learned to read "disputes resolved" and "the agreement be
+# assigned" (services/legal_lexicon). That changes what documents emit, not
+# just what queries emit — a clause saying only "any dispute between the
+# parties" previously carried no concept token at all — so vectors built before
+# it sit in a different space. Search skips contracts whose version does not
+# match, and index-status reports them as stale, so this asks an admin to
+# re-index rather than quietly ranking half the repository against the wrong
+# vocabulary. Keyword ranking keeps working throughout: hybrid_search fuses
+# both signals, so a stale index degrades results rather than emptying them.
+EMBEDDING_VERSIONS = {"hashing": 2, "concept": 6, "sentence_transformers": 4}
 
 _st_model = None
 _st_failed = False
@@ -169,6 +186,47 @@ def active_provider(db=None) -> str:
 
 def embedding_version(db=None) -> int:
     return EMBEDDING_VERSIONS.get(active_provider(db), 0)
+
+
+# Vector length each provider produces. The pgvector column is declared at a
+# fixed width, so this has to be known before anything is embedded — a column
+# built for one provider silently rejects every write from another.
+#
+# sentence_transformers depends on the chosen model; these are the dimensions of
+# the models the setting offers, defaulting to MiniLM's 384. An unknown model
+# name resolves to None, which leaves the column alone rather than rebuilding it
+# to a guess.
+_ST_MODEL_DIMS = {
+    "all-minilm-l6-v2": 384,
+    "all-minilm-l12-v2": 384,
+    "all-mpnet-base-v2": 768,
+    "paraphrase-multilingual-minilm-l12-v2": 384,
+    "bge-small-en-v1.5": 384,
+    "bge-base-en-v1.5": 768,
+}
+
+
+def provider_dim(db=None) -> int | None:
+    """Vector length of the configured provider, or None when it cannot be known.
+
+    None means "do not touch the pgvector column": rebuilding it to a guessed
+    width would be worse than leaving a mismatch the runtime already detects and
+    routes around.
+    """
+    provider = active_provider(db)
+    if provider in ("hashing", "concept"):
+        return DIM
+    if provider == "sentence_transformers":
+        name = ""
+        if db is not None:
+            try:
+                from .settings_store import get_setting
+                name = (get_setting(db, "embedding_model") or "").strip()
+            except Exception:
+                name = ""
+        name = (name or "all-MiniLM-L6-v2").lower().rsplit("/", 1)[-1]
+        return _ST_MODEL_DIMS.get(name)
+    return None
 
 
 def embed(text: str, db=None) -> list[float]:

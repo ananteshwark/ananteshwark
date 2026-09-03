@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 PROVIDERS = {
     "claude": ("claude", "anthropic_api_key", "claude_model", None, None),
     "openai": ("openai", "openai_api_key", "openai_model", "gpt-4o", None),
-    "gemini": ("gemini", "gemini_api_key", "gemini_model", "gemini-1.5-pro", None),
+    "gemini": ("gemini", "gemini_api_key", "gemini_model", "gemini-2.5-pro", None),
     "custom": ("custom", "custom_api_key", "custom_model", None, "custom_api_base"),
 }
 

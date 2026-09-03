@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 import secrets
 
 from ..auth import (
-    create_token,
+    clear_session_cookies,
     get_current_user,
+    set_session_cookies,
     hash_password,
     require_admin,
     require_validator,
@@ -31,9 +32,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     key = payload.email.lower()
-    wait = throttle.retry_after(key)
+    wait = throttle.retry_after(db, key)
     if wait > 0:
         raise HTTPException(
             429, "Too many failed login attempts. Try again later.",
@@ -41,10 +42,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         )
     user = db.query(User).filter(User.email == payload.email, User.deleted_at.is_(None)).first()
     if user is None or not user.is_active or not verify_password(payload.password, user.hashed_password):
-        throttle.record_failure(key)
+        throttle.record_failure(db, key)
         raise HTTPException(401, "Invalid email or password")
-    throttle.reset(key)
-    return {"token": create_token(user), "user": user_out(user)}
+    throttle.reset(db, key)
+    # The token goes back in the body as well as the cookie. The SPA ignores it
+    # — it uses the cookie — but API clients and the test suite authenticate
+    # with the Authorization header, and dropping it here would break them.
+    return {"token": set_session_cookies(response, user), "user": user_out(user)}
 
 
 @router.get("/config")
@@ -56,7 +60,8 @@ def auth_config(db: Session = Depends(get_db)):
 
 
 @router.post("/google")
-def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
+def google_login(payload: GoogleLoginRequest, response: Response,
+                 db: Session = Depends(get_db)):
     if get_setting(db, "google_auth_enabled") != "true":
         raise HTTPException(403, "Google sign-in is not enabled")
     client_id = get_setting(db, "google_client_id")
@@ -98,7 +103,7 @@ def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(401, "User is inactive")
     log_action(db, "user", user.id, "GOOGLE_LOGIN", user_id=user.id)
     db.commit()
-    return {"token": create_token(user), "user": user_out(user)}
+    return {"token": set_session_cookies(response, user), "user": user_out(user)}
 
 
 # ---------------------------------------------------------------------------
@@ -161,10 +166,33 @@ def oidc_callback(code: str, state: str, db: Session = Depends(get_db)):
         raise HTTPException(401, "User is inactive")
     log_action(db, "user", user.id, "OIDC_LOGIN", user_id=user.id)
     db.commit()
-    token = create_token(user)
-    # Redirect the browser back to the SPA login page with the token in the URL,
-    # which the frontend consumes and then cleans out of the address bar.
-    return RedirectResponse(url=f"/login?sso_token={token}", status_code=302)
+    # Set the session on the redirect itself rather than handing the token to
+    # the SPA in the query string. A token in a URL is a token in the browser
+    # history, in the referrer, and in any proxy or access log along the way;
+    # it only existed there because the client had to store it. It does not any
+    # more.
+    #
+    # This is why the cookie is SameSite=Lax: Strict would withhold it on the
+    # navigation the identity provider sends the user back on, and they would
+    # land on the login page still signed out.
+    # ?sso=1 carries no authority — it only tells the login page a sign-in
+    # just happened so it hydrates the user instead of showing the form.
+    redirect = RedirectResponse(url="/login?sso=1", status_code=302)
+    set_session_cookies(redirect, user)
+    return redirect
+
+
+@router.post("/logout")
+def logout(response: Response):
+    """End the cookie session.
+
+    Necessary rather than decorative: the session cookie is HttpOnly, so the
+    client physically cannot delete it. Signing out has to be something the
+    server does. Deliberately unauthenticated — "get me out" should work even
+    if the session is already invalid, and it grants nothing.
+    """
+    clear_session_cookies(response)
+    return {"ok": True}
 
 
 @router.get("/me")

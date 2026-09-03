@@ -17,8 +17,8 @@ export default [
   { ignores: ["dist/**", "node_modules/**"] },
   js.configs.recommended,
   {
-    // Playwright specs and config run in Node, not the browser.
-    files: ["e2e/**/*.js"],
+    // Playwright specs and build scripts run in Node, not the browser.
+    files: ["e2e/**/*.js", "scripts/**/*.{js,mjs}", "*.config.js"],
     languageOptions: { globals: { ...globals.node } },
   },
   {

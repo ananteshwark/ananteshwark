@@ -1,0 +1,125 @@
+# The repository had no CI at all. Three defects reached production during
+# development that a run against Postgres would have caught before deploy:
+# JSON columns declared TEXT in a migration, pgvector aborting a transaction on
+# an install without the extension, and a native enum missing a new label. The
+# suite runs on SQLite locally and the product runs on Postgres; that gap is
+# where the bugs live, so CI closes it.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: cms_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.lock.txt
+
+      - name: Install pinned dependencies
+        working-directory: backend
+        # The lockfile, not requirements.txt: the floors resolve differently
+        # every time and would make a green run meaningless.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock.txt
+          pip install pyflakes
+
+      - name: Audit dependencies
+        working-directory: backend
+        # Blocking on purpose. When this first ran it found 21 advisories across
+        # three pins, one of them PyJWT — the library that signs every session
+        # token on a system of record for contracts. A non-blocking security
+        # check is a check nobody reads.
+        #
+        # A newly disclosed CVE will therefore turn CI red on an unrelated
+        # change. That is the intended signal: update the floor in
+        # requirements.txt, regenerate the lockfile as its header describes, and
+        # run the suite against the new versions.
+        run: |
+          pip install pip-audit
+          python -m pip_audit -r requirements.lock.txt --progress-spinner off
+
+      - name: Lint
+        working-directory: backend
+        run: python -m pyflakes app/
+
+      - name: Test against SQLite
+        working-directory: backend
+        run: python -m pytest -q
+
+      - name: Test against Postgres
+        working-directory: backend
+        env:
+          # Not DATABASE_URL — conftest only honours this opt-in name, so a
+          # stray DATABASE_URL can never capture a schema-dropping suite.
+          CMS_TEST_DATABASE_URL: postgresql+psycopg2://postgres:test@localhost:5432/cms_test
+          JWT_SECRET: ci-only-secret-at-least-thirty-two-characters-long
+          ENV: development
+        run: python -m pytest -q
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 22, not 20: importing pdfjs-dist outside a browser reaches
+          # node_utils.js, which calls Promise.withResolvers — added in Node 22.
+          # On 20 the unit tests for pdfRiskMatch die at import with
+          # "Promise.withResolvers is not a function" before collecting a single
+          # test. The runner also warns that Node 20 is being deprecated.
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        # Warnings are tolerated at the current count and no higher, so the
+        # debt cannot quietly grow. Errors always fail.
+        run: npx eslint . --max-warnings 53
+
+      - name: Unit tests
+        working-directory: frontend
+        # pdfRiskMatch is pure logic and the part of risk shading that has been
+        # wrong most often — the ligature mismatch between the two text
+        # extractors, a clause that matched in no single piece and so was not
+        # shaded at all. Every one of those was found by hand in a browser.
+        run: npm test
+
+      - name: Build
+        working-directory: frontend
+        # `npm run build` also runs scripts/check-dist.mjs, which fails the
+        # build if any .mjs reaches dist — the extension nginx has no MIME type
+        # for, which broke the PDF viewer in production.
+        run: npm run build

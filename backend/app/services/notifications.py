@@ -2,20 +2,29 @@
 webhooks are implemented; additional channels register themselves in CHANNELS."""
 import json
 import logging
+import mimetypes
 import re
 import smtplib
 import urllib.request
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from ..config import settings
 
 log = logging.getLogger(__name__)
 
+# One attachment: (filename, bytes, mime type). The mime type may be None, in
+# which case it is guessed from the filename.
+Attachment = tuple[str, bytes, str | None]
+
 
 class NotificationChannel:
     name = "base"
 
-    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None) -> None:
+    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None,
+             attachments: list[Attachment] | None = None) -> None:
         raise NotImplementedError
 
 
@@ -61,13 +70,33 @@ def _smtp_config() -> dict:
 class EmailChannel(NotificationChannel):
     name = "email"
 
-    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None) -> None:
+    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None,
+             attachments: list[Attachment] | None = None) -> None:
         cc = cc or []
         cfg = _smtp_config()
         if cfg["dry_run"]:
-            log.info("[EMAIL DRY RUN] to=%s cc=%s subject=%r", to, cc, subject)
+            log.info("[EMAIL DRY RUN] to=%s cc=%s subject=%r attachments=%s",
+                     to, cc, subject, [a[0] for a in attachments or []])
             return
-        msg = MIMEText(body, "html")
+        if attachments:
+            # 'mixed' with the HTML as the first part: the body renders as the
+            # message and the files hang off it, which is what every mail client
+            # expects. A plain MIMEText cannot carry a file at all.
+            msg = MIMEMultipart("mixed")
+            msg.attach(MIMEText(body, "html"))
+            for filename, data, mime in attachments:
+                mime = mime or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+                maintype, _, subtype = mime.partition("/")
+                # MIMEBase rather than MIMEApplication so a scanned contract
+                # keeps its real type (image/png) instead of being labelled
+                # application/png, which some clients refuse to preview.
+                part = MIMEBase(maintype or "application", subtype or "octet-stream")
+                part.set_payload(data)
+                encoders.encode_base64(part)
+                part.add_header("Content-Disposition", "attachment", filename=filename)
+                msg.attach(part)
+        else:
+            msg = MIMEText(body, "html")
         msg["Subject"] = subject
         msg["From"] = cfg["from"]
         msg["To"] = ", ".join(to)
@@ -124,7 +153,11 @@ class SlackChannel(NotificationChannel):
     name = "slack"
     setting_key = "slack_webhook_url"
 
-    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None) -> None:
+    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None,
+             attachments: list[Attachment] | None = None) -> None:
+        # Attachments are accepted and dropped: an incoming webhook posts a
+        # message, it cannot upload a file. Noted so the caller's contract holds
+        # for every channel rather than only for email.
         url = _get_setting(self.setting_key)
         if not url:
             log.info("[slack] no webhook configured; skipping %r", subject)
@@ -137,7 +170,9 @@ class TeamsChannel(NotificationChannel):
     name = "teams"
     setting_key = "teams_webhook_url"
 
-    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None) -> None:
+    def send(self, to: list[str], subject: str, body: str, cc: list[str] | None = None,
+             attachments: list[Attachment] | None = None) -> None:
+        # As with Slack: a webhook card carries no file.
         url = _get_setting(self.setting_key)
         if not url:
             log.info("[teams] no webhook configured; skipping %r", subject)

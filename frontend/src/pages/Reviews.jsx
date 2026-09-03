@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
+import MentionInput from '../components/MentionInput'
 
 // Google-Docs-style review inbox: every request you're tagged in, the section in
 // context (highlighted), a reply thread, a reviewer suggestion you can edit, and
@@ -75,8 +76,8 @@ function Thread({ r, onChange }) {
       ))}
       {!r.draft_finalized && (
         <div className="toolbar" style={{ margin: '6px 0 0' }}>
-          <input placeholder="Reply… (@name to notify someone)" value={body} onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') send() }} style={{ flex: 1 }} />
+          <MentionInput value={body} onChange={setBody} onSubmit={send}
+            placeholder="Reply… type @ to mention someone" />
           <button className="secondary" disabled={busy || !body.trim()} onClick={send}>Reply</button>
         </div>
       )}
@@ -113,14 +114,21 @@ function ReviewerForm({ r, onDone }) {
   }
   return (
     <div className="review-respond">
-      <label>Edit the highlighted text to suggest a change (suggesting mode)</label>
+      <label>
+        {r.status === 'pending'
+          ? 'Edit the highlighted text to suggest a change (suggesting mode)'
+          : 'Revise your suggestion — sending again replaces your previous response'}
+      </label>
       <textarea rows={3} value={suggested} onChange={(e) => setSuggested(e.target.value)} />
-      <label>Comment (optional)</label>
-      <textarea rows={2} value={comment} onChange={(e) => setComment(e.target.value)}
-        placeholder="Explain your suggestion…" />
+      <label>Comment to the author (optional)</label>
+      <MentionInput rows={2} value={comment} onChange={setComment}
+        placeholder="Explain your suggestion… type @ to mention someone" />
       <div className="toolbar" style={{ marginTop: 8 }}>
         <button disabled={busy} onClick={() => submit('approved')}>Approve as-is</button>
         <button className="danger" disabled={busy} onClick={() => submit('changes_requested')}>Suggest change</button>
+        <Link className="linklike" to={`/authoring/drafts/${r.draft_id}/review-edit`}>
+          or edit the whole document →
+        </Link>
       </div>
     </div>
   )
@@ -136,9 +144,15 @@ function SuggestionDiff({ r }) {
   )
 }
 
-function ReviewCard({ r, mine, onChange }) {
+function ReviewCard({ r, mine, onChange, focused }) {
   const [busy, setBusy] = useState(false)
   const [ctx, setCtx] = useState(false)
+  const ref = useRef(null)
+  // Notification links carry ?request=<id>. Without this the recipient
+  // lands on every thread they are tagged in and has to find theirs.
+  useEffect(() => {
+    if (focused && ref.current) ref.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [focused])
   async function act(kind) {
     setBusy(true)
     try { await api.post(`/authoring/review-requests/${r.id}/${kind}`); onChange() }
@@ -149,7 +163,7 @@ function ReviewCard({ r, mine, onChange }) {
   const canDecideSuggestion = isAuthor && r.status === 'reviewed' && r.suggested_text && open
 
   return (
-    <div className="review-card">
+    <div className={`review-card${focused ? ' focused' : ''}`} ref={ref}>
       <div className="toolbar" style={{ margin: 0 }}>
         <Link to={`/authoring/drafts/${r.draft_id}`}><strong>{r.draft_title || `Draft #${r.draft_id}`}</strong></Link>
         <StatusBadge r={r} />
@@ -177,12 +191,7 @@ function ReviewCard({ r, mine, onChange }) {
       <Thread r={r} onChange={onChange} />
 
       {/* Reviewer: respond to the section, or edit the whole document */}
-      {mine && open && (
-        <Link className="linklike" to={`/authoring/drafts/${r.draft_id}/review-edit`}>
-          ✎ Suggest edits on the whole document (suggesting mode) →
-        </Link>
-      )}
-      {mine && r.status === 'pending' && open && <ReviewerForm r={r} onDone={onChange} />}
+      {mine && open && <ReviewerForm r={r} onDone={onChange} />}
 
       {/* Author decisions */}
       {isAuthor && open && (
@@ -207,6 +216,8 @@ function ReviewCard({ r, mine, onChange }) {
 export default function Reviews() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [params] = useSearchParams()
+  const focusId = Number(params.get('request')) || null
   const load = useCallback(() => {
     api.get('/authoring/my-reviews').then(setData).catch((e) => setError(e.message))
   }, [])
@@ -218,6 +229,9 @@ export default function Reviews() {
   const reviewer = data.as_reviewer || []
   const author = data.as_author || []
   const pending = reviewer.filter((r) => r.status === 'pending').length
+  // A link can outlive its thread — cancelled, or the draft deleted. Say so
+  // rather than dropping the reader on an unexplained list.
+  const missing = focusId && ![...reviewer, ...author].some((r) => r.id === focusId)
 
   return (
     <div>
@@ -227,16 +241,22 @@ export default function Reviews() {
         the author replies, resolves, or accepts — accepting merges the suggestion into the draft.
       </p>
 
+      {missing && (
+        <div className="error">
+          That review is no longer available — it may have been cancelled, or the draft removed.
+        </div>
+      )}
+
       <div className="card">
         <h3>Assigned to me {pending > 0 && <span className="badge warn">{pending} to review</span>}</h3>
         {reviewer.length === 0 && <p className="hint">Nothing assigned to you.</p>}
-        {reviewer.map((r) => <ReviewCard key={r.id} r={r} mine onChange={load} />)}
+        {reviewer.map((r) => <ReviewCard key={r.id} r={r} mine onChange={load} focused={r.id === focusId} />)}
       </div>
 
       <div className="card">
         <h3>My review requests</h3>
         {author.length === 0 && <p className="hint">You haven’t requested any reviews.</p>}
-        {author.map((r) => <ReviewCard key={r.id} r={r} mine={false} onChange={load} />)}
+        {author.map((r) => <ReviewCard key={r.id} r={r} mine={false} onChange={load} focused={r.id === focusId} />)}
       </div>
     </div>
   )

@@ -28,7 +28,8 @@ def _money(contract: Contract) -> str | None:
 def key_terms(contract: Contract) -> list[dict]:
     """Deterministic key-terms card: the fields that matter at a glance."""
     pairs = [
-        ("Counterparty", contract.signing_entity or contract.vendor_name_raw),
+        ("Counterparty", contract.counterparty_name),
+        ("Internal entity", contract.signing_entity),
         ("Type", contract.contract_type),
         ("Service", contract.contract_service),
         ("Value", _money(contract)),
@@ -41,9 +42,11 @@ def key_terms(contract: Contract) -> list[dict]:
 
 
 def _fallback_summary(contract: Contract, terms: list[dict]) -> str:
-    who = contract.signing_entity or contract.vendor_name_raw or "the counterparty"
+    who = contract.counterparty_name or "the counterparty"
     kind = contract.contract_type or "agreement"
     bits = [f"This {kind} is with {who}"]
+    if contract.signing_entity:
+        bits[0] += f", on behalf of {contract.signing_entity}"
     if contract.contract_service:
         bits.append(f"for {contract.contract_service}")
     val = _money(contract)
@@ -82,8 +85,13 @@ def build_summary(db, contract: Contract) -> dict:
                 summary = llm_text(db, prompt, system="Reply with the paragraph only.",
                                    max_tokens=300).strip()
                 run["ai_used"] = True
-            except AIUnavailable:
+            except AIUnavailable as exc:
+                # Falling back is correct; falling back without a trace is how a
+                # broken API key goes unnoticed for weeks.
                 summary = None
+                run["error"] = str(exc)
+        else:
+            run["error"] = "AI enhancements are switched off or no key is configured"
         if not summary:
             summary = _fallback_summary(contract, terms)
         run["output"] = summary
@@ -97,24 +105,53 @@ def _index_text(contract: Contract) -> str:
     """Text fed to the embedding: the abstract + key facts + a slice of body."""
     parts = [contract.ai_summary or "",
              contract.contract_service or "", contract.service_summary or "",
-             contract.signing_entity or contract.vendor_name_raw or "",
+             contract.counterparty_name or "", contract.signing_entity or "",
              contract.contract_type or "",
              (contract.extracted_text or "")[:4000]]
     return "\n".join(p for p in parts if p)
 
 
+# None = not yet probed, False = this database has no usable pgvector column.
+# Reset by a restart, which is when a newly installed extension would be picked up.
+_PGVECTOR_AVAILABLE: bool | None = None
+
+
 def _sync_pgvector(db, contract: Contract, vector: list[float]) -> None:
     """Mirror the vector into the pgvector column when that path exists (G2).
-    Entirely best-effort: SQLite and pgvector-less installs skip it silently."""
+
+    Best-effort, but "best-effort" needs a savepoint to mean anything on
+    Postgres. A failed statement there aborts the whole transaction, so
+    swallowing the exception did not contain it: on a Postgres without the
+    pgvector extension this raised `type "vector" does not exist`, the except
+    hid it, and every subsequent statement in the request died with
+    `InFailedSqlTransaction` — turning an optional index mirror into a 500 on
+    re-index and on generating any abstract. SQLite has no such behaviour, so
+    the whole test suite passed throughout.
+
+    The write now runs inside a nested transaction, so a failure rolls back
+    exactly that statement, and the result is remembered so a repository-wide
+    re-index does not attempt thousands of doomed savepoints.
+    """
+    global _PGVECTOR_AVAILABLE
+    if _PGVECTOR_AVAILABLE is False:
+        return
+    if db.bind is None or db.bind.dialect.name != "postgresql":
+        return
+    from sqlalchemy import text
+    literal = "[" + ",".join(f"{v:.6f}" for v in vector) + "]"
     try:
-        if db.bind is None or db.bind.dialect.name != "postgresql":
-            return
-        from sqlalchemy import text
-        literal = "[" + ",".join(f"{v:.6f}" for v in vector) + "]"
-        db.execute(text("UPDATE contracts SET embedding_vec = CAST(:v AS vector) "
-                        "WHERE sr_no = :sr"), {"v": literal, "sr": contract.sr_no})
+        with db.begin_nested():
+            db.execute(text("UPDATE contracts SET embedding_vec = CAST(:v AS vector) "
+                            "WHERE sr_no = :sr"), {"v": literal, "sr": contract.sr_no})
+        _PGVECTOR_AVAILABLE = True
     except Exception:
-        log.debug("pgvector sync skipped for contract %s", contract.sr_no, exc_info=True)
+        if _PGVECTOR_AVAILABLE is None:
+            # Logged once, and at warning: this silently disables the ANN path,
+            # which an operator wondering why search is slow needs to be able to see.
+            log.warning("pgvector column unavailable — retrieval will use the "
+                        "in-process path. Install the pgvector extension to enable it.",
+                        exc_info=True)
+        _PGVECTOR_AVAILABLE = False
 
 
 def index_contract(db, contract: Contract, *, summarize: bool = True) -> None:

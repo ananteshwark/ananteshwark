@@ -21,6 +21,7 @@ export default function DraftingQueue() {
   const { isSuperAdmin } = useAuth()
   const [rows, setRows] = useState([])
   const [error, setError] = useState(null)
+  const [message, setMessage] = useState(null)
   const [mine, setMine] = useState(false)
   const [showDone, setShowDone] = useState(false)
 
@@ -40,9 +41,18 @@ export default function DraftingQueue() {
 
   async function deleteDraft(d) {
     if (!await confirmDialog(`Delete draft "${d.title || `#${d.id}`}"? It moves to Data Retention where it can be restored.`)) return
-    setError(null)
-    try { await api.del(`/authoring/drafts/${d.id}`); load() }
-    catch (e) { setError(e.message) }
+    setError(null); setMessage(null)
+    try {
+      const r = await api.del(`/authoring/drafts/${d.id}`)
+      // Deleting a converted draft sends its request back to the triage queue.
+      // Say so — otherwise the request quietly reappearing looks like a bug.
+      const reopened = r?.requests_reopened || []
+      if (reopened.length) {
+        setMessage(`Draft deleted. Contract request ${reopened.map((id) => `#${id}`).join(', ')} `
+          + `${reopened.length > 1 ? 'are' : 'is'} back in the queue for triage.`)
+      }
+      load()
+    } catch (e) { setError(e.message) }
   }
 
   return (
@@ -60,9 +70,10 @@ export default function DraftingQueue() {
         </label>
       </div>
       {error && <div className="error">{error}</div>}
+      {message && <div className="success">{message}</div>}
       <table className="grid">
         <thead>
-          <tr><th>Title</th><th>Type</th><th>Vendor</th><th>Stage</th><th>Updated</th><th></th></tr>
+          <tr><th>Title</th><th>Type</th><th>Counterparty</th><th>Stage</th><th>Updated</th><th></th></tr>
         </thead>
         <tbody>
           {visible.map((d) => (

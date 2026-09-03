@@ -163,3 +163,4 @@ class TestAuthoringApi:
         # Draft is now read-only
         assert client.put(f"/api/authoring/drafts/{d['id']}", headers=admin_headers,
                           json={"title": "x"}).status_code == 409
+

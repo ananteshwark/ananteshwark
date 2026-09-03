@@ -155,6 +155,7 @@ def download_document(token: str, request: Request, db: Session = Depends(get_db
     """Watermarked PDF of the draft — only when the link permits download."""
     from fastapi.responses import Response
     from ..services.authoring import render_text
+    from ..services.letterhead import spec_for_draft
     from ..services.pdf import text_to_pdf
     _throttle(request, token)
     link = _link(db, token)
@@ -164,8 +165,11 @@ def download_document(token: str, request: Request, db: Session = Depends(get_db
     draft = db.get(ContractDraft, link.draft_id)
     banner = (f"CONFIDENTIAL DRAFT — for review by {link.recipient_email} — not for distribution\n\n"
               if link.watermark else "")
+    # The vendor's copy is the one they read and mark up — it goes out on the
+    # same paper as the copy they will eventually be asked to sign.
     data = text_to_pdf((draft.title or "CONTRACT").upper(),
-                       banner + render_text(draft.document, draft.fields or {}))
+                       banner + render_text(draft.document, draft.fields or {}),
+                       letterhead=spec_for_draft(db, draft))
     return Response(content=data, media_type="application/pdf",
                     headers={"Content-Disposition": 'attachment; filename="contract-draft.pdf"'})
 

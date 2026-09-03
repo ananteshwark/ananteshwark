@@ -331,8 +331,24 @@ export default function ClauseLibrary() {
               <span className="hint">Standard = preferred wording · Fallback = acceptable · Walk-away = last acceptable position.</span>
             </div>
             {selected.summary && <p className="hint">Difference summary: {selected.summary}</p>}
-            <h4 style={{ marginBottom: 4 }}>Original clause text</h4>
+            <h4 style={{ marginBottom: 4 }}>Clause text <span className="hint">— what gets inserted into a draft</span></h4>
             <div className="snippet" style={{ whiteSpace: 'pre-wrap', maxHeight: 180, overflow: 'auto' }}>{selected.text}</div>
+            {selected.original_text && (
+              <details style={{ marginTop: 6 }}>
+                <summary className="hint" style={{ cursor: 'pointer' }}>
+                  Wording before it was polished — kept so this can be undone
+                </summary>
+                <div className="snippet" style={{ whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto', marginTop: 4 }}>
+                  {selected.original_text}
+                </div>
+                {canAuthor && (
+                  <button className="secondary" style={{ marginTop: 6 }}
+                    onClick={() => act(() => api.post(`/clauses/versions/${selected.id}/revert-polish`))}>
+                    Restore this wording
+                  </button>
+                )}
+              </details>
+            )}
             <div className="toolbar" style={{ margin: '10px 0 4px' }}>
               <h4 style={{ margin: 0 }}>Polished text <span className="hint">— AI-enhanced, editable</span></h4>
               <span className="spacer" />
@@ -342,6 +358,9 @@ export default function ClauseLibrary() {
               }}>Polish (AI)</button>}
               {canAuthor && <button onClick={() => act(() => api.put(`/clauses/versions/${selected.id}`, { polished_text: polishDraft }))} disabled={polishDraft === (selected.polished_text || '')}>Save polished</button>}
             </div>
+            <p className="hint" style={{ margin: '0 0 4px' }}>
+              Saving replaces the clause text above — this wording is what the library serves from then on.
+            </p>
             <textarea rows={6} value={polishDraft} onChange={(e) => setPolishDraft(e.target.value)}
                       placeholder="No polished version yet — click “Polish (AI)” or type one." disabled={!canAuthor}
                       style={{ fontFamily: 'inherit', width: '100%' }} />

@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from ..services.file_serving import safe_file_response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
@@ -146,7 +146,7 @@ def download_file(doc_id: int, db: Session = Depends(get_db), _: User = Depends(
         raise HTTPException(404, "File not found")
     if not Path(d.path).exists():
         raise HTTPException(410, "File is no longer available on disk")
-    return FileResponse(d.path, filename=d.filename or "document")
+    return safe_file_response(d.path, d.filename or "document")
 
 
 @router.delete("/{doc_id}")

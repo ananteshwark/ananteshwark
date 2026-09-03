@@ -6,6 +6,8 @@
   --btn-secondary-bg:#e4e9ee; --btn-secondary-bg-hover:#d6dde4;
   --menu-bg:#ffffff; --row-selected:#eaf2fe;
   --warn-bg:#fff8ec; --warn-border:#e8a13c; --derived-bg:#f6f1ff; --derived-border:#9b7ede;
+  --required:#a3341f; --required-border:#d8735a;
+  --risk-bg:#fff6f4; --risk-border:#f2c4bb;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -16,6 +18,8 @@
     --btn-secondary-bg:#28353f; --btn-secondary-bg-hover:#33414d;
     --menu-bg:#1c2836; --row-selected:#1b3350;
     --warn-bg:#3a2f16; --warn-border:#a97e2e; --derived-bg:#2a2340; --derived-border:#7e63c0;
+    --required:#e8917a; --required-border:#b25e45;
+    --risk-bg:#3a201b; --risk-border:#7d4437;
   }
 }
 :root[data-theme="dark"] {
@@ -26,6 +30,8 @@
   --btn-secondary-bg:#28353f; --btn-secondary-bg-hover:#33414d;
   --menu-bg:#1c2836; --row-selected:#1b3350;
   --warn-bg:#3a2f16; --warn-border:#a97e2e; --derived-bg:#2a2340; --derived-border:#7e63c0;
+  --required:#e8917a; --required-border:#b25e45;
+  --risk-bg:#3a201b; --risk-border:#7d4437;
 }
 
 * { box-sizing: border-box; }
@@ -327,6 +333,14 @@ label { display: block; font-size: 12px; font-weight: 600; margin: 10px 0 3px; c
 .authoring-fullscreen { position: fixed; inset: 0; z-index: 1000; background: var(--bg, #fff); overflow: auto; padding: 16px 20px; }
 .doc-surface { border: 1px solid #c6d0da; border-radius: 8px; background: #fff; padding: 22px 26px; max-height: 74vh; overflow: auto; }
 .doc-surface.preview { background: #fbfcfe; }
+/* The business unit's letterhead, drawn around the editable area rather than
+   inside it. Negative side margins cancel the surface's padding so the banner
+   reaches the paper's edge, which is how the exports print it. */
+.doc-letterhead { margin: -22px -26px 18px; overflow: hidden; }
+.doc-letterhead.foot { margin: 18px -26px -22px; }
+.doc-letterhead img { display: block; width: 100%; height: auto; }
+.doc-surface > .doc-letterhead:first-child { border-radius: 7px 7px 0 0; }
+.doc-surface > .doc-letterhead.foot:last-child { border-radius: 0 0 7px 7px; }
 /* Render the document surface like the source contract: a serif document font
    and justified body text, rather than the app's sans-serif UI font (4, 5). */
 .doc-surface .ProseMirror {
@@ -406,3 +420,79 @@ mark.risk-flag { background: #ffe0dc; color: #7a2718; border-bottom: 2px solid #
 .gutter-item:hover { background: #f0f4f8; }
 .gutter-item.heading { font-weight: 600; color: #223; }
 .gutter-item.clause { color: #14508a; }
+
+/* Fields that block validation. The bare asterisk read as decoration, so a
+   validator only discovered what was required by being refused on save. */
+.req-mark { color: var(--required); font-weight: 700; }
+.field-mandatory > label { color: var(--required); }
+.field-mandatory input, .field-mandatory select, .field-mandatory textarea {
+  border-left: 3px solid var(--required-border);
+}
+
+/* Risk shading drawn over a PDF page we render ourselves. The boxes sit above
+   the canvas rather than in it, so hovering one can show its reasons and the
+   page underneath stays a normal, selectable render. */
+.pdf-risk-wrap { display: flex; flex-direction: column; gap: 12px; align-items: center; max-height: 70vh; overflow: auto;
+  border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: var(--surface-2); }
+.pdf-page { position: relative; box-shadow: 0 2px 10px rgba(0,0,0,.18); background: #fff; }
+.pdf-page canvas { display: block; }
+.pdf-risk-box { position: absolute; background: rgba(224,133,122,.34); border-bottom: 2px solid #c9503c;
+  border-radius: 2px; cursor: help; transition: background .12s ease; }
+.pdf-risk-box:hover, .pdf-risk-box.active { background: rgba(224,133,122,.62); }
+
+/* Highlight swatches in the formatting bar: colour is the whole control, so the
+   button is the colour rather than a label describing it. */
+.fmt-swatches { display: inline-flex; gap: 3px; align-items: center; }
+.fmt-swatch { width: 20px; height: 20px; min-width: 20px; padding: 0; border-radius: 3px;
+  border: 1px solid var(--border-input); cursor: pointer; }
+.fmt-swatch:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fmt-bar select { width: auto; padding: 2px 4px; height: 26px; font-size: 12px; margin: 0; }
+
+/* Blocks and marks the formatting bar can now produce. Without these the editor
+   showed a quote, a rule or a code block as plain body text, so an author could
+   not see what they had applied. */
+.doc-surface .ProseMirror blockquote { margin: 10px 0 10px 18px; padding-left: 12px;
+  border-left: 3px solid var(--border-input); color: var(--label); }
+.doc-surface .ProseMirror hr { border: 0; border-top: 1px solid var(--border-input); margin: 14px 0; }
+.doc-surface .ProseMirror code { background: var(--surface-2); border: 1px solid var(--border-soft);
+  border-radius: 3px; padding: 0 3px; font-size: .92em; }
+.doc-surface .ProseMirror pre { background: var(--surface-2); border: 1px solid var(--border-soft);
+  border-radius: 4px; padding: 8px 10px; overflow-x: auto; text-align: left; }
+.doc-surface .ProseMirror pre code { background: none; border: 0; padding: 0; }
+.doc-surface .ProseMirror mark { border-radius: 2px; padding: 0 1px; color: inherit; }
+.doc-surface .ProseMirror a { color: var(--accent); text-decoration: underline; }
+
+/* The thread a notification link points at, so the recipient can see which of
+   their reviews they were sent to. */
+.review-card.focused { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* @mention autocomplete. The menu is positioned against the input rather than
+   the page so it follows the field inside a modal or a scrolled thread. */
+.mention-wrap { position: relative; flex: 1; min-width: 0; }
+.mention-wrap input, .mention-wrap textarea { width: 100%; }
+.mention-menu { position: absolute; z-index: 1600; left: 0; right: 0; bottom: 100%; margin: 0 0 4px;
+  padding: 4px; list-style: none; max-height: 220px; overflow-y: auto;
+  background: var(--menu-bg); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.22); }
+.mention-menu li { padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.mention-menu li.active { background: var(--row-selected); }
+
+/* Letterhead preview in Admin Settings — bounded so a tall banner cannot push
+   the rest of the card off the screen. */
+.letterhead-preview { border: 1px solid var(--border-soft); border-radius: 6px; overflow: hidden;
+  background: #fff; margin: 4px 0 6px; max-width: 460px; }
+.letterhead-preview img { display: block; width: 100%; height: auto; }
+
+/* Printing the authoring editor. Ctrl-P used to put the whole application on
+   the page — nav, toolbars, side panels and all. Reduced to the document
+   surface, so what prints is the contract on its letterhead. */
+@media print {
+  .sidebar, .mobile-topbar, .nav-backdrop, .toast-host,
+  .toolbar, .stage-stepper, .clauses-dock, .split-resizer, .clause-gutter,
+  .fields-pane { display: none !important; }
+  .layout, .main { display: block; padding: 0; max-width: none; }
+  .doc-surface { border: 0; border-radius: 0; padding: 0; max-height: none; overflow: visible; }
+  .doc-letterhead, .doc-letterhead.foot { margin-left: 0; margin-right: 0; }
+  .authoring-layout, .doc-surface { display: block; width: 100%; }
+  body { background: #fff; }
+}

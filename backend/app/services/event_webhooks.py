@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from .settings_store import get_setting
+from .url_guard import assert_safe_outbound_url
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +65,9 @@ def build_event(event_type: str, contract) -> dict:
 
 
 def _deliver(url: str, secret: str, event: dict) -> None:
+    # The target is operator-configured, so it is untrusted input to a request
+    # the server makes with its own network position. Refuse internal targets.
+    assert_safe_outbound_url(url)
     body = json.dumps(event).encode()
     headers = {"Content-Type": "application/json", "X-CMS-Event": event["event"]}
     if secret:

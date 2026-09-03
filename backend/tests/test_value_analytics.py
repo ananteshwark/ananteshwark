@@ -41,3 +41,38 @@ class TestValueAnalytics:
         assert len(data["top_vendors"]) <= 10
         vals = [v["value"] for v in data["top_vendors"]]
         assert vals == sorted(vals, reverse=True)
+
+    def _vendor_contract(self, vendor_name, value):
+        """A contract attached to a real Vendor row — top_vendors joins vendors,
+        so a contract with only vendor_name_raw never reaches that report."""
+        from app.database import SessionLocal
+        from app.models import Contract, ContractStatus, LifecycleStatus, Vendor
+        db = SessionLocal()
+        v = db.query(Vendor).filter(Vendor.name == vendor_name).first()
+        if v is None:
+            v = Vendor(name=vendor_name, normalized_name=vendor_name.lower())
+            db.add(v); db.commit()
+        db.add(Contract(
+            vendor_id=v.id, vendor_name_raw=vendor_name, contract_service="svc",
+            status=ContractStatus.VALIDATED, lifecycle_status=LifecycleStatus.ACTIVE,
+            contract_value=value, raw_extracted={}, confidence={},
+        ))
+        db.commit(); db.close()
+
+    def test_top_vendors_ranks_null_valued_vendors_last(self, client, admin_headers):
+        """SUM() over an all-NULL group is NULL, and Postgres sorts NULL above
+        every real value under DESC (SQLite sorts it below). Ordering by the raw
+        SUM while returning COALESCE(SUM(...), 0) therefore ranked a vendor shown
+        as 0 *above* one shown as 2.5M — on Postgres only. Regression guard."""
+        self._vendor_contract("ZZ Null Value Vendor", None)
+        self._vendor_contract("ZZ Real Value Vendor", 2_500_000)
+
+        data = client.get("/api/reports/value-analytics", headers=admin_headers).json()
+        ranks = {row["label"]: i for i, row in enumerate(data["top_vendors"])}
+        assert "ZZ Real Value Vendor" in ranks, data["top_vendors"]
+
+        # The displayed order must match the displayed numbers on either engine.
+        vals = [row["value"] for row in data["top_vendors"]]
+        assert vals == sorted(vals, reverse=True)
+        if "ZZ Null Value Vendor" in ranks:
+            assert ranks["ZZ Real Value Vendor"] < ranks["ZZ Null Value Vendor"]

@@ -93,3 +93,95 @@ def test_autolearn_keeps_clause_capped_at_five(client, admin_headers):
     rows = client.get("/api/clauses?clause_type=Indemnity", headers=admin_headers).json()
     indemnity = [r for r in rows if r["clause_type"] == "Indemnity"]
     assert len(indemnity) <= 5
+
+
+class TestSavingPolishedReplacesTheClause:
+    """Saving polished wording used to write only `polished_text`, leaving the
+    clause text — the wording shown on the page and the wording inserted into a
+    draft — untouched. A polished clause never reached a contract."""
+
+    POLISHED = "Neither party may assign this Agreement without prior written consent."
+
+    def _polished(self, client, h, ctype="Assignment",
+                  text="neither party may assign without consent"):
+        v = _add(client, h, ctype, text)
+        out = client.put(f"/api/clauses/versions/{v['id']}", headers=h,
+                         json={"polished_text": self.POLISHED})
+        assert out.status_code == 200, out.text
+        return v["id"], out.json()
+
+    def test_the_clause_text_becomes_the_polished_wording(self, client, admin_headers):
+        _id, out = self._polished(client, admin_headers)
+        assert out["text"] == self.POLISHED
+        assert out["polished_text"] == self.POLISHED
+
+    def test_the_replaced_wording_is_kept(self, client, admin_headers):
+        _id, out = self._polished(client, admin_headers)
+        assert out["original_text"] == "neither party may assign without consent"
+
+    def test_matching_still_keys_on_the_wording_contracts_actually_contain(self, client, admin_headers):
+        """`normalized` is what incoming contract clauses are matched against,
+        and those documents contain the original wording — so promoting polished
+        text must not rewrite it."""
+        from app.database import SessionLocal
+        from app.models import ClauseVersion
+        vid, _out = self._polished(client, admin_headers, ctype="AssignNorm")
+        db = SessionLocal()
+        try:
+            v = db.get(ClauseVersion, vid)
+            assert "prior written consent" not in (v.normalized or "")
+            assert "neither party may assign" in (v.normalized or "")
+        finally:
+            db.close()
+
+    def test_repeated_saves_keep_the_first_original(self, client, admin_headers):
+        vid, _out = self._polished(client, admin_headers, ctype="AssignTwice")
+        again = client.put(f"/api/clauses/versions/{vid}", headers=admin_headers,
+                           json={"polished_text": "A third wording entirely."}).json()
+        assert again["text"] == "A third wording entirely."
+        assert again["original_text"] == "neither party may assign without consent"
+
+    def test_the_promotion_can_be_undone(self, client, admin_headers):
+        vid, _out = self._polished(client, admin_headers, ctype="AssignRevert")
+        back = client.post(f"/api/clauses/versions/{vid}/revert-polish", headers=admin_headers)
+        assert back.status_code == 200, back.text
+        assert back.json()["text"] == "neither party may assign without consent"
+        assert back.json()["original_text"] is None
+        assert back.json()["polished_text"] is None
+
+    def test_reverting_an_unpolished_clause_is_refused(self, client, admin_headers):
+        v = _add(client, admin_headers, "AssignPlain", "some untouched wording")
+        r = client.post(f"/api/clauses/versions/{v['id']}/revert-polish", headers=admin_headers)
+        assert r.status_code == 400
+
+    def test_inserting_into_a_draft_uses_the_polished_wording(self, client, admin_headers):
+        vid, _out = self._polished(client, admin_headers, ctype="AssignInsert")
+        draft = client.post("/api/authoring/drafts", headers=admin_headers,
+                            json={"origin": "scratch", "contract_type": "MSA"}).json()
+        r = client.post(f"/api/authoring/drafts/{draft['id']}/insert-clause",
+                        headers=admin_headers, json={"version_id": vid})
+        assert r.status_code == 200, r.text
+        body = str(r.json()["document"])
+        assert self.POLISHED in body
+        assert "neither party may assign without consent" not in body
+
+    def test_a_clause_polished_before_this_change_still_inserts_polished(self, client, admin_headers):
+        """Versions polished under the old behaviour carry the wording only in
+        `polished_text`; inserting the stale original would put back text the
+        author had already replaced."""
+        from app.database import SessionLocal
+        from app.models import ClauseVersion
+        v = _add(client, admin_headers, "AssignLegacy", "old raw wording")
+        db = SessionLocal()
+        try:
+            row = db.get(ClauseVersion, v["id"])
+            row.polished_text = self.POLISHED   # as the old save would have left it
+            db.commit()
+        finally:
+            db.close()
+
+        draft = client.post("/api/authoring/drafts", headers=admin_headers,
+                            json={"origin": "scratch", "contract_type": "MSA"}).json()
+        r = client.post(f"/api/authoring/drafts/{draft['id']}/insert-clause",
+                        headers=admin_headers, json={"version_id": v["id"]})
+        assert self.POLISHED in str(r.json()["document"])

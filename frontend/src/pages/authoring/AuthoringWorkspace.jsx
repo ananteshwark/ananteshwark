@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
+import { Color, FontFamily, FontSize, LineHeight, TextStyle } from '@tiptap/extension-text-style'
+import TextAlign from '@tiptap/extension-text-align'
+import Highlight from '@tiptap/extension-highlight'
+import Subscript from '@tiptap/extension-subscript'
+import Superscript from '@tiptap/extension-superscript'
+import EditorToolbar from '../../authoring/EditorToolbar'
 import { api } from '../../api'
 import { VendorPicker } from '../../components/ContractForm'
+import LetterheadPaper from '../../components/LetterheadPaper'
 import { MergeField, syncMergeFields, flagFieldConflict } from '../../authoring/mergeField'
 import { renumberSections } from '../../authoring/renumber'
 import { confirmDialog, promptDialog } from '../../confirm'
@@ -47,6 +54,7 @@ const FIELDS = [
   ['Payment Term', 'payment_term', 'text'],
   ['Notice Period', 'notice_period', 'text'],
   ['Business Unit (BU)', 'location', 'text'],
+  ['Any PHI Shared', 'phi_shared', 'bool'],
 ]
 
 export default function AuthoringWorkspace() {
@@ -58,6 +66,9 @@ export default function AuthoringWorkspace() {
   // Internal section-review workflow
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewers, setReviewers] = useState([])
+  // Any active user can be a reviewer now, so the list can be long enough
+  // to need filtering.
+  const [reviewerFilter, setReviewerFilter] = useState('')
   const [reviewSel, setReviewSel] = useState([])       // selected reviewer ids
   const [reviewNote, setReviewNote] = useState('')
   const [reviewExcerpt, setReviewExcerpt] = useState('')
@@ -120,6 +131,14 @@ export default function AuthoringWorkspace() {
     extensions: [
       StarterKit, MergeField,
       Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
+      // Contract paper is formatted paper: schedules get centred headings, rate
+      // tables get sized text, defined terms get emphasis. StarterKit covers
+      // bold/italic/underline/strike/lists/headings/quote/rule/link; these are
+      // the rest of what the toolbar offers.
+      TextStyle, Color, FontFamily, FontSize, LineHeight,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Highlight.configure({ multicolor: true }),
+      Subscript, Superscript,
     ],
     content: { type: 'doc', content: [{ type: 'paragraph' }] },
     editable: true,
@@ -613,10 +632,16 @@ export default function AuthoringWorkspace() {
       if (to > from) excerpt = editor.state.doc.textBetween(from, to, ' ').trim()
     } catch { /* no selection */ }
     setReviewExcerpt(excerpt)
-    setReviewSel([]); setReviewNote('')
+    setReviewSel([]); setReviewNote(''); setReviewerFilter('')
     api.get('/authoring/reviewers').then(setReviewers).catch(() => {})
     setReviewOpen(true)
   }
+  const visibleReviewers = useMemo(() => {
+    const q = reviewerFilter.trim().toLowerCase()
+    if (!q) return reviewers
+    return reviewers.filter((r) => `${r.name} ${r.email}`.toLowerCase().includes(q))
+  }, [reviewers, reviewerFilter])
+
   async function sendReview() {
     if (reviewSel.length === 0) return
     try {
@@ -982,28 +1007,7 @@ export default function AuthoringWorkspace() {
         <div className="pane doc-pane">
           <div className="toolbar" style={{ margin: '0 0 8px' }}>
             <strong>Document</strong>
-            {editor && !finalized && !preview && (
-              <span className="fmt-bar">
-                <button className={`secondary${editor.isActive('bold') ? ' active' : ''}`} title="Bold (Ctrl/Cmd+B)" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run() }}><b>B</b></button>
-                <button className={`secondary${editor.isActive('italic') ? ' active' : ''}`} title="Italic (Ctrl/Cmd+I)" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run() }}><i>I</i></button>
-                <button className={`secondary${editor.isActive('heading', { level: 2 }) ? ' active' : ''}`} title="Heading" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run() }}>H</button>
-                <button className={`secondary${editor.isActive('bulletList') ? ' active' : ''}`} title="Bulleted list" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run() }}>• List</button>
-                <button className={`secondary${editor.isActive('orderedList') ? ' active' : ''}`} title="Numbered list" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run() }}>1. List</button>
-                <span className="fmt-sep" />
-                <button className="secondary" title="Insert table (3×3)"
-                  onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() }}>▦ Table</button>
-                {editor.isActive('table') && (
-                  <>
-                    <button className="secondary" title="Add column" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run() }}>+Col</button>
-                    <button className="secondary" title="Add row" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run() }}>+Row</button>
-                    <button className="secondary" title="Delete column" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteColumn().run() }}>−Col</button>
-                    <button className="secondary" title="Delete row" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteRow().run() }}>−Row</button>
-                    <button className="secondary" title="Toggle header row" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeaderRow().run() }}>Header</button>
-                    <button className="danger" title="Delete table" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteTable().run() }}>Delete table</button>
-                  </>
-                )}
-              </span>
-            )}
+            {editor && !finalized && !preview && <EditorToolbar editor={editor} />}
             <span className="hint">clause-aware · bound values are chips</span>
             <span className="spacer" />
             <button className={`secondary${showOutline ? ' active' : ''}`} title="Toggle clause outline" onClick={() => setShowOutline((s) => !s)}>☰ Outline</button>
@@ -1036,7 +1040,11 @@ export default function AuthoringWorkspace() {
               </div>
             )}
             <div className={`doc-surface${preview ? ' preview' : ''}`} style={{ flex: 1 }}>
-              <EditorContent editor={editor} />
+              {/* Drafting happens on the business unit's paper, so the author
+                  can see where the letterhead leaves room for the text. */}
+              <LetterheadPaper businessUnit={fields.location}>
+                <EditorContent editor={editor} />
+              </LetterheadPaper>
             </div>
           </div>
         </div>
@@ -1053,7 +1061,7 @@ export default function AuthoringWorkspace() {
             <label>Signing Entity</label>
             <input id="fld-signing_entity" value={fields.signing_entity || ''} onChange={(e) => setField('signing_entity', e.target.value)} />
 
-            <label>Vendor</label>
+            <label>Counterparty</label>
             <div id="fld-vendor"><VendorPicker value={draft.vendor_id} rawName={fields.vendor} onPick={onVendor} onCreate={(name) => onVendor({ id: 'new', name })} /></div>
 
             <label>Department</label>
@@ -1067,6 +1075,14 @@ export default function AuthoringWorkspace() {
                 <label>{label}{['contract_value', 'contract_tenure'].includes(key) && fields[`${key}_in_words`] ? <span className="hint"> · {fields[`${key}_in_words`]}</span> : null}{locked(key) ? <span className="hint" title="Editable only by Legal"> · 🔒 Legal</span> : null}</label>
                 {kind === 'area'
                   ? <textarea id={`fld-${key}`} rows={2} value={fields[key] || ''} disabled={locked(key)} onChange={(e) => setField(key, e.target.value)} />
+                  : kind === 'bool'
+                  ? <select id={`fld-${key}`} disabled={locked(key)}
+                      value={fields[key] === true ? 'yes' : fields[key] === false ? 'no' : ''}
+                      onChange={(e) => setField(key, e.target.value === '' ? null : e.target.value === 'yes')}>
+                      <option value="">— not set —</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
                   : <input id={`fld-${key}`} type={kind === 'number' ? 'number' : kind === 'date' ? 'date' : 'text'} disabled={locked(key)}
                       value={fields[key] ?? ''} onChange={(e) => setField(key, kind === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} />}
               </div>
@@ -1240,8 +1256,9 @@ export default function AuthoringWorkspace() {
           <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <h3>Send for internal review</h3>
             <p className="hint">
-              Pick one or more reviewers (Legal / Approver / Admin). Review is advisory — you can
-              still send the draft to the vendor while reviews are outstanding.
+              Pick anyone who should look at this. Review is advisory — you can still send the
+              draft to the vendor while reviews are outstanding, and you can send it out again
+              as many times as you need.
             </p>
             <label>Section under review</label>
             {reviewExcerpt
@@ -1249,8 +1266,10 @@ export default function AuthoringWorkspace() {
               : <p className="hint">No text selected — the whole draft is under review. Tip: highlight a section in the editor before clicking “Send for review” to scope it.</p>}
             <label>Reviewers</label>
             <div className="reviewer-list">
-              {reviewers.length === 0 && <p className="hint">No eligible reviewers found (need Legal/Approver/Admin users).</p>}
-              {reviewers.map((r) => (
+              {reviewers.length === 0 && <p className="hint">No active users to pick from.</p>}
+              <input placeholder="Filter by name…" value={reviewerFilter} style={{ marginBottom: 6 }}
+                onChange={(e) => setReviewerFilter(e.target.value)} />
+              {visibleReviewers.map((r) => (
                 <label key={r.id} className="reviewer-row">
                   <input type="checkbox" style={{ width: 'auto' }} checked={reviewSel.includes(r.id)}
                     onChange={() => setReviewSel((s) => s.includes(r.id) ? s.filter((x) => x !== r.id) : [...s, r.id])} />

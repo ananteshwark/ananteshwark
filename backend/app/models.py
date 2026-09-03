@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -46,6 +47,9 @@ class UserRole(str, enum.Enum):
     AUTHOR = "AUTHOR"
     LEGAL = "LEGAL"
     APPROVER = "APPROVER"
+    # Raises contract requests and follows them; can be asked to review a draft,
+    # but has none of the authoring or validation powers.
+    REQUESTER = "REQUESTER"
 
 
 class IngestionStatus(str, enum.Enum):
@@ -247,6 +251,22 @@ class IngestionFile(Base):
 class Contract(Base):
     __tablename__ = "contracts"
 
+    # The expiry sweep (services.lifecycle.sweep_expired) runs on every single
+    # contracts page load, and the nightly reminder scan filters the same way:
+    # two equality predicates on the status enums, then a range on end_date.
+    #
+    # Without it the planner could only use ix_contracts_end_date and then
+    # discard most of what it read — measured on 200k rows: 11,053 index
+    # entries scanned and 10,183 thrown away by the filter, against 870 scanned
+    # and none discarded with this index. The gap widens in a real register,
+    # where end_dates cluster into the near future and are far less selective
+    # than the evenly-spread test data.
+    #
+    # Column order matters: equality predicates first, the range last.
+    __table_args__ = (
+        Index("ix_contracts_expiry_scan", "status", "lifecycle_status", "end_date"),
+    )
+
     # sr_no is the system-generated register serial number / primary key
     sr_no: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -291,13 +311,21 @@ class Contract(Base):
         Enum(ContractStatus), default=ContractStatus.PENDING_VALIDATION, index=True
     )
     lifecycle_status: Mapped[LifecycleStatus] = mapped_column(
-        Enum(LifecycleStatus), default=LifecycleStatus.ACTIVE
+        # Filtered on by the contracts list, the value reports and the reminder
+        # scan; `status` next to it has been indexed since the beginning while
+        # this one never was.
+        Enum(LifecycleStatus), default=LifecycleStatus.ACTIVE, index=True
     )
 
     # Extraction artefacts
     raw_extracted: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Full extracted/OCR document text, for full-text search
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Where each OCR'd word sits on the page, for documents that have no text
+    # layer of their own: {"dpi": 300, "pages": [{"w","h","words":[{t,x,y,w,h}]}]}.
+    # NULL for digital PDFs and DOCX, whose coordinates the viewer reads
+    # directly. Only populated when the document was actually OCR'd.
+    ocr_layout: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     confidence: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     derived_fields: Mapped[list | None] = mapped_column(JSON, default=list)
     # Fields auto-filled from the vendor's validated history (learning layer),
@@ -312,6 +340,17 @@ class Contract(Base):
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_key_terms: Mapped[list | None] = mapped_column(JSON, nullable=True)
     ai_indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Cached clause-risk analysis. Recomputing it per page view meant opening a
+    # contract cost a model call every time; the hash lets a changed document
+    # invalidate the cache without anyone remembering to.
+    clause_risk: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    clause_risk_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    clause_risk_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Shingle sketch of the document, for near-duplicate detection over content
+    # rather than over the fields someone typed. Stored so a validation compares
+    # small integer arrays instead of re-reading every contract body.
+    content_sketch: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    content_sketch_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # Which embedding space `embedding` belongs to — a provider change makes
     # stored vectors stale, and mixing spaces silently degrades retrieval (G1).
@@ -380,6 +419,19 @@ class Contract(Base):
     recipients: Mapped[list["ContractRecipient"]] = relationship(back_populates="contract")
     tags: Mapped[list["Tag"]] = relationship(secondary="contract_tags")
     assignee: Mapped["User | None"] = relationship(foreign_keys=[assignee_id])
+
+    @property
+    def counterparty_name(self) -> str | None:
+        """The other side of the agreement.
+
+        `signing_entity` is *our* entity, not theirs. Several summaries and
+        listings used to read `signing_entity or vendor_name_raw`, which meant
+        the abstract introduced us as our own counterparty on every contract
+        where the internal entity was filled in — which is most of them. The
+        master vendor record wins over the raw name lifted from the document,
+        matching how the register itself resolves the name.
+        """
+        return (self.vendor.name if self.vendor else None) or self.vendor_name_raw
 
 
 # Many-to-many link between contracts and tags.
@@ -617,6 +669,22 @@ class ContractRequest(Base):
     assigned_to_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     draft_id: Mapped[int | None] = mapped_column(ForeignKey("contract_drafts.id"), nullable=True)
     decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Intake detail the requester can give up front, so triage and the resulting
+    # draft do not start by asking questions the requester already knew.
+    internal_entity: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    purpose: Mapped[str | None] = mapped_column(Text, nullable=True)
+    counterparty_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    spoc_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    phi_shared: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    tenure: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # A counterparty-supplied template, attached at request time rather than
+    # emailed around and re-attached later.
+    template_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    template_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -779,6 +847,73 @@ class AppSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+
+
+class LoginAttempt(Base):
+    """One failed sign-in, for the brute-force lockout.
+
+    In the database rather than in process memory because the lockout is a
+    security control and process memory is per worker: run two and an attacker
+    gets two independent allowances, and whichever worker answers the next
+    request may not be the one that saw the failures. It also means a restart
+    no longer forgets an attack in progress.
+
+    A row per failure rather than a counter: the window is rolling, so the
+    times are the state. Volume is trivially low — nobody signs in often, and
+    the whole point is that failures are capped.
+    """
+
+    __tablename__ = "login_attempts"
+    __table_args__ = (
+        # Every read is "failures for this identity since T".
+        Index("ix_login_attempts_scan", "identity", "at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # The email being tried, lowercased. Not a foreign key: attempts against an
+    # address that does not exist are exactly what needs limiting.
+    identity: Mapped[str] = mapped_column(String(320))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Letterhead(Base):
+    """One business unit's letterhead: the artwork printed at the top (and
+    optionally the foot) of every page of that BU's contracts.
+
+    Keyed by business unit because the BUs here are separate legal entities with
+    their own stationery — a contract that goes out on the wrong BU's paper is a
+    document naming the wrong signing entity, not a cosmetic slip. The row whose
+    ``business_unit`` is the empty string is the fallback used by drafts that have
+    no BU set yet, so a draft always renders on *some* paper rather than none.
+
+    The artwork itself lives on disk under ``settings.LETTERHEAD_DIR``; only the
+    filename and geometry are in the database. Keeping the bytes out means the
+    settings payload the admin page loads stays small, and the images are
+    ordinary files the existing backup script already sweeps up.
+    """
+
+    __tablename__ = "letterheads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Matched case-insensitively against the draft's `location` register field.
+    # "" is the fallback row; a unique index keeps it to one letterhead per BU.
+    business_unit: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+
+    # Normalised to JPEG on upload, so every consumer has one format to embed.
+    # Pixel dimensions are stored because both writers need the aspect ratio to
+    # scale the art to the page, and neither should have to decode the image.
+    header_file: Mapped[str] = mapped_column(String(255))
+    header_w: Mapped[int] = mapped_column(Integer)
+    header_h: Mapped[int] = mapped_column(Integer)
+
+    footer_file: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    footer_w: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    footer_h: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+    updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1023,6 +1158,11 @@ class ClauseVersion(Base):
     normalized: Mapped[str | None] = mapped_column(Text, nullable=True)  # for similarity matching
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)     # plain-language difference
     polished_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # AI-enhanced, author-editable
+    # The wording as first learned from a real contract, kept when an author
+    # promotes polished wording over it. `text` is what the library *serves*;
+    # this is what it was before anyone edited it, so a promotion is reversible
+    # and the provenance of a learned clause is not lost.
+    original_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_curated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # in the top-N curated set
     curated_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)      # 1..N by usage
     # Playbook tier for negotiation: preferred 'standard' wording, acceptable
@@ -1179,6 +1319,11 @@ class AiRun(Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # citation check
+    # Why the model was not used, when it was not. `ai_used=False` alone cannot
+    # distinguish "AI is switched off" from "the key was rejected" from "the
+    # model no longer exists", which is the difference between working as
+    # designed and being broken.
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The human verdict — the part that makes this an audit trail rather than a log.
     outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)  # accepted/rejected/edited
     outcome_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)

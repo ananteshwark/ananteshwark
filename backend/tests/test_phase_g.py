@@ -268,3 +268,86 @@ class TestG3IdentifierSurvivesACrowdedCorpus:
                         json={"question": f"which contract mentions {marker}?"}).json()
         assert any(c["sr_no"] == target for c in r["citations"]), (
             "the contract that literally contains the reference must be cited")
+
+
+class TestPgvectorMirrorIsContained:
+    """The pgvector mirror is optional, so its failure must stay contained.
+
+    On Postgres a failed statement aborts the entire transaction, so catching
+    the exception did not contain it: on a database without the pgvector
+    extension the mirror raised `type "vector" does not exist`, the except hid
+    it, and every later statement in the request failed with
+    InFailedSqlTransaction — a 500 on re-index and on generating any abstract.
+    SQLite does not behave that way, which is why the whole suite stayed green.
+    """
+
+    class _FakeSession:
+        """Minimal stand-in for a Postgres session whose vector write fails."""
+        def __init__(self):
+            self.executed = 0
+            self.savepoints = 0
+            self.rolled_back = 0
+            outer = self
+
+            class _Dialect:
+                name = "postgresql"
+
+            class _Bind:
+                dialect = _Dialect()
+
+            class _Nested:
+                def __enter__(self):
+                    outer.savepoints += 1
+                    return self
+
+                def __exit__(self, exc_type, exc, tb):
+                    if exc_type is not None:
+                        outer.rolled_back += 1
+                    return False        # re-raise, as a real savepoint does
+
+            self.bind = _Bind()
+            self._nested = _Nested
+
+        def begin_nested(self):
+            return self._nested()
+
+        def execute(self, *a, **kw):
+            self.executed += 1
+            raise RuntimeError('type "vector" does not exist')
+
+    def _reset(self):
+        from app.services import contract_ai
+        contract_ai._PGVECTOR_AVAILABLE = None
+
+    def test_failure_is_rolled_back_not_swallowed(self):
+        from app.services import contract_ai
+        self._reset()
+        db = self._FakeSession()
+        contract = type("C", (), {"sr_no": 1})()
+
+        contract_ai._sync_pgvector(db, contract, [0.1] * 256)  # must not raise
+
+        assert db.savepoints == 1, "the mirror write must run inside a nested transaction"
+        assert db.rolled_back == 1, "the failure must roll back to the savepoint"
+
+    def test_an_unavailable_column_is_only_attempted_once(self):
+        """A repository-wide re-index must not attempt thousands of doomed writes."""
+        from app.services import contract_ai
+        self._reset()
+        db = self._FakeSession()
+        contract = type("C", (), {"sr_no": 1})()
+        for _ in range(5):
+            contract_ai._sync_pgvector(db, contract, [0.1] * 256)
+        assert db.executed == 1, f"expected one attempt, made {db.executed}"
+        self._reset()
+
+    def test_sqlite_is_skipped_without_touching_the_session(self):
+        from app.database import SessionLocal
+        from app.services.contract_ai import _sync_pgvector
+        self._reset()
+        db = SessionLocal()
+        try:
+            _sync_pgvector(db, type("C", (), {"sr_no": 1})(), [0.1] * 256)
+        finally:
+            db.close()
+        self._reset()

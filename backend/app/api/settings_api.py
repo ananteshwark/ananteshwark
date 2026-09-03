@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..audit import log_action
@@ -81,6 +81,25 @@ def email_test(payload: EmailTestRequest, db: Session = Depends(get_db), _: User
     dry_run = get_setting(db, "email_dry_run") == "true"
     return {"ok": True, "dry_run": dry_run,
             "detail": "Dry-run mode is on — the email was logged, not sent." if dry_run else "Test email sent."}
+
+
+@router.post("/ai-test")
+def ai_test(db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    """Call the configured AI provider once and report what came back.
+
+    Every AI feature falls back silently when the provider fails, which is the
+    right behaviour for the feature and leaves an administrator with no way to
+    tell a wrong key from a retired model from a blocked network. This is the
+    equivalent of the "send test email" button for the model.
+    """
+    from ..services.ai_diagnostics import probe_provider
+
+    result = probe_provider(db)
+    log_action(db, "settings", 0, "AI_TEST", user_id=user.id,
+               new_value=f"{result['provider']}/{result['model']}: "
+                         f"{'ok' if result['ok'] else result['error']}"[:500])
+    db.commit()
+    return result
 
 
 @router.get("/system-status")
@@ -386,3 +405,93 @@ def set_master_lists(payload: dict, db: Session = Depends(get_db), user: User = 
     log_action(db, "settings", 0, "UPDATE", user_id=user.id, field="master_lists")
     db.commit()
     return lists
+
+
+# ---------------------------------------------------------------------------
+# Per-business-unit letterheads
+# ---------------------------------------------------------------------------
+
+@router.get("/letterheads")
+def list_letterheads(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """Every configured letterhead, with its page geometry. Metadata only — the
+    artwork is fetched per BU from the image endpoint below."""
+    from ..services import letterhead as LH
+    return {"letterheads": LH.list_all(db)}
+
+
+@router.get("/letterhead")
+def resolve_letterhead(bu: str = "", db: Session = Depends(get_db),
+                       _: User = Depends(require_viewer)):
+    """The letterhead a draft in this business unit prints on, or null.
+
+    Readable by any signed-in user because the authoring editor asks for it on
+    every draft, to show the author the paper their contract will come out on.
+    """
+    from ..services import letterhead as LH
+    row = LH.for_business_unit(db, bu)
+    return LH.as_dict(row) if row else None
+
+
+@router.get("/letterhead/image")
+def letterhead_image(bu: str = "", kind: str = "header", db: Session = Depends(get_db),
+                     _: User = Depends(require_viewer)):
+    """The letterhead artwork itself, resolved the same way the exports resolve it."""
+    from fastapi.responses import Response
+    from ..services import letterhead as LH
+    if kind not in ("header", "footer"):
+        raise HTTPException(400, "kind must be 'header' or 'footer'.")
+    data = LH.image_bytes(LH.for_business_unit(db, bu), kind)
+    if not data:
+        raise HTTPException(404, "No letterhead artwork for that business unit.")
+    # Private: this is company stationery, and the URL is shared across users of
+    # the BU. no-store keeps it out of shared caches; the browser re-asks, which
+    # is cheap next to getting a stale letterhead after an admin replaces one.
+    return Response(content=data, media_type="image/jpeg",
+                    headers={"Cache-Control": "private, no-store"})
+
+
+@router.post("/letterhead")
+async def upload_letterhead(bu: str = "", kind: str = "header",
+                            file: UploadFile = File(...),
+                            db: Session = Depends(get_db),
+                            user: User = Depends(require_admin)):
+    """Upload one band of a business unit's letterhead.
+
+    ``bu`` empty is the default letterhead, used by drafts whose BU is unset or
+    has no letterhead of its own.
+    """
+    from ..services import letterhead as LH
+    from ..services.upload_guard import read_upload
+    data = read_upload(file, allowed_exts=LH.LETTERHEAD_EXTS,
+                       max_bytes=LH.MAX_LETTERHEAD_BYTES)
+    try:
+        row = LH.save_image(db, bu, kind, data, user_id=user.id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    log_action(db, "settings", 0, "UPDATE", user_id=user.id,
+               field=f"letterhead:{row.business_unit or '(default)'}:{kind}")
+    db.commit()
+    return LH.as_dict(row)
+
+
+@router.delete("/letterhead")
+def delete_letterhead(bu: str = "", kind: str = "all", db: Session = Depends(get_db),
+                      user: User = Depends(require_admin)):
+    """Remove a whole letterhead (kind=all) or just its footer band."""
+    from ..services import letterhead as LH
+    if kind == "all":
+        if not LH.delete(db, bu):
+            raise HTTPException(404, "No letterhead for that business unit.")
+        result = None
+    else:
+        try:
+            row = LH.clear_image(db, bu, kind)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if row is None:
+            raise HTTPException(404, "No letterhead for that business unit.")
+        result = LH.as_dict(row)
+    log_action(db, "settings", 0, "DELETE", user_id=user.id,
+               field=f"letterhead:{LH.normalize_key(bu) or '(default)'}:{kind}")
+    db.commit()
+    return result

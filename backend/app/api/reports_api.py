@@ -27,6 +27,21 @@ def _base_query(db: Session):
     return db.query(Contract).filter(Contract.deleted_at.is_(None))
 
 
+def _value_sum():
+    """Summed contract value, NULL-safe — the one expression every value report
+    both *returns* and *orders by*.
+
+    SUM() over a group whose values are all NULL is NULL, not 0. These reports
+    coalesced that to 0 in the SELECT list but ordered by the raw SUM, so the
+    two disagreed — and the disagreement is engine-specific: Postgres sorts
+    NULL as greater than any value, so `ORDER BY SUM(x) DESC` put an all-NULL
+    group *first*, while SQLite sorts it last. A vendor displaying 0 therefore
+    outranked one displaying 2.5M on Postgres only. Ordering by this same
+    expression makes the returned order match the returned numbers on both.
+    """
+    return func.coalesce(func.sum(Contract.contract_value), 0)
+
+
 def _stats(values: list[float]) -> dict:
     """count / average / median / p90 for a list of day-durations."""
     vals = sorted(v for v in values if v is not None)
@@ -182,12 +197,12 @@ def vendor_spend(db: Session = Depends(get_db), _: User = Depends(require_viewer
             Vendor.id,
             Vendor.name,
             func.count(Contract.sr_no),
-            func.coalesce(func.sum(Contract.contract_value), 0),
+            _value_sum(),
         )
         .join(Contract, Contract.vendor_id == Vendor.id)
         .filter(Contract.deleted_at.is_(None))
         .group_by(Vendor.id, Vendor.name)
-        .order_by(func.sum(Contract.contract_value).desc())
+        .order_by(_value_sum().desc(), Vendor.name)
         .all()
     )
     return [
@@ -217,10 +232,9 @@ def value_analytics(db: Session = Depends(get_db), _: User = Depends(require_vie
         {"label": name or "(unassigned)", "value": float(value or 0), "count": count}
         for name, count, value in (
             active.outerjoin(Department, Contract.department_id == Department.id)
-            .with_entities(Department.name, func.count(Contract.sr_no),
-                           func.coalesce(func.sum(Contract.contract_value), 0))
+            .with_entities(Department.name, func.count(Contract.sr_no), _value_sum())
             .group_by(Department.name)
-            .order_by(func.sum(Contract.contract_value).desc())
+            .order_by(_value_sum().desc(), Department.name)
             .all()
         )
     ]
@@ -228,10 +242,9 @@ def value_analytics(db: Session = Depends(get_db), _: User = Depends(require_vie
     by_type = [
         {"label": ctype or "(untyped)", "value": float(value or 0), "count": count}
         for ctype, count, value in (
-            active.with_entities(Contract.contract_type, func.count(Contract.sr_no),
-                                 func.coalesce(func.sum(Contract.contract_value), 0))
+            active.with_entities(Contract.contract_type, func.count(Contract.sr_no), _value_sum())
             .group_by(Contract.contract_type)
-            .order_by(func.sum(Contract.contract_value).desc())
+            .order_by(_value_sum().desc(), Contract.contract_type)
             .all()
         )
     ]
@@ -240,10 +253,12 @@ def value_analytics(db: Session = Depends(get_db), _: User = Depends(require_vie
         {"vendor_id": vid, "label": name, "value": float(value or 0), "count": count}
         for vid, name, count, value in (
             active.join(Vendor, Contract.vendor_id == Vendor.id)
-            .with_entities(Vendor.id, Vendor.name, func.count(Contract.sr_no),
-                           func.coalesce(func.sum(Contract.contract_value), 0))
+            .with_entities(Vendor.id, Vendor.name, func.count(Contract.sr_no), _value_sum())
             .group_by(Vendor.id, Vendor.name)
-            .order_by(func.sum(Contract.contract_value).desc())
+            # The name is a tie-break, not decoration: without a deterministic
+            # second key, *which* vendors survive LIMIT 10 can differ between
+            # two identical requests once several share a value.
+            .order_by(_value_sum().desc(), Vendor.name)
             .limit(10)
             .all()
         )
@@ -286,15 +301,14 @@ def vendor_concentration(
     from ..models import LifecycleStatus
 
     rows = (
-        db.query(Vendor.id, Vendor.name, func.coalesce(func.sum(Contract.contract_value), 0),
-                 func.count(Contract.sr_no))
+        db.query(Vendor.id, Vendor.name, _value_sum(), func.count(Contract.sr_no))
         .join(Contract, Contract.vendor_id == Vendor.id)
         .filter(Contract.deleted_at.is_(None))
         .filter(Contract.status == CS.VALIDATED)
         .filter(Contract.lifecycle_status.in_([LifecycleStatus.ACTIVE, LifecycleStatus.EXPIRED]))
         .filter(Contract.contract_value.isnot(None))
         .group_by(Vendor.id, Vendor.name)
-        .order_by(func.sum(Contract.contract_value).desc())
+        .order_by(_value_sum().desc(), Vendor.name)
         .all()
     )
     total = float(sum(float(v) for _, _, v, _ in rows)) or 0.0

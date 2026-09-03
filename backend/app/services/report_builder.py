@@ -19,7 +19,8 @@ MAX_ROWS = 10000
 # separately with a "cf_<key>" convention.
 COLUMNS: dict[str, tuple[str, object]] = {
     "sr_no": ("Sr No", lambda c: c.sr_no),
-    "vendor_name": ("Counterparty", lambda c: c.signing_entity or c.vendor_name_raw),
+    "vendor_name": ("Counterparty", lambda c: c.counterparty_name),
+    "signing_entity": ("Internal entity", lambda c: c.signing_entity),
     "contract_type": ("Type", lambda c: c.contract_type),
     "department": ("Department", lambda c: c.department.name if c.department else None),
     "status": ("Status", lambda c: c.status.value if c.status else None),
@@ -96,10 +97,11 @@ def run_report(db: Session, definition) -> dict:
         # No report column reads the contract body, and it is the largest column
         # in the schema — deferring it keeps a report over the whole repository
         # from dragging every document into memory. Department and tags are the
-        # two accessors that leave the row, so they are loaded up front rather
+        # three accessors that leave the row, so they are loaded up front rather
         # than one query at a time.
         .options(defer(Contract.extracted_text),
                  joinedload(Contract.department),
+                 joinedload(Contract.vendor),
                  selectinload(Contract.tags))
     )
     query = _apply_filters(query, db, definition.filters or {})

@@ -4,20 +4,19 @@ import { useAuth } from '../auth'
 // Warn this long before the token's exp so the user can save and re-auth.
 const WARN_BEFORE_MS = 5 * 60 * 1000
 
-// Decode a JWT payload's `exp` (seconds) without a library. Returns ms epoch or
-// null if the token is missing/malformed.
+// When the session runs out, in ms epoch, or null if there isn't one.
+//
+// This used to decode the JWT out of localStorage. The token is now an
+// HttpOnly cookie, so script cannot read it at all — that is the entire point
+// of the change. The server therefore publishes the expiry separately in a
+// readable cookie: it mirrors the token's own `exp`, carries no authority, and
+// the server never reads it back. Forging it wins nothing; the session still
+// ends when the signed token says it does.
 function tokenExpiryMs() {
-  const raw = localStorage.getItem('cms_token')
-  if (!raw) return null
-  const part = raw.split('.')[1]
-  if (!part) return null
-  try {
-    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'))
-    const exp = JSON.parse(json).exp
-    return typeof exp === 'number' ? exp * 1000 : null
-  } catch {
-    return null
-  }
+  const hit = document.cookie.split('; ').find((c) => c.startsWith('cms_session_exp='))
+  if (!hit) return null
+  const seconds = Number(hit.slice('cms_session_exp='.length))
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null
 }
 
 function fmt(ms) {

@@ -282,10 +282,17 @@ def get_provider(db) -> ESignProvider:
     return MockProvider()
 
 
-def build_final_pdf(draft, signers: list[dict] | None = None) -> bytes:
+def build_final_pdf(draft, signers: list[dict] | None = None, db=None) -> bytes:
     """Render the frozen draft to a PDF for signing, emitting one anchor block per
-    configured signer so every signer's tabs bind (not just the first two)."""
+    configured signer so every signer's tabs bind (not just the first two).
+
+    With a session, the document is rendered on the business unit's letterhead —
+    this is the copy the counterparty signs, so it is the one that most needs to
+    be on the right entity's paper. ``db`` is optional so the pure-rendering
+    tests can call this without a database.
+    """
     from .authoring import render_text
+    from .letterhead import spec_for_draft
     from .pdf import text_to_pdf
     body = render_text(draft.document, draft.fields or {})
     body += "\n\nIN WITNESS WHEREOF the parties have executed this Agreement.\n\n"
@@ -295,4 +302,5 @@ def build_final_pdf(draft, signers: list[dict] | None = None) -> bytes:
             body += f"{label}: {s.get('anchor', f'/sig{i}/')}    Date: {s.get('date_anchor', f'/date{i}/')}\n\n"
     else:
         body += "Company: /sig1/    Date: /date1/\n\nVendor: /sig2/    Date: /date2/\n"
-    return text_to_pdf((draft.title or "CONTRACT").upper(), body)
+    return text_to_pdf((draft.title or "CONTRACT").upper(), body,
+                       letterhead=spec_for_draft(db, draft) if db is not None else None)

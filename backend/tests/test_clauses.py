@@ -213,3 +213,73 @@ class TestClauseApi:
             "clause_type": "Indemnity", "text": "The Vendor shall indemnify the Company against all claims."}).json()
         after = len(upd["document"]["content"])
         assert after == before + 2   # heading + paragraph
+
+
+class TestSegmentingPdfExtractedText:
+    """`segment_text` split on blank lines only. pypdf and OCR emit one newline
+    per printed line and no blank lines at all, so a whole contract came back as
+    a single block: one risk flag whose span covered every page, which made
+    "highlight the risky clause" highlight the entire document and left the PDF
+    overlay with a thousand-character quote it could not locate."""
+
+    # No blank lines anywhere — exactly what a PDF extractor produces.
+    PDF_TEXT = (
+        "MASTER SERVICES AGREEMENT\n"
+        "1. Services. The Vendor shall provide managed radiology reporting services to the\n"
+        "Company in accordance with Schedule A.\n"
+        "2. Indemnity. The Company shall indemnify, defend and hold harmless the Vendor\n"
+        "against any and all claims arising out of this Agreement, without limitation.\n"
+        "3. Termination. The Vendor may terminate this Agreement at any time for convenience\n"
+        "upon seven (7) days written notice to the Company.\n"
+    )
+
+    def test_numbered_clauses_become_separate_blocks(self):
+        from app.services.clauses import segment_text
+        blocks = segment_text(self.PDF_TEXT)
+        assert len(blocks) >= 3, blocks
+        assert any(b.startswith("1. Services") for b in blocks)
+        assert any(b.startswith("2. Indemnity") for b in blocks)
+        assert any(b.startswith("3. Termination") for b in blocks)
+
+    def test_no_block_spans_the_whole_document(self):
+        from app.services.clauses import segment_text
+        blocks = segment_text(self.PDF_TEXT)
+        assert max(len(b) for b in blocks) < len(self.PDF_TEXT) * 0.8
+
+    def test_a_risk_flag_lands_on_one_clause_not_the_contract(self):
+        from app.services.contract_risk import analyze_contract_risk
+        from app.services.text_anchor import anchor_all
+        flagged, _ = anchor_all(self.PDF_TEXT, analyze_contract_risk(self.PDF_TEXT, db=None))
+        assert flagged, "expected the company-indemnifies-vendor clause to be flagged"
+        for f in flagged:
+            span = f["end"] - f["start"]
+            assert span < len(self.PDF_TEXT) * 0.8, f"flag spans {span} of {len(self.PDF_TEXT)} chars"
+        assert any("indemnif" in self.PDF_TEXT[f["start"]:f["end"]].lower() for f in flagged)
+
+    def test_blank_line_separated_text_still_splits(self):
+        """The editor produces blank lines; that path must keep working."""
+        from app.services.clauses import segment_text
+        text = ("The first clause says something of a reasonable length for a block.\n\n"
+                "The second clause says something else, also of a reasonable length.")
+        assert len(segment_text(text)) == 2
+
+    def test_unnumbered_prose_is_still_broken_up(self):
+        from app.services.clauses import segment_text
+        prose = " ".join(
+            f"This is sentence number {i} of a long unnumbered recital with no headings at all."
+            for i in range(40))
+        blocks = segment_text(prose)
+        assert len(blocks) > 1
+        assert max(len(b) for b in blocks) <= 1200
+
+    def test_section_and_article_headings_split(self):
+        from app.services.clauses import segment_text
+        text = ("Section 1 Confidentiality. Each party shall keep the other's information secret.\n"
+                "Section 2 Liability. The supplier's liability is capped at the fees paid.\n"
+                "Section 3 Notices. Notices must be given in writing to the addresses below.\n")
+        blocks = segment_text(text)
+        assert len(blocks) == 3, blocks
+
+    def test_short_fragments_are_dropped(self):
+        from app.services.clauses import segment_text
+        assert segment_text("1. Term.\n2. Fees.\n") == []

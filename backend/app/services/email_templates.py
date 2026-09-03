@@ -63,9 +63,15 @@ DEFAULTS: dict[str, dict] = {
         "description": "Sent to department recipients as a contract approaches its end date.",
         "subject": DEFAULT_TEMPLATE_SUBJECT,
         "body": DEFAULT_TEMPLATE_BODY.strip(),
+        # `document_link` is deliberately absent: it used to render the server's
+        # own filesystem path, which no recipient could open. The document is
+        # attached to the email now, and `document_note` says so (or says why it
+        # could not be). Templates saved with the old placeholder still render —
+        # it resolves to the contract record — but it is not offered again.
         "placeholders": ["vendor", "signing_entity", "department", "contract_service",
-                         "po_number", "contract_value", "currency", "end_date",
-                         "days_remaining", "contract_url", "document_link"],
+                         "service_summary", "po_number", "contract_value", "currency",
+                         "end_date", "days_remaining", "contract_url", "renewal_link",
+                         "document_note"],
     },
 }
 

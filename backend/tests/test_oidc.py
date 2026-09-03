@@ -79,7 +79,19 @@ def test_callback_logs_in_existing_user(client, admin_headers, monkeypatch):
         state = oidc.make_state()
         r = client.get(f"/api/auth/oidc/callback?code=abc&state={state}", follow_redirects=False)
         assert r.status_code == 302
-        assert "sso_token=" in r.headers["location"]
+
+        # The session arrives as a cookie set on the redirect itself.
+        from app.auth import SESSION_COOKIE
+        set_cookie = " ".join(r.headers.get_list("set-cookie"))
+        assert f"{SESSION_COOKIE}=" in set_cookie, set_cookie
+        assert "httponly" in set_cookie.lower()
+
+        # And NOT in the URL. A token in a query string is a token in browser
+        # history, in the referrer and in every proxy log on the way; it only
+        # lived there because the client used to have to store it.
+        location = r.headers["location"]
+        assert "sso_token=" not in location, location
+        assert location == "/login?sso=1", location
     finally:
         _disable(client, admin_headers)
 

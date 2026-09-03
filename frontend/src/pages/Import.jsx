@@ -6,7 +6,7 @@ async function upload(file, dryRun) {
   const fd = new FormData()
   fd.append('file', file)
   const res = await fetch(`/api/contracts/import?dry_run=${dryRun}`, {
-    method: 'POST', headers: api.authHeader(), body: fd,
+    method: 'POST', headers: api.uploadHeaders(), credentials: 'same-origin', body: fd,
   })
   if (!res.ok) {
     let detail = res.statusText

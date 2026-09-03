@@ -48,6 +48,19 @@ DEFAULTS = {
     "file_stability_seconds": str(settings.FILE_STABILITY_SECONDS),
     "supported_extensions": ",".join(settings.SUPPORTED_EXTENSIONS),
     "reminder_run_time": settings.REMINDER_RUN_TIME,
+    # Expiry reminders normally cover validated contracts only, on the grounds
+    # that nobody has confirmed an unvalidated contract's end date. Turning this
+    # on also reminds for contracts still awaiting validation, so a real expiry
+    # is not missed just because the record has not been checked yet. Rejected
+    # and archived contracts are never reminded about either way.
+    "reminders_include_unvalidated": "false",
+    # Attach the contract document to expiry reminders. On by default because a
+    # reminder to act on a contract is more useful with the contract in hand;
+    # turn it off where contract documents must not travel by email.
+    "reminder_attach_document": "true",
+    # Ceiling on the attached file, in MB. A property of the mail relay, not of
+    # this app — most refuse messages over 10-25 MB, and base64 adds a third.
+    "reminder_attach_max_mb": "10",
     "confidence_threshold": str(settings.CONFIDENCE_THRESHOLD),
     # Suggested contract-type vocabulary (comma/newline separated) for the
     # type dropdown; contracts may still hold any value.
@@ -70,7 +83,7 @@ DEFAULTS = {
     "openai_model": "gpt-4o",
     # Google Gemini API
     "gemini_api_key": "",
-    "gemini_model": "gemini-1.5-pro",
+    "gemini_model": "gemini-2.5-pro",
     # Custom / self-hosted OpenAI-compatible LLM (vLLM, Ollama, LM Studio,
     # LocalAI, text-generation-inference, …). Base URL points at the server's
     # OpenAI-compatible endpoint, e.g. http://localhost:8000/v1

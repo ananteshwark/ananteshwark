@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import { confirmDialog, promptDialog } from '../confirm'
+import { StartContractModal } from '../components/StartContractOptions'
+import { promptDialog } from '../confirm'
+import { useAuth } from '../auth'
+import { endFromStartMonths, monthsFromTenure } from '../components/ContractForm'
 
 const PRIORITY = ['low', 'normal', 'high']
 const EMPTY = { title: '', counterparty_name: '', contract_type: '', department_id: '',
-  description: '', estimated_value: '', currency: 'INR', needed_by: '', priority: 'normal' }
+  description: '', estimated_value: '', currency: 'INR', needed_by: '', priority: 'normal',
+  internal_entity: '', purpose: '', counterparty_address: '', spoc_name: '',
+  phi_shared: '', start_date: '', end_date: '', tenure: '' }
+
+// Tenure options offered on intake. The end date is derived from start + tenure
+// by the same rule the register uses, so the request and the contract it becomes
+// do not disagree about when it ends.
+const TENURES = ['6 Months', '1 Year', '2 Years', '3 Years', '5 Years']
 
 function StatusBadge({ s }) {
   const cls = s === 'CONVERTED' ? 'VALIDATED' : s === 'REJECTED' ? 'REJECTED'
@@ -21,10 +31,14 @@ export default function ContractRequests() {
   const [statusFilter, setStatusFilter] = useState('')
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(EMPTY)
+  const [entities, setEntities] = useState([])
+  const [templateFile, setTemplateFile] = useState(null)
+  const { user } = useAuth()
   const [nlText, setNlText] = useState('')
   const [interpreting, setInterpreting] = useState(false)
   const [hint, setHint] = useState(null)
   const [error, setError] = useState(null)
+  const [starting, setStarting] = useState(null)   // four-option chooser
 
   // H3: read a plain-language ask into the form. Nothing is submitted — the
   // requester reviews and corrects every field first.
@@ -59,21 +73,41 @@ export default function ContractRequests() {
   useEffect(() => { load() }, [load])
   useEffect(() => {
     api.get('/departments').then(setDepartments).catch(() => {})
+    api.get('/internal-entities').then((r) => setEntities(r || [])).catch(() => {})
     api.get('/contracts/types').then((r) => setTypes(r.types || [])).catch(() => {})
   }, [])
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
 
+  // Show the end date the term implies, before the request is submitted, using
+  // the same rule the register applies (end dates are inclusive).
+  const derivedEnd = form.end_date
+    || endFromStartMonths(form.start_date, monthsFromTenure(form.tenure))
+    || ''
+
   async function submit() {
     setError(null)
     try {
-      await api.post('/requests', {
+      const created = await api.post('/requests', {
         ...form,
         department_id: form.department_id ? Number(form.department_id) : null,
         estimated_value: form.estimated_value === '' ? null : Number(form.estimated_value),
         needed_by: form.needed_by || null,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        phi_shared: form.phi_shared === '' ? null : form.phi_shared === 'yes',
+        // Blank means "me" — the server fills in the signed-in user.
+        spoc_name: form.spoc_name || null,
       })
-      setCreating(false); setForm(EMPTY); setMessage('Request submitted.'); load()
+      // The document goes up after the request exists, so it has somewhere to live.
+      if (templateFile && created?.id) {
+        const fd = new FormData()
+        fd.append('file', templateFile)
+        try { await api.post(`/requests/${created.id}/template`, fd) }
+        catch (e) { setError(`Request submitted, but the document did not attach: ${e.message}`) }
+      }
+      setCreating(false); setForm(EMPTY); setTemplateFile(null)
+      setMessage('Request submitted.'); load()
     } catch (e) { setError(e.message) }
   }
 
@@ -86,13 +120,35 @@ export default function ContractRequests() {
       { title: 'Decline request', confirmLabel: 'Decline', danger: true, required: true })
     if (reason && reason.trim()) triage(id, { status: 'REJECTED', decision_reason: reason.trim() })
   }
-  async function convert(id) {
-    if (!await confirmDialog('Convert this request into an authoring draft? A template is used if one matches the contract type.')) return
-    setError(null)
-    try {
-      const res = await api.post(`/requests/${id}/convert`)
-      navigate(`/authoring/drafts/${res.draft_id}`)
-    } catch (e) { setError(e.message) }
+  // Converting silently picked a template matching the contract type. The
+  // requester's answers still pre-fill the draft whichever starting point the
+  // author chooses — the choice is theirs now, not the type's.
+  function convert(r) {
+    setStarting({
+      title: `Convert request: ${r.title}`,
+      context: {
+        contractType: r.contract_type || '',
+        create: async (body) => {
+          const origin = body.origin === 'scratch' ? 'scratch' : body.origin
+          const p = new URLSearchParams({ origin })
+          if (body.template_id) p.set('template_id', String(body.template_id))
+          if (body.source_contract_id) p.set('source_contract_id', String(body.source_contract_id))
+          const res = await api.post(`/requests/${r.id}/convert?${p}`)
+          return { id: res.draft_id }
+        },
+        // An upload has to create the draft first, then be attached to the request.
+        importDraft: async (file, { contractType, thirdParty }) => {
+          const fd = new FormData()
+          fd.append('file', file)
+          const p = new URLSearchParams()
+          if (contractType) p.set('contract_type', contractType)
+          if (thirdParty) p.set('third_party', 'true')
+          const draft = await api.post(`/authoring/drafts/import${p.toString() ? `?${p}` : ''}`, fd)
+          await api.post(`/requests/${r.id}/link-draft?draft_id=${draft.id}`)
+          return draft
+        },
+      },
+    })
   }
 
   const canTriage = data.can_triage
@@ -145,12 +201,26 @@ export default function ContractRequests() {
                   {canTriage && r.status !== 'CONVERTED' && r.status !== 'REJECTED' && (
                     <>
                       {r.status === 'SUBMITTED' && <button className="secondary" onClick={() => triage(r.id, { status: 'IN_REVIEW' })}>Review</button>}
-                      <button onClick={() => convert(r.id)}>Convert →</button>
+                      <button onClick={() => convert(r)}>Convert →</button>
                       <button className="danger" onClick={() => reject(r.id)}>Decline</button>
                     </>
                   )}
                 </div>
                 {r.status === 'REJECTED' && r.decision_reason && <div className="hint">Declined: {r.decision_reason}</div>}
+                {/* What the requester told us, so triage does not have to ask again. */}
+                <div className="hint" style={{ marginTop: 4 }}>
+                  {r.internal_entity && <span>Entity: {r.internal_entity} · </span>}
+                  {r.spoc_name && <span>SPOC: {r.spoc_name} · </span>}
+                  {r.tenure && <span>Tenure: {r.tenure}{r.end_date ? ` (to ${r.end_date})` : ''} · </span>}
+                  {r.phi_shared != null && <span>PHI: {r.phi_shared ? 'Yes' : 'No'} · </span>}
+                  {r.template_filename && (
+                    <button className="linklike" title="Download the counterparty template attached to this request"
+                      onClick={() => api.download(`/requests/${r.id}/template`, r.template_filename)}>
+                      📎 {r.template_filename}
+                    </button>
+                  )}
+                </div>
+                {r.purpose && <div className="hint">Purpose: {r.purpose}</div>}
               </td>
             </tr>
           ))}
@@ -198,6 +268,57 @@ export default function ContractRequests() {
               <div><label>Priority</label>
                 <select value={form.priority} onChange={set('priority')}>{PRIORITY.map((p) => <option key={p} value={p}>{p}</option>)}</select>
               </div>
+              <div><label>Internal entity</label>
+                <select value={form.internal_entity} onChange={set('internal_entity')}>
+                  <option value="">— select —</option>
+                  {entities.map((e) => <option key={e.id} value={e.name}>{e.name}</option>)}
+                </select>
+              </div>
+              <div><label>PHI shared</label>
+                <select value={form.phi_shared} onChange={set('phi_shared')}>
+                  <option value="">— not set —</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+              <div><label>Start date</label>
+                <input type="date" value={form.start_date} onChange={set('start_date')} />
+              </div>
+              <div><label>Tenure</label>
+                <input list="req-tenures" value={form.tenure} onChange={set('tenure')} placeholder="e.g. 2 Years" />
+                <datalist id="req-tenures">{TENURES.map((t) => <option key={t} value={t} />)}</datalist>
+              </div>
+              <div><label>End date</label>
+                <input type="date" value={derivedEnd} onChange={set('end_date')} />
+                {form.start_date && form.tenure && !form.end_date && (
+                  <span className="hint derived">calculated from start date + tenure</span>
+                )}
+              </div>
+              <div><label>User SPOC</label>
+                <input value={form.spoc_name} onChange={set('spoc_name')}
+                  placeholder={user?.name || user?.email || 'you'} />
+                <span className="hint">defaults to you if left blank</span>
+              </div>
+            </div>
+            <label>Purpose of engagement</label>
+            <input value={form.purpose} onChange={set('purpose')}
+              placeholder="What this contract is for" />
+            <label>Counterparty registered address</label>
+            <textarea rows={3} value={form.counterparty_address} onChange={set('counterparty_address')}
+              placeholder="Registered office address as it should appear on the contract" />
+            <label>Counterparty template <span className="hint">— if they have given you their paper</span></label>
+            <div className="toolbar" style={{ margin: 0 }}>
+              <label className="btn secondary" style={{ margin: 0, cursor: 'pointer' }}>
+                {templateFile ? 'Choose a different file…' : '⬆ Attach Word/PDF…'}
+                <input type="file" accept=".pdf,.docx" style={{ display: 'none' }}
+                  onChange={(e) => setTemplateFile(e.target.files[0] || null)} />
+              </label>
+              {templateFile && (
+                <span className="hint">
+                  {templateFile.name}{' '}
+                  <button type="button" className="linklike" onClick={() => setTemplateFile(null)}>remove</button>
+                </span>
+              )}
             </div>
             <label>Details / context</label>
             <textarea rows={3} value={form.description} onChange={set('description')} placeholder="Key terms, background, urgency…" />
@@ -207,6 +328,15 @@ export default function ContractRequests() {
             </div>
           </div>
         </div>
+      )}
+
+      {starting && (
+        <StartContractModal
+          title={starting.title}
+          context={starting.context}
+          onClose={() => setStarting(null)}
+          onCreated={(d) => { setStarting(null); navigate(`/authoring/drafts/${d.id}`) }}
+        />
       )}
     </div>
   )

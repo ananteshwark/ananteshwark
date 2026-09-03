@@ -189,7 +189,8 @@ def semantic_search(q: str, limit: int = 10, db: Session = Depends(get_db),
         "sr_no": h["contract"].sr_no, "score": h["score"],
         "vector_score": h.get("vector_score"), "keyword_hit": h.get("keyword_hit", False),
         "summary": h["contract"].ai_summary,
-        "vendor_name": h["contract"].signing_entity or h["contract"].vendor_name_raw,
+        "vendor_name": h["contract"].counterparty_name,
+        "signing_entity": h["contract"].signing_entity,
         "contract_type": h["contract"].contract_type,
         "contract_service": h["contract"].contract_service,
     } for h in hits]
@@ -215,7 +216,7 @@ def ask_contracts(payload: AskRequest, db: Session = Depends(get_db),
                          keyword_ids=_keyword_ids(db, question))
     citations = [{
         "sr_no": h["contract"].sr_no, "score": h["score"],
-        "vendor_name": h["contract"].signing_entity or h["contract"].vendor_name_raw,
+        "vendor_name": h["contract"].counterparty_name,
         "summary": h["contract"].ai_summary,
     } for h in hits]
 
@@ -244,7 +245,7 @@ def ask_contracts(payload: AskRequest, db: Session = Depends(get_db),
     if ai_enabled(db):
         from ..services.prompt_registry import render
         context = "\n\n".join(
-            f"[Contract #{sr} — {next(h['contract'].signing_entity or h['contract'].vendor_name_raw or 'unknown' for h in hits if h['contract'].sr_no == sr)}]\n{text}"
+            f"[Contract #{sr} — {next(h['contract'].counterparty_name or 'unknown' for h in hits if h['contract'].sr_no == sr)}]\n{text}"
             for sr, text in sources.items()
         )
         version, prompt = render(db, "ask", {"question": question, "context": context})
@@ -336,7 +337,7 @@ class CompareRequest(BaseModel):
 # Attributes the comparison can pull without a model — the ones already
 # structured on the record. Anything else is answered from the text by the model.
 _COMPARE_FIELDS = {
-    "counterparty": lambda c: c.signing_entity or c.vendor_name_raw,
+    "counterparty": lambda c: c.counterparty_name,
     "type": lambda c: c.contract_type,
     "value": lambda c: (f"{c.currency} {c.contract_value:,.2f}"
                         if c.contract_value is not None else None),
@@ -390,6 +391,6 @@ def compare_contracts(payload: CompareRequest, db: Session = Depends(get_db),
             fn = _COMPARE_FIELDS.get(a)
             cells[a] = fn(c) if fn else _text_attr(c, a)
         out_rows.append({"sr_no": c.sr_no,
-                         "vendor_name": c.signing_entity or c.vendor_name_raw,
+                         "vendor_name": c.counterparty_name,
                          "cells": cells})
     return {"columns": columns, "rows": out_rows}

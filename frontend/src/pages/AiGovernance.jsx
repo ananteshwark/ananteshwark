@@ -113,7 +113,14 @@ export default function AiGovernance() {
                   <td>{r.entity_type === 'contract' && r.entity_id
                     ? <Link to={`/contracts/${r.entity_id}`}>#{r.entity_id}</Link>
                     : <span className="hint">—</span>}</td>
-                  <td className="hint" style={{ maxWidth: 380 }}>{(r.output || '').slice(0, 160)}</td>
+                  <td className="hint" style={{ maxWidth: 380 }}>
+                    {(r.output || '').slice(0, 160)}
+                    {!r.ai_used && r.error && (
+                      <div style={{ color: 'var(--required)', marginTop: 2 }} title={r.error}>
+                        ⚠ {r.error.slice(0, 140)}
+                      </div>
+                    )}
+                  </td>
                   <td className="hint" style={{ whiteSpace: 'nowrap' }}>
                     {r.model || '—'}<br />{r.prompt_version || ''}
                     {r.latency_ms != null && <> · {r.latency_ms}ms</>}

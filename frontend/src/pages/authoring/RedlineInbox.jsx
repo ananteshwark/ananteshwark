@@ -12,7 +12,7 @@ export default function RedlineInbox() {
       <p className="hint">Drafts a vendor has returned, or with changes awaiting your decision.</p>
       {error && <div className="error">{error}</div>}
       <table className="grid">
-        <thead><tr><th>Draft</th><th>Vendor</th><th>Status</th><th>Pending changes</th><th /></tr></thead>
+        <thead><tr><th>Draft</th><th>Counterparty</th><th>Status</th><th>Pending changes</th><th /></tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.draft_id}>

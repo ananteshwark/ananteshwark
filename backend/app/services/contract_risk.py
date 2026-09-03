@@ -8,7 +8,10 @@ augments the deterministic findings with a short model review.
 """
 from __future__ import annotations
 
+import logging
 import re
+
+log = logging.getLogger(__name__)
 
 # (compiled pattern, reason) — phrasing that typically favours the vendor/supplier
 # over the company (as customer).
@@ -60,7 +63,8 @@ def analyze_contract_risk(text: str, db=None) -> list[dict]:
         try:
             _ai_augment(db, text, flagged)
         except Exception:  # best-effort — deterministic result stands
-            pass
+            log.warning("AI risk augmentation failed; returning deterministic "
+                        "findings only", exc_info=True)
     return flagged
 
 

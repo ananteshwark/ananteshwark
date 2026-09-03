@@ -915,3 +915,14 @@ class TestBulkActions:
         r = client.post("/api/contracts/bulk", headers=admin_headers,
                         json={"sr_nos": [1], "action": "nonsense"})
         assert r.status_code == 400
+
+
+def test_mandatory_fields_are_published_for_the_form(client, admin_headers):
+    """The form marks required fields from this list rather than its own copy —
+    a second list is how a form ends up disagreeing with what the server rejects."""
+    from app.api.contracts_api import MANDATORY_FIELDS
+    out = client.get("/api/contracts/mandatory-fields", headers=admin_headers).json()["mandatory"]
+    assert {m["field"] for m in out} == {f for f, _ in MANDATORY_FIELDS}
+    assert all(m["label"] and m["form_field"] for m in out)
+    # The vendor is picked by name in the form but stored as an id.
+    assert next(m["form_field"] for m in out if m["field"] == "vendor") == "vendor_name_raw"

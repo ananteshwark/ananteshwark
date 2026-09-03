@@ -5,6 +5,7 @@ import { useAuth } from '../auth'
 import MultiSelect from '../components/MultiSelect'
 import { TableSkeleton } from '../components/Skeleton'
 import { confirmDialog } from '../confirm'
+import { StartContractModal } from '../components/StartContractOptions'
 import { clearPersisted } from '../usePersistedState'
 
 const STORAGE_KEY = 'cms_filters_contracts'
@@ -58,6 +59,7 @@ export default function Contracts() {
   const [page, setPage] = useState(Number(init('page')) || 0)
   const [savedFilters, setSavedFilters] = useState([])
   const [error, setError] = useState(null)
+  const [starting, setStarting] = useState(null)   // { title, context } for the four-option chooser
   const [loading, setLoading] = useState(true)
   const PAGE = 50
 
@@ -80,7 +82,7 @@ export default function Contracts() {
 
   // Columns: [label, sortKey]. A null sortKey means the column isn't sortable.
   const COLUMNS = [
-    ['#', 'sr_no'], ['Vendor', 'vendor'], ['Service', 'service'], ['Type', 'type'],
+    ['#', 'sr_no'], ['Counterparty', 'vendor'], ['Service', 'service'], ['Type', 'type'],
     ['Business Unit', 'location'], ['Tags', null], ['Department', 'department'], ['PO', 'po'],
     ['Start', 'start'], ['End', 'end'], ['Value', 'value'], ['Status', 'status'],
     ['Lifecycle', 'lifecycle'], ['Risk', null], ['', null],
@@ -170,12 +172,20 @@ export default function Contracts() {
     } catch (e) { setError(e.message) }
   }
 
-  async function renew(srNo) {
-    try {
-      const d = await api.post('/authoring/drafts', { origin: 'duplicate', source_contract_id: srNo, link_as: 'renewal' })
-      if (d.reused && !await confirmDialog(`A renewal draft for contract #${srNo} is already in the queue. Open it?`)) return
-      navigate(`/authoring/drafts/${d.id}`)
-    } catch (e) { setError(e.message) }
+  // Renewing is still usually a duplicate, so that option arrives pre-selected —
+  // but an author who wants to start from the current template, or from the
+  // counterparty's paper, no longer has to work around the button.
+  function renew(c) {
+    setStarting({
+      title: `Renew contract #${c.sr_no}`,
+      context: { sourceContract: c, linkAs: 'renewal', contractType: c.contract_type || '' },
+    })
+  }
+
+  async function openDraft(d) {
+    setStarting(null)
+    if (d.reused && !await confirmDialog('A renewal draft for this contract is already in the queue. Open it?')) return
+    navigate(`/authoring/drafts/${d.id}`)
   }
 
   async function deleteContract(srNo) {
@@ -283,7 +293,11 @@ export default function Contracts() {
           api.download(`/contracts/calendar.ics?${buildParams()}`, 'contract_expirations.ics')
         }}>Calendar</button>
         {canValidate && <Link className="btn secondary" to="/contracts/import">Import</Link>}
-        {canValidate && <Link className="btn" to="/contracts/new">+ New contract</Link>}
+        {canValidate && (
+          <button onClick={() => setStarting({ title: 'New contract', context: {} })}>+ New contract</button>
+        )}
+        {/* Recording an already-signed contract is not authoring, so it keeps its own form. */}
+        {canValidate && <Link className="btn secondary" to="/contracts/new" title="Record an already-signed contract straight into the register">Record signed contract</Link>}
       </div>
       {error && <div className="error">{error}</div>}
       <table className="grid">
@@ -334,7 +348,7 @@ export default function Contracts() {
               <td>
                 <div className="toolbar" style={{ margin: 0 }}>
                   <Link className="btn secondary" to={`/contracts/${c.sr_no}`}>View details</Link>
-                  {canAuthor && <button className="secondary" onClick={() => renew(c.sr_no)} title="Open a renewal copy in the editor with the term rolled forward">Renew</button>}
+                  {canAuthor && <button className="secondary" onClick={() => renew(c)} title="Open a renewal copy in the editor with the term rolled forward">Renew</button>}
                   {isSuperAdmin && <button className="danger" onClick={() => deleteContract(c.sr_no)} title="Delete this contract (super admin only)">Delete</button>}
                 </div>
               </td>
@@ -347,6 +361,15 @@ export default function Contracts() {
         <span className="hint">Page {page + 1} of {maxPage + 1}</span>
         <button className="secondary" disabled={page >= maxPage} onClick={() => setPage((p) => p + 1)}>Next →</button>
       </div>
+
+      {starting && (
+        <StartContractModal
+          title={starting.title}
+          context={starting.context}
+          onClose={() => setStarting(null)}
+          onCreated={openDraft}
+        />
+      )}
     </div>
   )
 }

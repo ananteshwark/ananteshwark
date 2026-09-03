@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api'
 import { confirmDialog } from '../confirm'
+import LetterheadSettings from '../components/LetterheadSettings'
 import MultiSelect from '../components/MultiSelect'
 
-const ROLE_OPTIONS = ['SUPER_ADMIN', 'ADMIN', 'VALIDATOR', 'VIEWER', 'AUTHOR', 'LEGAL', 'APPROVER']
+const ROLE_OPTIONS = ['SUPER_ADMIN', 'ADMIN', 'VALIDATOR', 'VIEWER', 'AUTHOR', 'LEGAL', 'APPROVER', 'REQUESTER']
 
 // Suggested models per provider, roughly most→least capable. Larger models give
 // better extraction accuracy; "Custom…" allows any other model id.
 const MODEL_OPTIONS = {
   claude: ['claude-opus-4-8', 'claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5-20251001'],
   openai: ['gpt-4o', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4.1-mini'],
-  gemini: ['gemini-1.5-pro', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash'],
+  // The 1.5 series was withdrawn from the Gemini API — offering it here only
+  // gets a 404 back at extraction time.
+  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'],
 }
 
 // Admin Settings is split into tabs so each configuration area is uncluttered.
@@ -313,6 +316,8 @@ export default function SettingsPage() {
   const [resetFor, setResetFor] = useState(null)   // user object being password-reset
   const [resetPw, setResetPw] = useState('')
   const [emailTestTo, setEmailTestTo] = useState('')
+  const [aiTest, setAiTest] = useState(null)     // result of the last provider probe
+  const [aiTesting, setAiTesting] = useState(false)
   const [systemStatus, setSystemStatus] = useState(null)
   const [driveReport, setDriveReport] = useState(null)
   const [tags, setTags] = useState([])
@@ -491,6 +496,18 @@ export default function SettingsPage() {
       const res = await api.post('/settings/email-test', { to: emailTestTo })
       setMessage(res.detail || 'Test email sent')
     } catch (e) { setError(e.message) }
+  }
+
+  // The AI features fall back silently when the provider fails, which leaves an
+  // administrator unable to tell a bad key from a withdrawn model from a
+  // firewalled network. This asks the provider directly and shows its answer.
+  async function testAiProvider() {
+    setError(null); setAiTest(null); setAiTesting(true)
+    try {
+      setAiTest(await api.post('/settings/ai-test'))
+    } catch (e) {
+      setAiTest({ ok: false, provider: values.extraction_provider, model: '', error: e.message })
+    } finally { setAiTesting(false) }
   }
 
   async function createTag() {
@@ -746,7 +763,7 @@ export default function SettingsPage() {
           <div>
             <label>Default role for new users</label>
             <select value={values.oidc_default_role} onChange={set('oidc_default_role')}>
-              {['VIEWER', 'VALIDATOR', 'AUTHOR', 'LEGAL', 'APPROVER', 'ADMIN'].map((r) => <option key={r} value={r}>{r}</option>)}
+              {['REQUESTER', 'VIEWER', 'VALIDATOR', 'AUTHOR', 'LEGAL', 'APPROVER', 'ADMIN'].map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
         </div>
@@ -912,6 +929,22 @@ export default function SettingsPage() {
           </>
         )}
         <p className="hint">API keys are stored server-side only and never returned to the browser.</p>
+
+        <div className="toolbar" style={{ marginTop: 6 }}>
+          <button className="secondary" disabled={aiTesting} onClick={testAiProvider}
+            title="Send one short prompt to the configured provider and report what comes back">
+            {aiTesting ? 'Testing…' : 'Test AI connection'}
+          </button>
+          <span className="hint">Save first — the test uses the stored settings.</span>
+        </div>
+        {aiTest && (
+          <div className={aiTest.ok ? 'success' : 'error'} style={{ marginTop: 6 }}>
+            <strong>{aiTest.ok ? '✓ Reached' : '✗ Failed'}: {aiTest.provider} / {aiTest.model || '(no model)'}</strong>
+            {aiTest.error && <div style={{ marginTop: 4, fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-word' }}>{aiTest.error}</div>}
+            {aiTest.hint && <div style={{ marginTop: 4 }}>{aiTest.hint}</div>}
+            {aiTest.ok && aiTest.reply && <div className="hint" style={{ marginTop: 4 }}>Replied: “{aiTest.reply}”</div>}
+          </div>
+        )}
 
         <div style={{ marginTop: 12, borderTop: '1px solid #e6ebf0', paddingTop: 12 }}>
           <label>
@@ -1157,6 +1190,37 @@ export default function SettingsPage() {
       </div>
 
       <div className="card">
+        <h3>Expiry reminders</h3>
+        <p className="hint" style={{ marginTop: 0 }}>
+          The daily run that emails contract owners before a contract expires. Which contracts get
+          reminders, and how far ahead, is set per rule on the Rules page.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div>
+            <label>Daily reminder run time (HH:MM, Asia/Kolkata)</label>
+            <input value={values.reminder_run_time} onChange={set('reminder_run_time')} />
+          </div>
+          <div>
+            <label>Remind for</label>
+            <select value={values.reminders_include_unvalidated}
+                    onChange={set('reminders_include_unvalidated')}>
+              <option value="false">Validated contracts only</option>
+              <option value="true">Validated and not-yet-validated contracts</option>
+            </select>
+          </div>
+        </div>
+        <p className="hint">
+          {values.reminders_include_unvalidated === 'true'
+            ? 'Contracts still awaiting validation will also be reminded about. Their end dates come '
+              + 'from automatic extraction and nobody has confirmed them, so those emails carry a notice '
+              + 'saying so. Rejected and archived contracts are never reminded about.'
+            : 'Only validated contracts are reminded about, so a contract sitting in the validation '
+              + 'queue can pass its end date unnoticed. Switch to the second option to cover those too.'}
+        </p>
+        <div style={{ marginTop: 10 }}><button onClick={saveSettings}>Save reminder settings</button></div>
+      </div>
+
+      <div className="card">
         <h3>Scheduled digest email</h3>
         <p className="hint">
           A recurring summary of what needs attention — contracts awaiting
@@ -1202,15 +1266,15 @@ export default function SettingsPage() {
 
       {tab === 'workflow' && (<>
       <div className="card">
-        <h3>Validation &amp; reminders</h3>
+        <h3>Validation &amp; renewals</h3>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Expiry reminder delivery — when they run and which contracts they cover — is on the{' '}
+          <button className="linklike" onClick={() => setTab('notifications')}>Notifications</button> tab.
+        </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           <div>
             <label>Low-confidence highlight threshold (0–1)</label>
             <input value={values.confidence_threshold} onChange={set('confidence_threshold')} />
-          </div>
-          <div>
-            <label>Daily reminder run time (HH:MM, Asia/Kolkata)</label>
-            <input value={values.reminder_run_time} onChange={set('reminder_run_time')} />
           </div>
           <div>
             <label>Rule mapping changes apply to</label>
@@ -1307,6 +1371,12 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>Letterheads</h3>
+        <LetterheadSettings businessUnits={masterLists.business_units}
+          onSaved={setMessage} onError={setError} />
       </div>
 
       </>)}

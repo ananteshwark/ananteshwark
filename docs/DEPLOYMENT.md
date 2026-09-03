@@ -59,6 +59,9 @@ Create the folder(s) that will be watched for incoming contracts:
 
 ```bash
 sudo -u cms mkdir -p /opt/cms/watched
+# Letterhead artwork (see LETTERHEAD_DIR in the .env below). Outside the app
+# directory so a release can never sweep it away.
+sudo -u cms mkdir -p /opt/cms/letterheads
 ```
 
 ---
@@ -106,6 +109,11 @@ CLAUDE_MODEL=claude-opus-4-8
 # Watched folder(s); more can be added at runtime in Admin Settings
 WATCH_ROOT=/opt/cms/watched
 WATCH_ENABLED=true
+
+# Per-business-unit letterhead artwork, uploaded from Admin Settings → Master
+# data. Defaults to backend/letterheads; set it outside the app directory so a
+# deploy that replaces the tree cannot take the stationery with it.
+LETTERHEAD_DIR=/opt/cms/letterheads
 
 TIMEZONE=Asia/Kolkata
 REMINDER_RUN_TIME=08:00
@@ -209,6 +217,27 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;    # extraction/report calls can be slow
     }
+
+    # Security headers. The backend sets these too, but only on its own
+    # responses — the HTML document and every asset come from nginx, and a CSP
+    # on a JSON reply protects nothing. This block is where they matter.
+    #
+    # The policy is kept identical to `CSP` in frontend/vite.config.js, which
+    # the browser E2E specs run under, so a directive that breaks the app fails
+    # CI rather than the deployment. Change them together.
+    #
+    #   style-src 'unsafe-inline'  the editor and the risk overlay set element
+    #                              styles directly
+    #   blob:                      the original contract document is fetched
+    #                              with auth and handed to the viewer as an
+    #                              object URL; pdf.js runs its worker from one
+    #   Google Sign-In             add https://accounts.google.com to script-src
+    #                              and frame-src if it is enabled (the
+    #                              air-gapped install cannot reach it anyway)
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
 
     # SPA fallback for client-side routing
     location / {
@@ -350,18 +379,84 @@ localhost.
 
 ## 10. Backups (the entire system state = Postgres + the documents)
 
-```bash
-sudo mkdir -p /opt/cms/backups && sudo chown cms:cms /opt/cms/backups
+The register stores absolute **paths** to contract files. A database backup on
+its own therefore restores rows whose every "Original file" is a 404 — the
+contracts are gone even though the dump restored cleanly. `backup.sh` takes
+both together.
 
+```bash
+sudo mkdir -p /var/backups/cms
+sudo bash /opt/cms/app/backup.sh                    # -> /var/backups/cms/<timestamp>/
+```
+
+It reads `backend/.env`, so it follows however this box is configured rather
+than assuming defaults, and it produces:
+
+| file | what |
+|---|---|
+| `database.dump` | `pg_dump -Fc` of the register |
+| `manual_uploads.tar.gz` | uploaded contract documents |
+| `attachments.tar.gz` | attachments |
+| `letterheads.tar.gz` | each business unit's letterhead artwork |
+| `manifest.txt` | timestamp, deployed commit, and the paths it used |
+
+Every artefact is read back before the script exits — `pg_restore --list` on the
+dump, `tar -tzf` on the archives. An unreadable dump is worse than no dump,
+because it is trusted.
+
+### Nightly
+
+```bash
 sudo tee /etc/cron.d/cms-backup >/dev/null <<'CRON'
-# Nightly pg_dump at 01:30; keep 14 days
-30 1 * * * cms pg_dump cms | gzip > /opt/cms/backups/cms-$(date +\%F).sql.gz && find /opt/cms/backups -name 'cms-*.sql.gz' -mtime +14 -delete
+# 01:30 nightly. CMS_BACKUP_KEEP_DAYS controls retention (default 30).
+30 1 * * * root bash /opt/cms/app/backup.sh /var/backups/cms >> /var/log/cms-backup.log 2>&1
 CRON
 ```
 
-Also snapshot the watched/document folders (`/opt/cms/watched` and any network
-mounts) with your VM provider's volume snapshots or `restic`/`borg` — the
-database stores file *paths*, so the documents must be preserved alongside it.
+Back the `/var/backups/cms` tree up **off this machine** as well. A backup that
+lives only on the box it protects does not survive the failure it exists for.
+
+### Restoring
+
+```bash
+sudo bash /opt/cms/app/restore.sh /var/backups/cms/<timestamp>
+```
+
+It stops the service, replaces the database and both document directories,
+starts it again and waits for `/api/health`. It refuses to run unattended
+unless `CMS_RESTORE_YES=1` — it destroys what is there now.
+
+### The drill — do this before you need it
+
+A backup nobody has restored is a guess. Restore into a scratch database, which
+touches nothing live:
+
+```bash
+sudo -u postgres createdb cms_restore_drill
+CMS_RESTORE_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/cms_restore_drill \
+CMS_RESTORE_YES=1 \
+  sudo -E bash /opt/cms/app/restore.sh /var/backups/cms/<timestamp>
+
+# Did the register actually come back?
+sudo -u postgres psql cms_restore_drill -c \
+  "SELECT count(*) AS contracts, max(sr_no) AS highest FROM contracts;"
+sudo -u postgres psql cms_restore_drill -c \
+  "SELECT count(*) AS with_a_file FROM contracts WHERE contract_link IS NOT NULL;"
+
+sudo -u postgres dropdb cms_restore_drill
+```
+
+Then confirm the documents are real files and not just rows pointing at
+nothing — this is the check that catches a database-only backup:
+
+```bash
+sudo -u postgres psql cms_restore_drill -tAc \
+  "SELECT contract_link FROM contracts WHERE contract_link IS NOT NULL LIMIT 20" \
+  | while read -r f; do [ -f "$f" ] || echo "MISSING: $f"; done
+```
+
+Record the date of the last successful drill somewhere people read. The useful
+question is never "do we have backups", it is "when did we last prove it".
 
 ---
 

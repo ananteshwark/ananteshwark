@@ -4,12 +4,12 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session, load_only
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from ..audit import log_action
 from ..auth import require_validator, require_viewer
 from ..database import get_db
-from ..models import Contract, ContractStatus, User
+from ..models import Contract, ContractStatus, User, Vendor
 from ..services.clause_attributes import ATTRIBUTES, matches_filter
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
@@ -21,8 +21,14 @@ _OPS = {"eq", "lt", "lte", "gt", "gte", "exists", "missing"}
 # schema. Naming the columns keeps a portfolio query from pulling megabytes per
 # row across the wire to look at a small JSON blob.
 _LIST_COLUMNS = (Contract.sr_no, Contract.signing_entity, Contract.vendor_name_raw,
-                 Contract.contract_type, Contract.end_date, Contract.risk_level,
-                 Contract.clause_attributes)
+                 Contract.vendor_id, Contract.contract_type, Contract.end_date,
+                 Contract.risk_level, Contract.clause_attributes)
+
+# `counterparty_name` prefers the master vendor record, so the relationship has
+# to come with the row. Without it the name is one extra query per contract, up
+# to _SCAN_CAP of them.
+_LIST_OPTIONS = (load_only(*_LIST_COLUMNS),
+                 joinedload(Contract.vendor).load_only(Vendor.name))
 
 # Upper bound on rows one request will examine. The filters run in Python, so
 # without this the cost of a query grows with the repository forever.
@@ -91,7 +97,7 @@ def query_by_attributes(payload: AttrQuery, db: Session = Depends(get_db),
         if f.key not in ATTRIBUTES:
             raise HTTPException(400, f"unknown attribute '{f.key}'")
 
-    q = _validated(db).options(load_only(*_LIST_COLUMNS))
+    q = _validated(db).options(*_LIST_OPTIONS)
     # Narrow in SQL before reading anything into Python. Every filter except
     # "missing" requires the attribute to be present, and that much the database
     # can decide on its own. The comparison itself stays in Python — pushing a
@@ -126,7 +132,8 @@ def query_by_attributes(payload: AttrQuery, db: Session = Depends(get_db),
         "unextracted": _validated(db).filter(Contract.clause_attributes.is_(None)).count(),
         "items": [{
             "sr_no": c.sr_no,
-            "vendor_name": c.signing_entity or c.vendor_name_raw,
+            "vendor_name": c.counterparty_name,
+            "signing_entity": c.signing_entity,
             "contract_type": c.contract_type,
             "end_date": c.end_date.isoformat() if c.end_date else None,
             "risk_level": c.risk_level,

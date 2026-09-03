@@ -19,7 +19,7 @@ from ..models import (
 )
 from .extraction import ExtractionError, extract_contract_data
 from .dates import derive_dates, normalize_tenure, parse_date, tenure_from_dates
-from .text_extraction import TextExtractionError, extract_text
+from .text_extraction import TextExtractionError, extract_text_with_layout
 from .vendor_matching import normalize_vendor_name
 
 log = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ def process_file(ingestion_id: int) -> None:
         db.commit()
 
         try:
-            text = extract_text(record.path)
+            text, ocr_layout = extract_text_with_layout(record.path)
         except (TextExtractionError, OSError) as exc:
             _mark_failed(db, record, f"Text extraction failed: {exc}")
             return
@@ -210,6 +210,9 @@ def process_file(ingestion_id: int) -> None:
             status=ContractStatus.PENDING_VALIDATION,
             raw_extracted=data,
             extracted_text=text[:200_000],  # for full-text search
+            # Only set for OCR'd documents; None for anything with its own
+            # text layer. See services/text_extraction.
+            ocr_layout=ocr_layout,
             confidence=result["confidence"],
             derived_fields=derived,
             extraction_model=result.get("model"),
@@ -296,7 +299,11 @@ def start_worker() -> threading.Thread:
         finally:
             db.close()
     except Exception:
-        pass
+        # The flag keeps its in-process default, so an admin who turned
+        # extraction off can find it running again after a restart with nothing
+        # to explain why.
+        log.warning("Could not read the persisted extraction_enabled setting; "
+                    "the worker starts with its default pause state", exc_info=True)
     thread = threading.Thread(target=_worker_loop, daemon=True, name="extraction-worker")
     thread.start()
     # Re-queue anything left mid-flight from a previous run

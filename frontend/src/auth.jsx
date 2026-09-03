@@ -11,11 +11,13 @@ export function AuthProvider({ children }) {
   // Effective page→roles access map (role admin). Null until loaded.
   const [pageAccess, setPageAccess] = useState(null)
 
+  // The session itself is an HttpOnly cookie the server sets — nothing here
+  // holds it, which is the point. Only the user profile is cached, so a reload
+  // can render the shell without waiting on a round trip.
   function persist(data) {
-    localStorage.setItem('cms_token', data.token)
     localStorage.setItem('cms_user', JSON.stringify(data.user))
     setUser(data.user)
-    // Let the session-expiry watcher re-read the new token's exp claim.
+    // Let the session-expiry watcher re-read the new expiry cookie.
     try { window.dispatchEvent(new Event('cms:auth')) } catch { /* no window */ }
   }
 
@@ -27,16 +29,19 @@ export function AuthProvider({ children }) {
     persist(await api.post('/auth/google', { credential }))
   }
 
-  // SSO (OIDC) redirect returns only a token in the URL; store it, then fetch
-  // the user so the session looks identical to a password login.
-  async function loginWithToken(token) {
-    localStorage.setItem('cms_token', token)
-    const me = await api.get('/auth/me')
-    persist({ token, user: me })
+  // SSO (OIDC) now returns with the session cookie already set by the redirect,
+  // so there is no token to consume from the URL — just find out who we are.
+  // Kept as a function because the SSO landing still has to hydrate the user.
+  async function adoptServerSession() {
+    persist({ user: await api.get('/auth/me') })
   }
 
-  function logout() {
-    localStorage.removeItem('cms_token')
+  // Signing out has to be a request: the session cookie is HttpOnly, so the
+  // browser will not let this code delete it. Clearing the cached profile
+  // without telling the server would look signed out while still being signed
+  // in.
+  async function logout() {
+    try { await api.post('/auth/logout', {}) } catch { /* clear locally anyway */ }
     localStorage.removeItem('cms_user')
     setUser(null)
   }
@@ -74,7 +79,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, loginWithGoogle, loginWithToken, logout, isAdmin, isSuperAdmin, canValidate, canAuthor, isLegal, isApprover, canSeePage }}>
+    <AuthContext.Provider value={{ user, login, loginWithGoogle, adoptServerSession, logout, isAdmin, isSuperAdmin, canValidate, canAuthor, isLegal, isApprover, canSeePage }}>
       {children}
     </AuthContext.Provider>
   )

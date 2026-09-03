@@ -17,7 +17,10 @@ from .extraction_common import (
 
 log = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-1.5-pro"
+# The 1.5 series was withdrawn from the Gemini API; a saved setting pointing at
+# it keeps being sent and comes back 404 "model not found", which is the most
+# common reason this provider stops working after having worked.
+DEFAULT_MODEL = "gemini-2.5-pro"
 
 
 def run_gemini(prompt: str, model: str, api_key: str | None) -> dict:
