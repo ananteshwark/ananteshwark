@@ -99,7 +99,7 @@ export default function ValidationQueue() {
           <option value="">All departments</option>
           {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
-        <input placeholder="Filter vendor…" value={vendor} onChange={(e) => setVendor(e.target.value)} />
+        <input placeholder="Filter counterparty…" value={vendor} onChange={(e) => setVendor(e.target.value)} />
         <select value={entity} onChange={(e) => setEntity(e.target.value)}>
           <option value="">All signing entities</option>
           {entities.map((en) => <option key={en}>{en}</option>)}
@@ -180,7 +180,7 @@ export default function ValidationQueue() {
         <thead>
           <tr>
             {canValidate && <th><input type="checkbox" style={{ width: 'auto' }} checked={allSelected} onChange={toggleAll} /></th>}
-            <th>#</th><th>Signing entity</th><th>Vendor</th><th>Service</th><th>Type</th>
+            <th>#</th><th>Signing entity</th><th>Counterparty</th><th>Service</th><th>Type</th>
             <th>Value</th><th>Assignee</th><th>Start</th><th>End</th>
             <th>Min confidence</th><th>Completeness</th><th></th>
           </tr>

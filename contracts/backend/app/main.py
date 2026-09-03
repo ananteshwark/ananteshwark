@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .auth import require_admin
+from .auth import require_admin, require_page
 
 from . import runtime
 from .config import settings
@@ -160,12 +160,27 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
+def _cors_origins() -> list[str]:
+    origins = [settings.APP_BASE_URL]
+    if settings.is_development:
+        origins.append("http://localhost:5173")
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.APP_BASE_URL, "http://localhost:5173"],
+    # The Vite dev origin used to be trusted unconditionally, in production,
+    # with credentials — so anything a signed-in user could be induced to load
+    # on localhost:5173 could read authenticated responses. It is now only
+    # trusted when ENV=development.
+    allow_origins=_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    # Response headers are hidden from JS cross-origin unless named here. The
+    # sliding session is delivered in one, so without this the client silently
+    # never sees a refreshed token and users get logged out on the hour.
+    expose_headers=["X-Refresh-Token"],
 )
 
 
@@ -184,51 +199,93 @@ async def _observability(request, call_next):
     label = getattr(route, "path", None) or request.url.path
     metrics.record(f"{request.method} {label}", response.status_code, elapsed_ms)
     response.headers["X-Response-Time-ms"] = f"{elapsed_ms:.1f}"
-    # Defense-in-depth security headers. nginx sets these for the served SPA;
-    # setting them here too covers direct-to-backend access and dev.
+    # Defense-in-depth security headers. nginx sets these for the served SPA
+    # (see docs/DEPLOYMENT.md — that is where they do the real work, since the
+    # HTML document and every asset come from nginx); setting them here too
+    # covers direct-to-backend access and dev.
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
+    # Deliberately NOT `default-src 'none'`, tempting as it is here. Several
+    # endpoints return a PDF via FileResponse, and default-src also covers
+    # object-src, which is what the browser's built-in PDF viewer renders
+    # through. Those endpoints need a bearer token today, so nothing can
+    # navigate to them directly and the point is moot — but moving auth to
+    # cookies would make direct navigation possible and turn this into silently
+    # broken downloads. These three directives carry the protection that
+    # actually applies to an API response and none of that risk.
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    )
     return response
 
-for router in (
-    auth_api.router,
-    ingestion_api.router,
-    contracts_api.router,
-    duplicates_api.router,
-    vendors_api.router,
-    departments_api.router,
-    rules_api.router,
-    dashboard_api.router,
-    reports_api.router,
-    settings_api.router,
-    tags_api.router,
-    saved_filters_api.router,
-    retention_api.router,
-    notifications_api.router,
-    audit_api.router,
-    authoring_api.router,
-    clauses_api.router,
-    contract_action_api.router,
-    vendor_api.router,
-    esign_api.router,
-    internal_entities_api.router,
-    requests_api.router,
-    tasks_api.router,
-    repository_ai_api.router,
-    obligations_api.router,
-    payments_api.router,
-    custom_fields_api.router,
-    report_builder_api.router,
-    public_api.router,
-    api_tokens_api.router,
-    compliance_api.router,
-    fx_api.router,
-    approval_action_api.router,
-    ai_governance_api.router,
-    portfolio_api.router,
-):
-    app.include_router(router, prefix=settings.API_PREFIX)
+# Router -> page key from services/page_access.PAGES, or None for routers that
+# are not behind a single page.
+#
+# A key here makes the admin's Page Access setting enforced for that router, on
+# top of the endpoints' own role gates (see auth.require_page — it can only
+# restrict). Routers are listed with None where a page gate would be wrong
+# rather than omitted, so adding a router forces the question to be answered:
+#
+#   auth_api          sign-in and the user directory; gating it would lock
+#                     people out of the app they are being denied a page in.
+#   settings_api      serves /settings/page-access itself, which every client
+#                     reads to build its navigation. Gating it on "settings"
+#                     (admin-only) would break the nav for everyone else.
+#   authoring_api     one router behind five pages (authoring, drafts,
+#                     templates, redline, reviews) with different role sets; a
+#                     single router-level key would be wrong for four of them.
+#   reports_api       also serves /search, which is used from pages other than
+#                     Reports.
+#   public_api        authenticated by API token, not by a user role.
+#   the remainder     shared lookups (departments, tags, saved filters,
+#                     notifications, custom fields, FX, ...) read from many
+#                     pages; they have no single owning page.
+ROUTER_PAGES: list[tuple[object, str | None]] = [
+    (auth_api.router, None),
+    (ingestion_api.router, "ingestion"),
+    (contracts_api.router, "contracts"),
+    (duplicates_api.router, "duplicates"),
+    (vendors_api.router, "vendors"),
+    (departments_api.router, None),
+    (rules_api.router, "rules"),
+    (dashboard_api.router, "dashboard"),
+    (reports_api.router, None),
+    (settings_api.router, None),
+    (tags_api.router, None),
+    (saved_filters_api.router, None),
+    (retention_api.router, "retention"),
+    (notifications_api.router, None),
+    (audit_api.router, "audit"),
+    (authoring_api.router, None),
+    (clauses_api.router, "clauses"),
+    (contract_action_api.router, "contracts"),
+    (vendor_api.router, "vendors"),
+    (esign_api.router, "signatures"),
+    (internal_entities_api.router, None),
+    (requests_api.router, "requests"),
+    (tasks_api.router, "tasks"),
+    (repository_ai_api.router, "repository_ai"),
+    (obligations_api.router, "obligations"),
+    (payments_api.router, None),
+    (custom_fields_api.router, None),
+    (report_builder_api.router, "report_builder"),
+    (public_api.router, None),
+    (api_tokens_api.router, None),
+    (compliance_api.router, None),
+    (fx_api.router, None),
+    (approval_action_api.router, None),
+    (ai_governance_api.router, "ai_governance"),
+    (portfolio_api.router, "portfolio"),
+]
+
+for router, page_key in ROUTER_PAGES:
+    app.include_router(
+        router,
+        prefix=settings.API_PREFIX,
+        dependencies=[Depends(require_page(page_key))] if page_key else [],
+    )
 
 
 @app.get("/api/health")

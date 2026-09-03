@@ -27,7 +27,7 @@ function _tenureToMonths(numStr, unit) {
   if (!n || n <= 0) return null
   return unit === 'Years' ? Math.round(n * 12) : Math.round(n)
 }
-function _monthsFromTenureStr(s) {
+export function monthsFromTenure(s) {
   const m = /(\d+(?:\.\d+)?)\s*(year|month)/i.exec(s || '')
   if (!m) return null
   return _tenureToMonths(m[1], /year/i.test(m[2]) ? 'Years' : 'Months')
@@ -38,7 +38,7 @@ function _formatMonths(total) {
   return `${total} Month${total !== 1 ? 's' : ''}`
 }
 // End date from start + N months (inclusive), as an ISO string.
-function endFromStartMonths(startISO, months) {
+export function endFromStartMonths(startISO, months) {
   const s = _parseISO(startISO)
   if (!s || !months) return null
   return _iso(_addDays(_addMonths(s, months), -1))
@@ -79,25 +79,51 @@ const CONFIDENCE_KEY = {
   location: 'location',
 }
 
-export function fieldClass(contract, field, threshold = 0.8) {
+// Fields that block validation. Fetched from the server so the form cannot
+// disagree with the rule that actually rejects the save; this is the fallback
+// used until that request lands (and if it fails).
+const DEFAULT_MANDATORY = [
+  'signing_entity', 'vendor_name_raw', 'start_date', 'end_date',
+  'department_id', 'contract_service', 'po_number',
+]
+
+export function useMandatoryFields() {
+  const [fields, setFields] = useState(DEFAULT_MANDATORY)
+  useEffect(() => {
+    api.get('/contracts/mandatory-fields')
+      .then((r) => setFields((r.mandatory || []).map((m) => m.form_field || m.field)))
+      .catch(() => {})
+  }, [])
+  return fields
+}
+
+export function fieldClass(contract, field, threshold = 0.8, mandatory = []) {
   const classes = []
   const key = CONFIDENCE_KEY[field]
   const conf = contract.confidence?.[key]
   if (typeof conf === 'number' && conf < threshold) classes.push('field-low-confidence')
   if ((contract.derived_fields || []).includes(field)) classes.push('field-derived')
   if ((contract.learned_fields || []).includes(field)) classes.push('field-derived')
+  if (mandatory.includes(field)) classes.push('field-mandatory')
   return classes.join(' ')
 }
 
-function Field({ contract, field, label, children, threshold }) {
+// The asterisk alone read as decoration; required fields now carry it in the
+// accent colour with a title, so what will block a save is visible at a glance.
+export function RequiredMark() {
+  return <span className="req-mark" title="Required before this contract can be validated"> *</span>
+}
+
+function Field({ contract, field, label, children, threshold, mandatory = [] }) {
   const key = CONFIDENCE_KEY[field]
   const conf = contract.confidence?.[key]
   const derived = (contract.derived_fields || []).includes(field)
   const learned = (contract.learned_fields || []).includes(field)
+  const required = mandatory.includes(field)
   return (
-    <div className={fieldClass(contract, field, threshold)}>
+    <div className={fieldClass(contract, field, threshold, mandatory)}>
       <label>
-        {label}
+        {label}{required && <RequiredMark />}
         {typeof conf === 'number' && conf < threshold && (
           <span className="hint warn"> · low confidence ({(conf * 100).toFixed(0)}%)</span>
         )}
@@ -175,6 +201,7 @@ export function VendorPicker({ value, rawName, onPick, onCreate }) {
 export default function ContractForm({
   contract, form, setForm, departments, types = [], threshold = 0.8,
   signingEntities = [], currencies = [], businessUnits = [], onSuggestDepartment,
+  mandatory = DEFAULT_MANDATORY,
 }) {
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value === '' ? null : e.target.value })
   const [deptSuggesting, setDeptSuggesting] = useState(false)
@@ -227,7 +254,7 @@ export default function ContractForm({
       if (start && f.end_date) {
         const t = tenureFromDates(start, f.end_date); if (t) next.contract_tenure = t
       } else if (start && f.contract_tenure) {
-        const end = endFromStartMonths(start, _monthsFromTenureStr(f.contract_tenure)); if (end) next.end_date = end
+        const end = endFromStartMonths(start, monthsFromTenure(f.contract_tenure)); if (end) next.end_date = end
       }
       return next
     })
@@ -255,7 +282,7 @@ export default function ContractForm({
 
   return (
     <div>
-      <Field contract={contract} field="signing_entity" label="Signing Entity *" threshold={threshold}>
+      <Field mandatory={mandatory} contract={contract} field="signing_entity" label="Signing Entity" threshold={threshold}>
         <select value={form.signing_entity || ''} onChange={set('signing_entity')}>
           <option value="">— Select internal entity —</option>
           {signingEntities.map((en) => <option key={en} value={en}>{en}</option>)}
@@ -266,7 +293,7 @@ export default function ContractForm({
         <span className="hint">Pick a predefined entity. To change an entity’s display name for every contract, rename it in Admin Settings → Internal entities (editing it here just re-points this contract to the chosen entity).</span>
       </Field>
 
-      <Field contract={contract} field="vendor_name_raw" label="Vendor *" threshold={threshold}>
+      <Field mandatory={mandatory} contract={contract} field="vendor_name_raw" label="Counterparty" threshold={threshold}>
         <VendorPicker
           value={form.vendor_id}
           rawName={contract.vendor_name}
@@ -275,18 +302,18 @@ export default function ContractForm({
         />
       </Field>
 
-      <Field contract={contract} field="vendor_address" label="Vendor Address" threshold={threshold}>
+      <Field mandatory={mandatory} contract={contract} field="vendor_address" label="Vendor Address" threshold={threshold}>
         <textarea rows={2} value={form.vendor_address || ''} onChange={set('vendor_address')} />
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        <Field contract={contract} field="start_date" label="Start Date *" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="start_date" label="Start Date" threshold={threshold}>
           <input type="date" value={form.start_date || ''} onChange={onStartChange} />
         </Field>
-        <Field contract={contract} field="end_date" label="End Date *" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="end_date" label="End Date" threshold={threshold}>
           <input type="date" value={form.end_date || ''} onChange={onEndChange} />
         </Field>
-        <Field contract={contract} field="contract_tenure" label="Contract Tenure" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="contract_tenure" label="Contract Tenure" threshold={threshold}>
           <div className="toolbar" style={{ margin: 0 }}>
             <input type="number" min="0" step="1" style={{ maxWidth: 90 }} value={tenureNum}
               onChange={(e) => setTenure(e.target.value, tenureUnit)} placeholder="e.g. 24" />
@@ -300,8 +327,8 @@ export default function ContractForm({
       <p className="hint">Dates and tenure update each other live: set start + end and the tenure fills in; set start + tenure and the end date fills in.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div className={(contract.learned_fields || []).includes('department_id') ? 'field-derived' : ''}>
-          <label>Department *
+        <div className={`${(contract.learned_fields || []).includes('department_id') ? 'field-derived' : ''}${mandatory.includes('department_id') ? ' field-mandatory' : ''}`}>
+          <label>Department{mandatory.includes('department_id') && <RequiredMark />}
             {(contract.learned_fields || []).includes('department_id') && (
               <span className="hint derived"> · filled from vendor history — please review</span>
             )}
@@ -325,7 +352,7 @@ export default function ContractForm({
             </span>
           )}
         </div>
-        <Field contract={contract} field="po_number" label="PO Number *" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="po_number" label="PO Number" threshold={threshold}>
           <input value={form.po_number || ''} onChange={set('po_number')} />
         </Field>
       </div>
@@ -344,14 +371,14 @@ export default function ContractForm({
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
-        <Field contract={contract} field="contract_value" label="Contract Value" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="contract_value" label="Contract Value" threshold={threshold}>
           <input type="number" step="0.01" value={form.contract_value ?? ''} onChange={set('contract_value')} />
         </Field>
         <label>Negotiated savings
           <input type="number" step="0.01" value={form.savings_amount ?? ''} onChange={set('savings_amount')}
             placeholder="optional" />
         </label>
-        <Field contract={contract} field="currency" label="Currency" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="currency" label="Currency" threshold={threshold}>
           <select value={form.currency || 'INR'} onChange={set('currency')}>
             {!currencyOptions.includes('INR') && <option value="INR">INR</option>}
             {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -360,19 +387,19 @@ export default function ContractForm({
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Field contract={contract} field="iks_signing_authority" label="IKS Signing Authority" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="iks_signing_authority" label="IKS Signing Authority" threshold={threshold}>
           <input value={form.iks_signing_authority || ''} onChange={set('iks_signing_authority')} />
         </Field>
-        <Field contract={contract} field="vendor_signing_authority" label="Vendor Signing Authority" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="vendor_signing_authority" label="Vendor Signing Authority" threshold={threshold}>
           <input value={form.vendor_signing_authority || ''} onChange={set('vendor_signing_authority')} />
         </Field>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
-        <Field contract={contract} field="contract_service" label="Contract Service *" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="contract_service" label="Contract Service" threshold={threshold}>
           <input value={form.contract_service || ''} onChange={set('contract_service')} />
         </Field>
-        <Field contract={contract} field="location" label="Business Unit (BU)" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="location" label="Business Unit (BU)" threshold={threshold}>
           <input list="business-unit-options" value={form.location || ''} onChange={set('location')}
             placeholder="Select or type a business unit…" autoComplete="off" />
           <datalist id="business-unit-options">
@@ -381,27 +408,15 @@ export default function ContractForm({
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div>
-          <label>Any PHI shared?</label>
-          <select value={form.phi_shared === true ? 'yes' : form.phi_shared === false ? 'no' : ''}
-            onChange={(e) => setForm({ ...form, phi_shared: e.target.value === '' ? null : e.target.value === 'yes' })}>
-            <option value="">— not set —</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-        </div>
-      </div>
-
-      <Field contract={contract} field="service_summary" label="Service Summary" threshold={threshold}>
+      <Field mandatory={mandatory} contract={contract} field="service_summary" label="Service Summary" threshold={threshold}>
         <textarea rows={3} value={form.service_summary || ''} onChange={set('service_summary')} />
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Field contract={contract} field="payment_term" label="Payment Term" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="payment_term" label="Payment Term" threshold={threshold}>
           <input value={form.payment_term || ''} onChange={set('payment_term')} placeholder="e.g. Net 30" />
         </Field>
-        <Field contract={contract} field="notice_period" label="Notice Period" threshold={threshold}>
+        <Field mandatory={mandatory} contract={contract} field="notice_period" label="Notice Period" threshold={threshold}>
           <input value={form.notice_period || ''} onChange={set('notice_period')} placeholder="e.g. 30 days" />
         </Field>
       </div>

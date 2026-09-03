@@ -65,7 +65,8 @@ def record(db: Session, feature: str, *, entity_type: str | None = None,
     provider, model = _model_info(db)
     started = time.perf_counter()
     run: dict = {"output": None, "ai_used": False, "confidence": None,
-                 "verified": None, "tokens_in": None, "tokens_out": None}
+                 "verified": None, "tokens_in": None, "tokens_out": None,
+                 "error": None}
     try:
         yield run
     finally:
@@ -78,6 +79,10 @@ def record(db: Session, feature: str, *, entity_type: str | None = None,
             tokens_in=run.get("tokens_in"), tokens_out=run.get("tokens_out"),
             latency_ms=int((time.perf_counter() - started) * 1000),
             confidence=run.get("confidence"), verified=run.get("verified"),
+            # Why the model was not used. Without it the governance page can
+            # only say "fell back", which reads the same whether AI is off by
+            # choice or the provider has been rejecting every call for a week.
+            error=(str(run.get("error"))[:2000] if run.get("error") else None),
             user_id=user_id,
         )
         run_id = _write_run(db, fields)

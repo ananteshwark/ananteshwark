@@ -26,6 +26,10 @@ def _run_out(r: AiRun) -> dict:
         "outcome": r.outcome, "outcome_note": r.outcome_note,
         "outcome_at": r.outcome_at.isoformat() if r.outcome_at else None,
         "output": (r.output or "")[:600],
+        # Why the model was skipped, when it was. A "rule" badge with no
+        # reason cannot distinguish deliberate offline operation from a
+        # provider that has been failing since the key expired.
+        "error": r.error,
         "created_at": r.created_at.isoformat() if r.created_at else None,
     }
 

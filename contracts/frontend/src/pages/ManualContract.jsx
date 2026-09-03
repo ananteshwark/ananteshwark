@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import ContractForm from '../components/ContractForm'
+import ContractForm, { useMandatoryFields } from '../components/ContractForm'
 
 // An empty "contract" so ContractForm's confidence/derived highlighting is inert
 const EMPTY_CONTRACT = { confidence: {}, derived_fields: [], vendor_name: null }
@@ -16,6 +16,7 @@ export default function ManualContract() {
   const [file, setFile] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const mandatory = useMandatoryFields()
 
   useEffect(() => {
     api.get('/departments').then(setDepartments).catch(() => {})
@@ -35,7 +36,7 @@ export default function ManualContract() {
         const fd = new FormData()
         fd.append('file', file)
         await fetch(`/api/contracts/${created.sr_no}/upload`, {
-          method: 'POST', headers: api.authHeader(), body: fd,
+          method: 'POST', headers: api.uploadHeaders(), credentials: 'same-origin', body: fd,
         }).then((r) => { if (!r.ok) throw new Error('File upload failed') })
       }
       navigate(goValidate ? `/validation/${created.sr_no}` : `/contracts/${created.sr_no}`)
@@ -54,7 +55,7 @@ export default function ManualContract() {
       </p>
       {error && <div className="error">{error}</div>}
       <div className="card" style={{ maxWidth: 820 }}>
-        <ContractForm contract={EMPTY_CONTRACT} form={form} setForm={setForm} departments={departments}
+        <ContractForm mandatory={mandatory} contract={EMPTY_CONTRACT} form={form} setForm={setForm} departments={departments}
           signingEntities={signingEntities} currencies={currencies} businessUnits={businessUnits} />
         <label style={{ marginTop: 12 }}>Attach document (optional)</label>
         <input type="file" accept=".pdf,.docx,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files[0] || null)} />

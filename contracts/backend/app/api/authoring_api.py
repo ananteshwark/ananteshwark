@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..audit import log_action
-from ..auth import require_author, require_viewer
+from ..auth import get_current_user, require_author, require_viewer
 from ..database import get_db
 from ..models import (
     Contract,
@@ -103,8 +103,29 @@ def _review_out(r: DraftReviewRequest) -> dict:
     }
 
 
-def _review_summary(db: Session, draft_id: int) -> dict:
-    rows = db.query(DraftReviewRequest).filter(DraftReviewRequest.draft_id == draft_id).all()
+def _visible_reviews(db: Session, draft_id: int, user: User) -> list[DraftReviewRequest]:
+    """The review threads on a draft this user is part of.
+
+    A review is a conversation between the person who asked for it and the
+    person asked. It was listed to anyone holding an authoring role, so opening
+    someone else's draft showed every thread on it — the private note to the
+    reviewer, their comment back, and the whole reply thread. Admins still see
+    all of them, because they can already act on any review and being able to
+    act on something you cannot see is worse than seeing it.
+    """
+    rows = (
+        db.query(DraftReviewRequest)
+        .filter(DraftReviewRequest.draft_id == draft_id)
+        .order_by(DraftReviewRequest.requested_at.desc())
+        .all()
+    )
+    if _is_admin(user):
+        return rows
+    return [r for r in rows
+            if user.id in (r.reviewer_id, r.requested_by_id)]
+
+
+def _review_summary(rows: list[DraftReviewRequest]) -> dict:
     pending = sum(1 for r in rows if r.status == "pending")
     return {"total": len(rows), "pending": pending, "reviewed": len(rows) - pending}
 
@@ -320,7 +341,8 @@ def import_draft(file: UploadFile = File(...), title: str | None = None,
         try:
             Path(tmp_path).unlink(missing_ok=True)
         except Exception:
-            pass
+            # Leaked temp files accumulate silently until the disk fills.
+            log.warning("Could not delete temporary upload %s", tmp_path, exc_info=True)
     if not (text or "").strip():
         raise HTTPException(422, "No readable text was found in the document.")
 
@@ -499,6 +521,10 @@ def restore_deleted_draft(draft_id: int, db: Session = Depends(get_db),
         raise HTTPException(404, "No deleted draft with that id")
     draft.deleted_at = None
     log_action(db, "contract_draft", draft.id, "RESTORE", user_id=user.id)
+    from ..services.request_linkage import on_draft_restored
+    for request_id in on_draft_restored(db, draft):
+        log_action(db, "contract_request", request_id, "CONVERT", user_id=user.id,
+                   new_value=f"draft #{draft.id} restored")
     db.commit()
     return _draft_out(draft, detail=True)
 
@@ -612,8 +638,15 @@ def delete_draft(draft_id: int, db: Session = Depends(get_db), user: User = Depe
                  "ledger is retained and the draft cannot be deleted.")
     draft.deleted_at = datetime.now(timezone.utc)
     log_action(db, "contract_draft", draft.id, "DELETE", user_id=user.id)
+    # A request that was converted into this draft must not be left pointing at
+    # it — see services/request_linkage.
+    from ..services.request_linkage import on_draft_deleted
+    unlinked = on_draft_deleted(db, draft)
+    for request_id in unlinked:
+        log_action(db, "contract_request", request_id, "UNCONVERT", user_id=user.id,
+                   new_value=f"draft #{draft.id} deleted")
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "requests_reopened": unlinked}
 
 
 # ---------------------------------------------------------------------------
@@ -658,11 +691,11 @@ def add_draft_attachment(draft_id: int, file: UploadFile = File(...), kind: str 
 def download_draft_attachment(draft_id: int, attachment_id: int, db: Session = Depends(get_db),
                               _: User = Depends(require_viewer)):
     from pathlib import Path
-    from fastapi.responses import FileResponse
+    from ..services.file_serving import safe_file_response
     att = db.get(DraftAttachment, attachment_id)
     if att is None or att.draft_id != draft_id or att.deleted_at is not None or not Path(att.path).exists():
         raise HTTPException(404, "Attachment not found")
-    return FileResponse(att.path, filename=att.filename)
+    return safe_file_response(att.path, att.filename)
 
 
 @router.delete("/drafts/{draft_id}/attachments/{attachment_id}")
@@ -806,8 +839,10 @@ def export_docx(draft_id: int, db: Session = Depends(get_db), _: User = Depends(
     """Download the draft as a Word document (DOCX) from the structured model."""
     from fastapi.responses import Response
     from ..services.docx import document_to_docx
+    from ..services.letterhead import spec_for_draft
     draft = _get_draft(db, draft_id)
-    data = document_to_docx(draft.title or "Contract", draft.document or {}, draft.fields or {})
+    data = document_to_docx(draft.title or "Contract", draft.document or {}, draft.fields or {},
+                            letterhead=spec_for_draft(db, draft))
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -820,13 +855,15 @@ def export_pdf(draft_id: int, db: Session = Depends(get_db), _: User = Depends(r
     """Download the draft as a PDF from the structured model."""
     from fastapi.responses import Response
     from ..services.authoring import render_text
+    from ..services.letterhead import spec_for_draft
     from ..services.pdf import text_to_pdf
     draft = _get_draft(db, draft_id)
     body = render_text(draft.document, draft.fields or {})
     # Unfinalized drafts carry a DRAFT watermark so exported copies aren't mistaken
     # for an executed contract.
     watermark = None if draft.contract_id else "DRAFT"
-    data = text_to_pdf((draft.title or "Contract").upper(), body, watermark=watermark)
+    data = text_to_pdf((draft.title or "Contract").upper(), body, watermark=watermark,
+                       letterhead=spec_for_draft(db, draft))
     return Response(
         content=data, media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="draft-{draft_id}.pdf"'},
@@ -840,6 +877,7 @@ def export_redline_docx(draft_id: int, db: Session = Depends(get_db), _: User = 
     from fastapi.responses import Response
     from ..models import TrackedChange
     from ..services.docx import redline_to_docx
+    from ..services.letterhead import spec_for_draft
     draft = _get_draft(db, draft_id)
     rows = db.query(TrackedChange).filter(TrackedChange.draft_id == draft_id).order_by(TrackedChange.id).all()
     changes = [{
@@ -849,7 +887,8 @@ def export_redline_docx(draft_id: int, db: Session = Depends(get_db), _: User = 
         "disposition": c.disposition.value, "disposition_reason": c.disposition_reason,
         "countered_text": c.countered_text,
     } for c in rows]
-    data = redline_to_docx(draft.title or "Contract", draft.document or {}, draft.fields or {}, changes)
+    data = redline_to_docx(draft.title or "Contract", draft.document or {}, draft.fields or {},
+                           changes, letterhead=spec_for_draft(db, draft))
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -865,6 +904,7 @@ def export_tracked_docx(draft_id: int, db: Session = Depends(get_db), _: User = 
     from fastapi.responses import Response
     from ..models import ChangeType, Disposition, TrackedChange
     from ..services.docx import document_to_docx_tracked
+    from ..services.letterhead import spec_for_draft
     draft = _get_draft(db, draft_id)
     rows = (
         db.query(TrackedChange)
@@ -878,7 +918,9 @@ def export_tracked_docx(draft_id: int, db: Session = Depends(get_db), _: User = 
         "change_type": c.change_type.value, "original_text": c.original_text,
         "proposed_text": c.proposed_text, "author_email": c.author_email,
     } for c in rows]
-    data = document_to_docx_tracked(draft.title or "Contract", draft.document or {}, draft.fields or {}, changes)
+    data = document_to_docx_tracked(draft.title or "Contract", draft.document or {},
+                                    draft.fields or {}, changes,
+                                    letterhead=spec_for_draft(db, draft))
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1084,7 +1126,11 @@ def insert_clause(draft_id: int, payload: InsertClause, db: Session = Depends(ge
         if v is None or v.deleted_at is not None:
             raise HTTPException(404, "Clause version not found")
         clause_type = v.entry.clause_type
-        text = v.text
+        # Polished wording wins. Saving a polish now promotes it into `text`,
+        # but versions polished before that still carry it only in
+        # `polished_text` — inserting the un-polished original there would put
+        # wording into a contract that the author had already replaced.
+        text = v.polished_text or v.text
         v.usage_count = (v.usage_count or 0) + 1
     if not text:
         raise HTTPException(400, "Nothing to insert")
@@ -1133,9 +1179,10 @@ def swap_clause(draft_id: int, payload: SwapClause, db: Session = Depends(get_db
     if block.get("type") != "paragraph":
         raise HTTPException(400, "That block is not a clause paragraph")
     old_text = "".join(t.get("text", "") for t in (block.get("content") or []) if t.get("type") == "text")
+    new_text = v.polished_text or v.text   # see insert_clause: polished wording wins
     new_block = {
         **block,
-        "content": [{"type": "text", "text": v.text}],
+        "content": [{"type": "text", "text": new_text}],
         "attrs": {**(block.get("attrs") or {}), "clauseVersionId": v.id, "clauseType": v.entry.clause_type},
     }
     content[payload.block_index] = new_block
@@ -1146,7 +1193,7 @@ def swap_clause(draft_id: int, payload: SwapClause, db: Session = Depends(get_db
     _snapshot(db, draft, user.id, note=f"swap clause: {v.entry.clause_type} → {v.label}")
     log_action(db, "contract_draft", draft.id, "SWAP_CLAUSE", user_id=user.id, new_value=v.entry.clause_type)
     db.commit()
-    return {"draft": _draft_out(draft, detail=True), "old_text": old_text, "new_text": v.text}
+    return {"draft": _draft_out(draft, detail=True), "old_text": old_text, "new_text": new_text}
 
 
 def _renumber_sections(content: list[dict]) -> list[dict]:
@@ -1308,7 +1355,47 @@ def set_internal_review(draft_id: int, reviewed: bool = True,
     return _draft_out(draft, detail=True)
 
 
-REVIEWER_ROLES = (UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.LEGAL, UserRole.APPROVER)
+# Anyone signed in can be asked to review. This used to be a fixed set of
+# roles, matched against the user's PRIMARY role only, and it was the reason a
+# draft could not be sent to more than one reviewer: in most installs exactly
+# one person holds a primary role of Legal, Approver or Admin, so the picker
+# offered exactly one name. A review is a request for someone's opinion, not a
+# privilege — the person who knows the clinical detail is often the requester.
+def _reviewer_query(db: Session):
+    return (
+        db.query(User)
+        .filter(User.is_active.is_(True), User.deleted_at.is_(None))
+        .order_by(User.name)
+    )
+
+
+def _is_admin(user: User) -> bool:
+    from ..auth import user_roles
+    return bool(user_roles(user) & {UserRole.ADMIN, UserRole.SUPER_ADMIN})
+
+
+_AUTHORING_ROLES = {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.VALIDATOR,
+                    UserRole.AUTHOR, UserRole.LEGAL, UserRole.APPROVER}
+
+
+def _can_author(user: User) -> bool:
+    from ..auth import user_roles
+    return bool(user_roles(user) & _AUTHORING_ROLES)
+
+
+def _review_link(request_id: int) -> str:
+    """Where a review notification should land.
+
+    These all used to point at the authoring workspace, which is the wrong
+    destination for a review: replying in the thread, suggesting a change,
+    approving, and accepting or rejecting a suggestion all live on the Reviews
+    page. A reviewer following the link arrived in the full editor with no
+    indication of what they had been asked to look at.
+
+    The request id is carried through so the recipient lands on their own
+    thread rather than a list of everything they are tagged in.
+    """
+    return f"/reviews?request={request_id}"
 
 
 def _email(to: list[str], subject: str, html: str) -> None:
@@ -1328,27 +1415,23 @@ def _email(to: list[str], subject: str, html: str) -> None:
 
 @router.get("/reviewers")
 def list_reviewers(db: Session = Depends(get_db), _: User = Depends(require_author)):
-    """Users eligible to be internal reviewers (Legal / Approver / Admin)."""
-    rows = (
-        db.query(User)
-        .filter(User.role.in_(REVIEWER_ROLES), User.is_active.is_(True))
-        .order_by(User.name)
-        .all()
-    )
+    """Everyone who can be asked to review — every active user."""
+    rows = _reviewer_query(db).all()
     return [{"id": u.id, "name": u.name, "role": u.role.value, "email": u.email} for u in rows]
 
 
 @router.get("/drafts/{draft_id}/review-requests")
 def list_review_requests(draft_id: int, db: Session = Depends(get_db),
-                         _: User = Depends(require_author)):
+                         user: User = Depends(require_viewer)):
+    """The review threads on this draft that the caller is part of.
+
+    Open to any reader because the response is scoped to them: a reviewer who
+    holds no authoring role still needs to see their own thread when they open
+    the draft they were asked to look at.
+    """
     _get_draft(db, draft_id)
-    rows = (
-        db.query(DraftReviewRequest)
-        .filter(DraftReviewRequest.draft_id == draft_id)
-        .order_by(DraftReviewRequest.requested_at.desc())
-        .all()
-    )
-    return {"requests": [_review_out(r) for r in rows], "summary": _review_summary(db, draft_id)}
+    rows = _visible_reviews(db, draft_id, user)
+    return {"requests": [_review_out(r) for r in rows], "summary": _review_summary(rows)}
 
 
 @router.post("/drafts/{draft_id}/review-requests")
@@ -1370,11 +1453,7 @@ def create_review_requests(draft_id: int, payload: dict, db: Session = Depends(g
     excerpt = (payload.get("excerpt") or "").strip() or None
     note = (payload.get("note") or "").strip() or None
 
-    valid = {
-        u.id: u for u in db.query(User).filter(
-            User.id.in_(reviewer_ids), User.role.in_(REVIEWER_ROLES)
-        ).all()
-    }
+    valid = {u.id: u for u in _reviewer_query(db).filter(User.id.in_(reviewer_ids)).all()}
     created = []
     for rid in reviewer_ids:
         reviewer = valid.get(rid)
@@ -1385,34 +1464,39 @@ def create_review_requests(draft_id: int, payload: dict, db: Session = Depends(g
             excerpt=excerpt, note=note, status="pending", requested_at=utcnow(),
         )
         db.add(req)
-        created.append(reviewer)
+        # The request itself is carried alongside the reviewer: each one gets a
+        # link to their own thread, which needs the row's id.
+        created.append((reviewer, req))
     if not created:
-        raise HTTPException(400, "None of the selected users are eligible reviewers (need Legal/Approver/Admin).")
+        raise HTTPException(400, "None of the selected users are active.")
 
     if draft.status == DraftStatus.DRAFT:
         draft.status = DraftStatus.INTERNAL_REVIEW
     db.flush()
     from ..config import settings
-    url = f"{settings.APP_BASE_URL}/authoring/drafts/{draft.id}"
     section_html = (
         f"<p><b>Section under review:</b></p><blockquote>{excerpt}</blockquote>"
         if excerpt else "<p>The whole draft is under review.</p>"
     )
     note_html = f"<p><b>Note from {user.name}:</b> {note}</p>" if note else ""
-    body = (
+    intro = (
         f"<p>Hi,</p><p><b>{user.name}</b> has asked you to review the contract "
         f"draft <b>“{draft.title}”</b>.</p>{section_html}{note_html}"
-        f"<p><a href=\"{url}\">Open the draft to review</a></p>"
-        f"<p style=\"color:#888;font-size:12px\">Contract Management System</p>"
     )
-    for reviewer in created:
+    outro = "<p style=\"color:#888;font-size:12px\">Contract Management System</p>"
+    for reviewer, req in created:
+        # Each reviewer gets a link to their own thread, so the body is built
+        # per recipient rather than shared.
+        link = _review_link(req.id)
         create_notification(
             db, reviewer.id, "review_request",
             f"You’ve been asked to review “{draft.title}”"
             + (f" — “{excerpt[:60]}…”" if excerpt else ""),
-            link=f"/authoring/drafts/{draft.id}",
+            link=link,
         )
-        _email([reviewer.email], f"Review requested: {draft.title}", body)
+        url = f"{settings.APP_BASE_URL}{link}"
+        _email([reviewer.email], f"Review requested: {draft.title}",
+               f"{intro}<p><a href=\"{url}\">Open your review</a></p>{outro}")
     log_action(db, "contract_draft", draft.id, "REVIEW_REQUESTED", user_id=user.id,
                new_value=f"{len(created)} reviewer(s)")
     db.commit()
@@ -1421,7 +1505,7 @@ def create_review_requests(draft_id: int, payload: dict, db: Session = Depends(g
 
 @router.post("/review-requests/{request_id}/complete")
 def complete_review_request(request_id: int, payload: dict, db: Session = Depends(get_db),
-                            user: User = Depends(require_author)):
+                            user: User = Depends(get_current_user)):
     """The assigned reviewer records their verdict + comment on their section."""
     from ..models import utcnow
     from ..services.user_notifications import create_notification
@@ -1445,17 +1529,19 @@ def complete_review_request(request_id: int, payload: dict, db: Session = Depend
         create_notification(
             db, req.requested_by_id, "review_done",
             f"{user.name} {verb} a section of “{draft.title if draft else 'a draft'}”",
-            link=f"/authoring/drafts/{req.draft_id}",
+            link=_review_link(req.id),
         )
         requester = db.get(User, req.requested_by_id)
         if requester is not None:
             from ..config import settings
-            url = f"{settings.APP_BASE_URL}/authoring/drafts/{req.draft_id}"
+            # The author's next step — accept, reject or resolve — is on the
+            # Reviews page, not in the editor.
+            url = f"{settings.APP_BASE_URL}{_review_link(req.id)}"
             comment_html = f"<p><b>Comment:</b> {req.reviewer_comment}</p>" if req.reviewer_comment else ""
             body = (
                 f"<p><b>{user.name}</b> {verb} a section of the draft "
                 f"<b>“{draft.title if draft else ''}”</b>.</p>{comment_html}"
-                f"<p><a href=\"{url}\">Open the draft</a></p>"
+                f"<p><a href=\"{url}\">Open the review</a></p>"
             )
             _email([requester.email], f"Review {outcome.replace('_', ' ')}: {draft.title if draft else 'draft'}", body)
     log_action(db, "contract_draft", req.draft_id, "REVIEW_COMPLETED", user_id=user.id,
@@ -1466,10 +1552,14 @@ def complete_review_request(request_id: int, payload: dict, db: Session = Depend
 
 @router.delete("/review-requests/{request_id}")
 def cancel_review_request(request_id: int, db: Session = Depends(get_db),
-                          user: User = Depends(require_author)):
+                          user: User = Depends(get_current_user)):
     req = db.get(DraftReviewRequest, request_id)
     if req is None:
         raise HTTPException(404, "Review request not found")
+    # This had no check at all: any author could cancel anyone's review. It
+    # matters more now that a reviewer can be any user.
+    if req.requested_by_id not in (user.id, None) and not _is_admin(user):
+        raise HTTPException(403, "Only the author who requested the review can cancel it")
     db.delete(req)
     log_action(db, "contract_draft", req.draft_id, "REVIEW_CANCELLED", user_id=user.id)
     db.commit()
@@ -1485,7 +1575,7 @@ def _review_row_out(r: DraftReviewRequest, draft: ContractDraft | None, my_role:
 
 
 @router.get("/my-reviews")
-def my_reviews(db: Session = Depends(get_db), user: User = Depends(require_author)):
+def my_reviews(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Every review request the signed-in user is tagged in — as a reviewer (to
     respond to) or as the author who requested it (to accept/reject suggestions).
     Powers the dedicated Reviews screen."""
@@ -1512,7 +1602,7 @@ def my_reviews(db: Session = Depends(get_db), user: User = Depends(require_autho
 
 @router.post("/review-requests/{request_id}/accept")
 def accept_suggestion(request_id: int, db: Session = Depends(get_db),
-                      user: User = Depends(require_author)):
+                      user: User = Depends(get_current_user)):
     """Author accepts the reviewer's suggested revision: apply it to the draft
     document (replacing the highlighted excerpt) and mark the request resolved."""
     from ..models import utcnow
@@ -1543,7 +1633,7 @@ def accept_suggestion(request_id: int, db: Session = Depends(get_db),
     if req.reviewer_id:
         create_notification(db, req.reviewer_id, "review_accepted",
                             f"{user.name} accepted your suggestion on “{draft.title}”",
-                            link=f"/authoring/drafts/{draft.id}")
+                            link=_review_link(req.id))
     log_action(db, "contract_draft", draft.id, "REVIEW_SUGGESTION_ACCEPTED", user_id=user.id,
                new_value=("applied to document" if applied else "excerpt not found — marked accepted"))
     db.commit()
@@ -1552,7 +1642,7 @@ def accept_suggestion(request_id: int, db: Session = Depends(get_db),
 
 @router.post("/review-requests/{request_id}/reject")
 def reject_suggestion(request_id: int, db: Session = Depends(get_db),
-                      user: User = Depends(require_author)):
+                      user: User = Depends(get_current_user)):
     """Author rejects the reviewer's suggestion: leave the document unchanged and
     mark the request resolved as rejected."""
     from ..models import utcnow
@@ -1569,7 +1659,7 @@ def reject_suggestion(request_id: int, db: Session = Depends(get_db),
     if req.reviewer_id:
         create_notification(db, req.reviewer_id, "review_rejected",
                             f"{user.name} did not apply your suggestion on “{draft.title if draft else 'a draft'}”",
-                            link=f"/authoring/drafts/{req.draft_id}")
+                            link=_review_link(req.id))
     log_action(db, "contract_draft", req.draft_id, "REVIEW_SUGGESTION_REJECTED", user_id=user.id)
     db.commit()
     return _review_out(req)
@@ -1577,13 +1667,21 @@ def reject_suggestion(request_id: int, db: Session = Depends(get_db),
 
 @router.post("/drafts/{draft_id}/reviewer-suggest-inline")
 def reviewer_suggest_inline(draft_id: int, payload: dict, db: Session = Depends(get_db),
-                            user: User = Depends(require_author)):
+                            user: User = Depends(get_current_user)):
     """An internal reviewer submits an edited copy of the whole document; the
     block-level diff against the current draft becomes tracked changes attributed
     to the reviewer — the same suggesting-mode redline vendors get. The author
     then accepts (merges) or rejects each change from the normal changes view."""
-    if user.role not in REVIEWER_ROLES:
-        raise HTTPException(403, "Only Legal/Approver/Admin reviewers can suggest edits")
+    # Gated on being asked to review this draft, not on holding a particular
+    # role. Reviewers can be any user now, and a reviewer who cannot suggest an
+    # edit can only describe it in prose — which is the thing the suggesting
+    # flow exists to avoid.
+    invited = db.query(DraftReviewRequest).filter(
+        DraftReviewRequest.draft_id == draft_id,
+        DraftReviewRequest.reviewer_id == user.id,
+    ).first()
+    if invited is None and not _is_admin(user) and not _can_author(user):
+        raise HTTPException(403, "You have not been asked to review this draft")
     draft = _get_draft(db, draft_id)
     if draft.contract_id is not None:
         raise HTTPException(409, "Draft has been finalized")
@@ -1604,7 +1702,7 @@ def reviewer_suggest_inline(draft_id: int, payload: dict, db: Session = Depends(
 
 @router.post("/review-requests/{request_id}/messages")
 def add_review_message(request_id: int, payload: dict, db: Session = Depends(get_db),
-                       user: User = Depends(require_author)):
+                       user: User = Depends(get_current_user)):
     """Add a reply to a review-request thread. Either the reviewer or the author
     (or an admin) can reply; the other party is notified."""
     from ..config import settings
@@ -1643,7 +1741,7 @@ def add_review_message(request_id: int, payload: dict, db: Session = Depends(get
 
 @router.post("/review-requests/{request_id}/resolve")
 def resolve_review(request_id: int, db: Session = Depends(get_db),
-                   user: User = Depends(require_author)):
+                   user: User = Depends(get_current_user)):
     """Author closes a review thread without applying a suggestion (Google-Docs
     'Resolve'). Re-opening is possible by the reviewer replying again."""
     from ..models import utcnow
@@ -1998,7 +2096,8 @@ def _send_disposition_emails(db, links, summary) -> None:
         try:
             channel.send([link.recipient_email], subject, body)
         except Exception:  # best-effort
-            pass
+            log.warning("Disposition summary email to %s failed for share link %s",
+                        link.recipient_email, link.id, exc_info=True)
 
 
 @router.get("/vendors/{vendor_id}/insights")

@@ -1,7 +1,20 @@
 """Tiny in-process sliding-window rate limiter (no Redis dependency).
 
-Used to throttle the unauthenticated vendor endpoints. Not distributed — fine
-for the single-process deployment; swap for a shared store if scaled out.
+Used to throttle the unauthenticated vendor endpoints — a burst guard, not a
+lockout. Deliberately still in process memory, unlike the sign-in lockout next
+door in login_throttle, which moved to the database:
+
+  * The sign-in lockout is a security control with tiny volume, and being
+    per-process made it wrong — N workers meant N times the attempts.
+  * This one fires on every vendor request. Moving it to the database would
+    turn each one into a write, which hands an attacker a way to make the
+    server do database work by flooding it: the limiter would amplify the
+    flood it exists to absorb.
+
+Per-process here means N workers allow N times the burst. That is a looser
+bound, not a broken one, and it is the right trade for the request path. If
+this ever needs to be exact across workers, it wants a shared counter store
+(Redis), not a table.
 """
 import threading
 import time

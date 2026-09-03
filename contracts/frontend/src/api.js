@@ -1,7 +1,13 @@
 const BASE = '/api'
 
-function token() {
-  return localStorage.getItem('cms_token')
+// The session is an HttpOnly cookie the browser attaches for us — deliberately
+// unreadable from here, which is the point. What we do have to send is the
+// CSRF token: the server sets it in a readable cookie, and echoing it in a
+// header proves the request came from a page on this origin. A cross-site page
+// can make the browser send the session cookie, but cannot read one.
+function csrfToken() {
+  const hit = document.cookie.split('; ').find((c) => c.startsWith('cms_csrf='))
+  return hit ? decodeURIComponent(hit.slice('cms_csrf='.length)) : null
 }
 
 // Global error channel: the api layer emits these so a ToastHost can surface
@@ -21,18 +27,28 @@ async function request(path, options = {}) {
     headers['Content-Type'] = 'application/json'
     options.body = JSON.stringify(options.body)
   }
-  if (token()) headers['Authorization'] = `Bearer ${token()}`
+  const csrf = csrfToken()
+  if (csrf) headers['X-CSRF-Token'] = csrf
   let res
   try {
-    res = await fetch(BASE + path, { ...options, headers })
+    // same-origin so the session cookie rides along; nginx serves the SPA and
+    // proxies /api from the same origin, so nothing cross-site is involved.
+    res = await fetch(BASE + path, { ...options, headers, credentials: 'same-origin' })
   } catch (netErr) {
     // Network/connection failure — surface globally so a page can't silently
     // render half-empty when the server is unreachable.
     notifyError(`Can't reach the server — check your connection. (${path})`)
     throw netErr
   }
+  // The session slides: once it is past halfway through its life the server
+  // renews it. For a cookie session that happens in a Set-Cookie we never see,
+  // which is why there is nothing to do here — the sliding is invisible on
+  // purpose. Nothing schedules it either; it rides on requests the app was
+  // making anyway, so an idle tab lets its session lapse.
   if (res.status === 401) {
-    localStorage.removeItem('cms_token')
+    // The session cookie is HttpOnly, so it cannot be cleared from here — only
+    // the cached user profile can. The cookie is already invalid or the server
+    // would not have said 401.
     localStorage.removeItem('cms_user')
     if (!path.startsWith('/auth/login')) window.location.href = '/login'
   }
@@ -79,7 +95,11 @@ export const api = {
     const blob = await res.blob()
     return { url: URL.createObjectURL(blob), contentType }
   },
-  authHeader() {
-    return { Authorization: `Bearer ${token()}` }
+  // For the few raw-fetch uploads that post FormData themselves. The session
+  // rides on the cookie, so all they need from us is the CSRF token — and they
+  // must pass `credentials: 'same-origin'` so the cookie is sent at all.
+  uploadHeaders() {
+    const csrf = csrfToken()
+    return csrf ? { 'X-CSRF-Token': csrf } : {}
   },
 }

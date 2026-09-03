@@ -85,7 +85,7 @@ export default function ContractAction() {
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Current contract</h3>
-        <Row label="Vendor" value={c.vendor} />
+        <Row label="Counterparty" value={c.vendor} />
         <Row label="Signing entity" value={c.signing_entity} />
         <Row label="Department" value={c.department} />
         <Row label="Service" value={c.contract_service} />

@@ -6,10 +6,12 @@ on completion the signed PDF is attached and the record is pushed into the
 register (validated → duplicate detection → reminders), exactly like an
 ingested contract.
 """
+import logging
 from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -34,6 +36,7 @@ from ..models import (
 from ..services import esign as ES
 from ..services.settings_store import get_setting
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/esign", tags=["esign"])
 
 
@@ -279,10 +282,15 @@ def _notify_approvers(db, draft: ContractDraft, gate: str, requested_by: User,
                          f"  Reject:  {base}?d=reject\n"
                          f"(This link works once and expires in 14 days.)")
             except Exception:
-                pass
+                # The email still goes out, just without the one-click decide
+                # links — which reads to the approver as a broken email.
+                log.warning("Could not mint an approval magic link for %s on draft %s "
+                            "gate %s; sending the email without it",
+                            u.email, draft.id, gate, exc_info=True)
             channel.send([u.email], subject, body)
         except Exception:  # best-effort
-            pass
+            log.warning("Approval request email to %s failed for draft %s gate %s",
+                        u.email, draft.id, gate, exc_info=True)
 
 
 @router.post("/drafts/{draft_id}/request-approvals")
@@ -449,7 +457,7 @@ def send_for_signature(draft_id: int, payload: SendRequest, db: Session = Depend
             "anchor": s.anchor or f"/sig{i}/", "date_anchor": s.date_anchor or f"/date{i}/",
         })
 
-    pdf_bytes = ES.build_final_pdf(draft, signers)
+    pdf_bytes = ES.build_final_pdf(draft, signers, db=db)
     doc_dir = Path(getattr(settings, "MANUAL_UPLOAD_DIR", "./manual_uploads")) / "esign"
     doc_dir.mkdir(parents=True, exist_ok=True)
     doc_path = doc_dir / f"draft-{draft_id}-final.pdf"
@@ -593,12 +601,27 @@ def correct_envelope(env_id: int, payload: CorrectRequest, db: Session = Depends
 
 @router.post("/webhook")
 async def esign_webhook(request: Request, db: Session = Depends(get_db)):
+    """Receive a provider webhook.
+
+    This is the only async route in the app; every other endpoint is a sync
+    `def`, which Starlette runs in a threadpool. Handling the webhook inline
+    here meant its synchronous SQLAlchemy queries — and, on completion, a
+    synchronous download of the signed PDF from the provider — occupied the
+    event loop for their whole duration, stalling every concurrent request.
+
+    Only the body read is awaited; the blocking work is handed to the same
+    threadpool the rest of the app already uses.
+    """
     body = await request.body()
-    if not ES.verify_webhook(db, body, request.headers):
+    return await run_in_threadpool(_process_webhook, db, body, request.headers)
+
+
+def _process_webhook(db: Session, body: bytes, headers) -> dict:
+    if not ES.verify_webhook(db, body, headers):
         raise HTTPException(401, "Invalid webhook signature")
     provider = ES.get_provider(db)
     try:
-        parsed = provider.parse_webhook(body, request.headers.get("content-type", ""))
+        parsed = provider.parse_webhook(body, headers.get("content-type", ""))
     except Exception:
         raise HTTPException(400, "Unparseable webhook payload")
     external_id = parsed.get("external_id")
@@ -641,7 +664,12 @@ def _on_completed(db, env: ESignEnvelope, provider) -> None:
             p.write_bytes(signed)
             env.signed_pdf_path = str(p.resolve())
     except Exception:
-        pass
+        # This is the executed contract itself. Losing it silently leaves a
+        # record marked fully signed with no signed document behind it, and
+        # nobody finds out until someone goes looking for the PDF.
+        log.exception("Could not retrieve the signed PDF for envelope %s (draft %s); "
+                      "the record will show as executed with no signed document",
+                      env.external_id, env.draft_id)
     # 2.5: retrieve the Certificate of Completion and store it alongside the signed PDF.
     try:
         cert = provider.download_certificate(env.external_id)
@@ -650,7 +678,10 @@ def _on_completed(db, env: ESignEnvelope, provider) -> None:
             cp.write_bytes(cert)
             env.certificate_path = str(cp.resolve())
     except Exception:
-        pass
+        # The Certificate of Completion is the audit evidence for the signature
+        # — the thing produced when execution is challenged.
+        log.exception("Could not retrieve the Certificate of Completion for "
+                      "envelope %s (draft %s)", env.external_id, env.draft_id)
 
     fields = dict(draft.fields or {})
     from ..services.authoring import recompute_fields, render_text
@@ -742,4 +773,5 @@ def _notify_parties_executed(db, env, contract) -> None:
         )
         channel.send(recipients, f"[CMS] Contract executed — #{contract.sr_no}", body)
     except Exception:  # best-effort close-out notification
-        pass
+        log.warning("Execution close-out notification failed for contract %s",
+                    contract.sr_no, exc_info=True)

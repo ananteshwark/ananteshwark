@@ -14,6 +14,7 @@ from ..config import settings
 from ..models import User, UserRole
 from .notifications import get_channel
 from .settings_store import get_setting
+from .url_guard import assert_safe_outbound_url
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ def notify_extraction_failure(db: Session, ingestion_file, error: str) -> None:
                 "path": ingestion_file.path,
                 "error": error,
             }).encode()
+            assert_safe_outbound_url(webhook)
             req = urllib.request.Request(
                 webhook, data=payload, headers={"Content-Type": "application/json"}, method="POST"
             )

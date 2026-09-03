@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
-import ContractForm from '../components/ContractForm'
+import ContractForm, { useMandatoryFields } from '../components/ContractForm'
 
 const FORM_FIELDS = [
   'signing_entity', 'vendor_id', 'vendor_address', 'start_date', 'end_date',
@@ -35,6 +35,7 @@ export default function ValidationScreen() {
   const [doc, setDoc] = useState(null)  // { url, contentType } — fetched with auth
   const [suggest, setSuggest] = useState(null)   // { history_count, suggestions: [...] }
   const [applied, setApplied] = useState([])      // field names applied this session
+  const mandatory = useMandatoryFields()
 
   // The document endpoint requires auth, which an <iframe src> can't send, so
   // fetch it as an authenticated blob and preview the object URL instead.
@@ -70,6 +71,13 @@ export default function ValidationScreen() {
   }
   function applyAllSuggestions() {
     const pending = (suggest?.suggestions || []).filter((s) => !applied.includes(s.field))
+    if (pending.length === 0) return
+    setForm((f) => { const n = { ...f }; pending.forEach((s) => { n[s.field] = s.suggested }); return n })
+    setApplied((a) => [...new Set([...a, ...pending.map((s) => s.field)])])
+  }
+
+  function applyAllDocSuggestions() {
+    const pending = (suggest?.document_suggestions || []).filter((s) => !applied.includes(s.field))
     if (pending.length === 0) return
     setForm((f) => { const n = { ...f }; pending.forEach((s) => { n[s.field] = s.suggested }); return n })
     setApplied((a) => [...new Set([...a, ...pending.map((s) => s.field)])])
@@ -125,8 +133,14 @@ export default function ValidationScreen() {
         <div className="pane">
           {doc && doc.contentType.startsWith('image/') ? (
             <img className="doc-preview" alt="document" src={doc.url} style={{ objectFit: 'contain', background: '#f4f6f8' }} />
-          ) : doc ? (
+          ) : doc && doc.contentType.includes('pdf') ? (
             <iframe className="doc-preview" title="document" src={doc.url} />
+          ) : doc ? (
+            // Anything else is NOT rendered inline: the iframe is same-origin,
+            // so an unexpected type (e.g. html) would execute in this origin.
+            <div className="doc-preview" style={{ display: 'grid', placeItems: 'center', color: '#7a8794' }}>
+              <span className="hint">No inline preview for this file type — use the download link.</span>
+            </div>
           ) : (
             <div className="doc-preview" style={{ display: 'grid', placeItems: 'center', color: '#7a8794' }}>
               <span className="hint">Loading document preview…</span>
@@ -139,7 +153,7 @@ export default function ValidationScreen() {
             {suggest && suggest.suggestions.length > 0 && (
               <div className="card" style={{ background: '#f3f8ff', borderColor: '#bcd6f5', marginBottom: 12 }}>
                 <div className="toolbar" style={{ margin: 0 }}>
-                  <strong>Suggestions from history</strong>
+                  <strong>Suggestions from this vendor's history</strong>
                   <span className="hint">
                     learned from {suggest.history_count} validated contract(s) for {suggest.vendor_name || 'this vendor'}
                   </span>
@@ -177,7 +191,39 @@ export default function ValidationScreen() {
                 </p>
               </div>
             )}
-            <ContractForm contract={contract} form={form} setForm={setForm} departments={departments} types={types}
+            {suggest && (suggest.document_suggestions || []).length > 0 && (
+              <div className="card" style={{ background: 'var(--derived-bg)', borderColor: 'var(--derived-border)', marginBottom: 12 }}>
+                <div className="toolbar" style={{ margin: 0 }}>
+                  <strong>Read from this document</strong>
+                  <span className="hint">values found in the contract text — check the quote before applying</span>
+                  <span className="spacer" />
+                  <button type="button" className="secondary"
+                    disabled={suggest.document_suggestions.every((s) => applied.includes(s.field))}
+                    onClick={applyAllDocSuggestions}>Apply all</button>
+                </div>
+                <table className="grid" style={{ marginTop: 8 }}>
+                  <thead>
+                    <tr><th>Field</th><th>Current</th><th>Found in document</th><th>Where it says so</th><th /></tr>
+                  </thead>
+                  <tbody>
+                    {suggest.document_suggestions.map((s) => (
+                      <tr key={`doc-${s.field}`}>
+                        <td>{s.label}</td>
+                        <td>{s.current_empty ? <span className="hint">empty</span> : String(s.current)}</td>
+                        <td><strong>{String(s.suggested)}</strong></td>
+                        <td className="hint" style={{ maxWidth: 320 }}>“{s.evidence}”</td>
+                        <td>
+                          {applied.includes(s.field)
+                            ? <span className="badge VALIDATED">applied</span>
+                            : <button type="button" className="secondary" onClick={() => applySuggestion(s)}>Apply</button>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <ContractForm mandatory={mandatory} contract={contract} form={form} setForm={setForm} departments={departments} types={types}
               signingEntities={signingEntities} currencies={currencies} businessUnits={businessUnits}
               onSuggestDepartment={() => api.get(`/contracts/${srNo}/suggest-department`)} />
             <div className="toolbar" style={{ marginTop: 16 }}>

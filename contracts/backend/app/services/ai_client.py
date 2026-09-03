@@ -81,6 +81,11 @@ def llm_text(db, prompt: str, system: str | None = None, max_tokens: int = 1500)
     except AIUnavailable:
         raise
     except Exception as exc:  # SDK missing, network, API error -> fall back
+        # Callers turn this into a deterministic result, so without a log line
+        # here a rejected key or a withdrawn model produces no evidence at all
+        # — the feature just quietly stops being AI-backed. Logged once, with
+        # the provider and model, so `journalctl -u cms` answers "why".
+        log.warning("AI call failed (%s / %s): %s", provider, model, exc)
         raise AIUnavailable(str(exc)) from exc
     raise AIUnavailable(f"Unsupported provider {provider}")
 

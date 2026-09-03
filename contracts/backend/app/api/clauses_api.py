@@ -76,6 +76,7 @@ def _version_out(v: ClauseVersion, detail: bool = False) -> dict:
         # 2.13: the clause text is available on the list view, not only on drill-in.
         "text": v.text,
         "polished_text": v.polished_text,
+        "original_text": v.original_text,
         "is_curated": bool(v.is_curated),
         "curated_rank": v.curated_rank,
         "playbook_tier": v.playbook_tier,
@@ -314,6 +315,21 @@ def edit_version(version_id: int, payload: VersionEdit, db: Session = Depends(ge
         v.normalized = C.normalize_clause(payload.text)
     if payload.polished_text is not None:
         v.polished_text = payload.polished_text
+        # Saving polished wording replaces the clause. It used to write only
+        # `polished_text`, so the text shown on the page, and the text that
+        # insert-clause and swap-clause put into a draft, stayed the original —
+        # a polished clause never actually reached a contract.
+        #
+        # The wording it replaces is kept once, so the promotion can be undone
+        # and the learned-from-a-real-contract provenance survives. `normalized`
+        # is deliberately NOT recomputed: it is the key that matches clauses
+        # extracted from incoming documents, and those documents contain the
+        # original wording, not our improved version of it.
+        promoted = payload.polished_text.strip()
+        if promoted and promoted != (v.text or ""):
+            if v.original_text is None:
+                v.original_text = v.text
+            v.text = promoted
     if payload.summary is not None:
         v.summary = payload.summary
     if payload.risk_posture is not None:
@@ -323,6 +339,26 @@ def edit_version(version_id: int, payload: VersionEdit, db: Session = Depends(ge
     if payload.status is not None:
         v.status = ClauseStatus(payload.status)
     log_action(db, "clause_version", v.id, "UPDATE", user_id=user.id)
+    db.commit()
+    return _version_out(v, detail=True)
+
+
+@router.post("/versions/{version_id}/revert-polish")
+def revert_polish(version_id: int, db: Session = Depends(get_db),
+                  user: User = Depends(require_author)):
+    """Put back the wording this clause had before polished text replaced it."""
+    v = db.get(ClauseVersion, version_id)
+    if v is None or v.deleted_at is not None:
+        raise HTTPException(404, "Clause version not found")
+    from ..models import UserRole
+    if v.legal_approved and user.role not in (UserRole.ADMIN, UserRole.LEGAL):
+        raise HTTPException(403, "Only Legal can modify a legal-approved clause")
+    if v.original_text is None:
+        raise HTTPException(400, "This clause has not been replaced by polished wording")
+    v.text = v.original_text
+    v.original_text = None
+    v.polished_text = None
+    log_action(db, "clause_version", v.id, "REVERT_POLISH", user_id=user.id)
     db.commit()
     return _version_out(v, detail=True)
 

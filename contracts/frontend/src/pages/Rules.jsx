@@ -191,7 +191,7 @@ export default function Rules() {
           }}>Export CSV</button>
         </div>
         <table className="grid">
-          <thead><tr><th>Sent</th><th>Contract</th><th>Vendor</th><th>Recipient</th><th>Channel</th>
+          <thead><tr><th>Sent</th><th>Contract</th><th>Counterparty</th><th>Recipient</th><th>Channel</th>
             <th>Days to expiry</th><th>Status</th><th>Detail</th></tr></thead>
           <tbody>
             {log.map((r) => (

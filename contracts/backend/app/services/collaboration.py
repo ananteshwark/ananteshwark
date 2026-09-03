@@ -7,8 +7,11 @@ invalidated when a new round is shared.
 """
 from __future__ import annotations
 
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
+
+log = logging.getLogger(__name__)
 
 from ..models import (
     ChangeType,
@@ -160,7 +163,11 @@ def nudge_due_links(db, now=None, window_hours: int = 48) -> int:
             channel.send([link.recipient_email], subject, body)
             sent += 1
         except Exception:  # best-effort
-            pass
+            # The vendor never gets nudged and the count reported to the caller
+            # silently excludes them, so a failing SMTP config looks like a
+            # vendor who simply was not due.
+            log.warning("Vendor nudge to %s failed for share link %s",
+                        link.recipient_email, link.id, exc_info=True)
     db.commit()
     return sent
 

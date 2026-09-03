@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
+from ..services.file_serving import safe_file_response
 from sqlalchemy.orm import Session
 
 from ..audit import log_action, log_field_changes
@@ -146,7 +147,10 @@ def _autolearn_clauses(db: Session, contract: Contract) -> None:
         for ct in types:
             curate_library(db, clause_type=ct, compact=True, polish=False)
     except Exception:  # never block validation on library upkeep
-        pass
+        # Validation still succeeds, but the clause library quietly stops
+        # growing — which looks like the autolearn setting not working.
+        logger.warning("Clause autolearn failed for contract %s", contract.sr_no,
+                       exc_info=True)
 
 
 def _snapshot(c: Contract) -> dict:
@@ -387,6 +391,30 @@ def _apply_contract_sort(query, sort: str | None, order: str | None):
     return query.order_by(primary.nulls_last(), Contract.sr_no.desc())
 
 
+def _with_list_relations(query):
+    """Eager-load everything contract_out() reads, to kill the N+1.
+
+    contract_out touches c.vendor, c.department, c.assignee and c.tags. All four
+    are lazy, so serializing a page of contracts fired four extra round trips
+    *per row*: a 50-row page cost 106 SQL statements, and the default page size
+    is 200. The work grew linearly with the page while the query planner never
+    saw more than one row at a time.
+
+    selectinload rather than joinedload for all four, including the many-to-one
+    ones: it issues one additional IN(...) query per relationship regardless of
+    page size, and it cannot interact with the LIMIT/OFFSET or with the aliased
+    joins _apply_contract_sort may already have added. A page now costs a fixed
+    handful of statements instead of 4N.
+    """
+    from sqlalchemy.orm import selectinload
+    return query.options(
+        selectinload(Contract.vendor),
+        selectinload(Contract.department),
+        selectinload(Contract.assignee),
+        selectinload(Contract.tags),
+    )
+
+
 @router.get("")
 def list_contracts(
     status: list[str] | None = Query(None),           # repeatable: matches any
@@ -417,7 +445,9 @@ def list_contracts(
         expiring_days, signing_entity, lifecycle_status, phi_shared, risk_level, legal_hold,
     )
     total = query.count()
-    query = _apply_contract_sort(query, sort, order)
+    # Eager-load after count(): count() wraps the query in a subquery and the
+    # loader options would be dead weight on it.
+    query = _with_list_relations(_apply_contract_sort(query, sort, order))
     rows = query.limit(min(limit, 500)).offset(offset).all()
     return {"total": total, "items": [contract_out(c) for c in rows]}
 
@@ -450,7 +480,9 @@ def export_contracts(
         db, status, department_id, vendor_id, q, in_text, expiry_month, contract_type, tag_id,
         signing_entity=signing_entity, lifecycle_status=lifecycle_status,
     )
-    rows = _apply_contract_sort(query, sort, order).all()
+    # The export has no LIMIT, so its N+1 was the unbounded one: the whole
+    # filtered set, four lazy loads per row.
+    rows = _with_list_relations(_apply_contract_sort(query, sort, order)).all()
     if fmt == "csv":
         return Response(
             content=contracts_to_register_csv(rows), media_type="text/csv",
@@ -522,6 +554,23 @@ def contract_types(db: Session = Depends(get_db), _: User = Depends(require_view
     raw = get_setting(db, "contract_types")
     types = [t.strip() for t in raw.replace("\n", ",").split(",") if t.strip()]
     return {"types": types}
+
+
+@router.get("/mandatory-fields")
+def mandatory_fields(_: User = Depends(require_viewer)):
+    """Which fields block validation, so the form can mark them.
+
+    Served from `MANDATORY_FIELDS` rather than restated in the client: the two
+    lists drifting apart is how a form ends up marking a field the server does
+    not require, or worse, staying silent about one it does. `form_field` is the
+    name the validation form uses, which differs from the column for the vendor
+    (picked by name, stored by id).
+    """
+    form_names = {"vendor": "vendor_name_raw"}
+    return {"mandatory": [
+        {"field": f, "form_field": form_names.get(f, f), "label": label}
+        for f, label in MANDATORY_FIELDS
+    ]}
 
 
 @router.get("/signing-entities")
@@ -861,14 +910,49 @@ def get_contract(sr_no: int, db: Session = Depends(get_db), _: User = Depends(re
 
 
 @router.get("/{sr_no}/clause-risk")
-def contract_clause_risk(sr_no: int, db: Session = Depends(get_db), _: User = Depends(require_viewer)):
+def contract_clause_risk(sr_no: int, refresh: bool = False, db: Session = Depends(get_db),
+                         _: User = Depends(require_viewer)):
     """Clauses in the contract that are not in the company's favour, with reasons,
-    plus the document text so the page can highlight them inline."""
+    plus the document text and the span of each one so the page can highlight
+    them inline.
+
+    Spans are resolved here rather than in the browser. The page used to locate
+    each flag with an exact substring search, which works for the rule-based
+    flags — cut from the text verbatim — and fails for AI-suggested ones, because
+    a model re-flows whitespace when it quotes. Those risks were listed under the
+    document and never highlighted in it.
+
+    The analysis is cached on the contract. It used to run on every page view,
+    so simply opening a contract called the model again — repeatedly, for an
+    answer that cannot change unless the document does. The cache is keyed on a
+    hash of the text, so a re-extraction invalidates it without anyone having to
+    remember; `refresh=true` forces a fresh pass.
+    """
+    import hashlib
+
     from ..services.contract_risk import analyze_contract_risk
+    from ..services.text_anchor import anchor_all
     contract = _get_contract(db, sr_no)
     text = contract.extracted_text or ""
+    fingerprint = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    from ..services.json_compat import as_json
+    cached = as_json(contract.clause_risk) if contract.clause_risk_hash == fingerprint else None
+    if cached is not None and not refresh:
+        unlocatable = sum(1 for f in cached if f.get("start") is None)
+        return {"text": text, "flagged": cached, "count": len(cached),
+                "unlocatable": unlocatable, "cached": True,
+                "analyzed_at": contract.clause_risk_at.isoformat() if contract.clause_risk_at else None}
+
     flagged = analyze_contract_risk(text, db=db)
-    return {"text": text, "flagged": flagged, "count": len(flagged)}
+    flagged, unlocatable = anchor_all(text, flagged)
+    contract.clause_risk = flagged
+    contract.clause_risk_hash = fingerprint
+    contract.clause_risk_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"text": text, "flagged": flagged, "count": len(flagged),
+            "unlocatable": unlocatable, "cached": False,
+            "analyzed_at": contract.clause_risk_at.isoformat()}
 
 
 @router.delete("/{sr_no}")
@@ -902,6 +986,28 @@ def get_contract_file(sr_no: int, db: Session = Depends(get_db), _: User = Depen
         str(path), media_type=media_types.get(path.suffix.lower(), "application/octet-stream"),
         filename=path.name,
     )
+
+
+@router.get("/{sr_no}/ocr-layout")
+def get_contract_ocr_layout(sr_no: int, db: Session = Depends(get_db),
+                            _: User = Depends(require_viewer)):
+    """Where each OCR'd word sits on the page, for shading risks on a scan.
+
+    Its own endpoint rather than a field on the contract: this is hundreds of
+    kilobytes for a long document and is useless for the common case of a PDF
+    that carries its own text layer. The viewer asks for it only after finding
+    a page with no text of its own, so digital contracts never fetch it.
+
+    `available: false` rather than a 404 — the viewer asks about every scanned
+    document, including ones ingested before layouts were captured, and an
+    error status for an expected answer is noise in the console and the logs.
+    """
+    from ..services.json_compat import as_json
+    contract = _get_contract(db, sr_no)
+    layout = as_json(contract.ocr_layout)
+    if not isinstance(layout, dict) or not layout.get("pages"):
+        return {"available": False}
+    return {"available": True, **layout}
 
 
 @router.get("/{sr_no}/attachments")
@@ -962,7 +1068,7 @@ def download_attachment(
         raise HTTPException(404, "Attachment not found")
     if not Path(attachment.path).exists():
         raise HTTPException(404, "Attachment file missing on disk")
-    return FileResponse(attachment.path, filename=attachment.filename)
+    return safe_file_response(attachment.path, attachment.filename)
 
 
 @router.delete("/{sr_no}/attachments/{attachment_id}")
@@ -1338,12 +1444,19 @@ def release_legal_hold(sr_no: int, db: Session = Depends(get_db), user: User = D
 
 @router.get("/{sr_no}/field-suggestions")
 def field_suggestions(sr_no: int, db: Session = Depends(get_db), _: User = Depends(require_viewer)):
-    """Suggested field values learned from this vendor's validated history.
+    """Suggested field values for the validation screen, from two sources.
 
-    Powers the "Suggestions from history" panel on the validation screen: the
-    modal value validators have historically recorded for this vendor, for
-    fields whose current value is blank or disagrees with that history.
+    History knows what this vendor usually agrees; the document knows what *this*
+    contract says. History alone left the validator to find the PO number, term
+    dates and payment terms by reading the paper — so document-derived
+    suggestions are offered alongside, each carrying the sentence it came from,
+    and the validator checks a quote rather than trusting a value.
+
+    Where the two disagree both are shown. Which is right is a judgement for the
+    person validating, and hiding one of them would be making it for them.
     """
+    from ..models import InternalEntity
+    from ..services.document_suggestions import suggest_from_document
     from ..services.field_learning import suggest_for_contract, vendor_history
 
     contract = _get_contract(db, sr_no)
@@ -1367,11 +1480,28 @@ def field_suggestions(sr_no: int, db: Session = Depends(get_db), _: User = Depen
         items.append(item)
     # Blanks first, then most confident.
     items.sort(key=lambda s: (not s["current_empty"], -s["confidence"], -s["support"]))
+    for item in items:
+        item.setdefault("source", "history")
+
+    entities = [e.name for e in db.query(InternalEntity)
+                .filter(InternalEntity.deleted_at.is_(None)).all()]
+    from_doc = []
+    for s in suggest_from_document(contract.extracted_text or "", signing_entities=entities):
+        current = getattr(contract, s["field"], None)
+        s["current"] = current.isoformat() if hasattr(current, "isoformat") else current
+        s["current_empty"] = current in (None, "")
+        # Nothing to suggest when the record already says the same thing.
+        if not s["current_empty"] and str(current) == str(s["suggested"]):
+            continue
+        from_doc.append(s)
+    from_doc.sort(key=lambda s: not s["current_empty"])
+
     return {
         "vendor_id": contract.vendor_id,
         "vendor_name": (contract.vendor.name if contract.vendor else contract.vendor_name_raw),
         "history_count": len(history),
         "suggestions": items,
+        "document_suggestions": from_doc,
     }
 
 
@@ -1392,6 +1522,67 @@ def suggest_department_endpoint(sr_no: int, db: Session = Depends(get_db), _: Us
     return result
 
 
+# How many older contracts get a sketch computed per validation. Bounded so one
+# validation never pays for the whole repository.
+_SKETCH_BACKFILL_BATCH = 200
+
+
+def _content_sketch(db: Session, contract: Contract) -> list[int]:
+    """The contract's document sketch, computed and stored on first need."""
+    from ..services.document_dupes import sketch, text_fingerprint
+    text = contract.extracted_text or ""
+    fingerprint = text_fingerprint(text)
+    if contract.content_sketch is None or contract.content_sketch_hash != fingerprint:
+        contract.content_sketch = sketch(text)
+        contract.content_sketch_hash = fingerprint
+        db.flush()
+    return contract.content_sketch or []
+
+
+def _content_duplicate_hits(db: Session, contract: Contract) -> dict[int, float]:
+    """Validated contracts whose *document* is the same paper as this one.
+
+    The record-level check compares what was captured, so it finds nothing when
+    the same document is ingested twice before anyone has typed anything, or
+    when a field was mis-keyed. This compares the text instead.
+    """
+    from ..services.document_dupes import find_content_duplicates, sketch, text_fingerprint
+    mine = _content_sketch(db, contract)
+    if not mine:
+        return {}
+
+    # Contracts validated before this existed have no sketch, so there would be
+    # nothing to compare against and the check would quietly do nothing on an
+    # existing repository. Fill them in a batch at a time, oldest first, so the
+    # backfill completes over a few validations without any one of them paying
+    # for the whole repository.
+    pending = (
+        db.query(Contract)
+        .filter(Contract.status == ContractStatus.VALIDATED,
+                Contract.deleted_at.is_(None),
+                Contract.content_sketch.is_(None),
+                Contract.extracted_text.isnot(None))
+        .order_by(Contract.sr_no)
+        .limit(_SKETCH_BACKFILL_BATCH)
+        .all()
+    )
+    for row in pending:
+        row.content_sketch = sketch(row.extracted_text or "")
+        row.content_sketch_hash = text_fingerprint(row.extracted_text or "")
+    if pending:
+        db.flush()
+
+    others = (
+        db.query(Contract.sr_no, Contract.content_sketch)
+        .filter(Contract.status == ContractStatus.VALIDATED,
+                Contract.deleted_at.is_(None),
+                Contract.sr_no != contract.sr_no,
+                Contract.content_sketch.isnot(None))
+        .all()
+    )
+    return dict(find_content_duplicates(mine, [(sr, sk) for sr, sk in others]))
+
+
 def _run_duplicate_detection(db: Session, contract: Contract) -> list[dict]:
     existing = (
         db.query(Contract)
@@ -1400,6 +1591,14 @@ def _run_duplicate_detection(db: Session, contract: Contract) -> list[dict]:
         .all()
     )
     hits = find_duplicates(_facts(contract), [_facts(e) for e in existing])
+    by_record = {facts.sr_no for facts, _, _ in hits}
+    for sr_no, score in _content_duplicate_hits(db, contract).items():
+        if sr_no not in by_record:
+            match = next((e for e in existing if e.sr_no == sr_no), None)
+            if match is not None:
+                hits.append((_facts(match),
+                             f"Near-identical document ({score * 100:.0f}% of the text matches)",
+                             round(score * 100, 1)))
     results = []
     for facts, reason, score in hits:
         candidate = (
@@ -1629,11 +1828,23 @@ def set_lifecycle(
 
 @router.post("/{sr_no}/acknowledge-reminders")
 def acknowledge_reminders(
-    sr_no: int, db: Session = Depends(get_db), user: User = Depends(require_validator)
+    sr_no: int, acknowledged: bool = True,
+    db: Session = Depends(get_db), user: User = Depends(require_validator),
 ):
+    """Stop (or resume) expiry reminders for a contract someone has dealt with.
+
+    `acknowledged=false` resumes them. Without that this was a one-way door:
+    nothing anywhere cleared the flag, so a mis-click silenced a contract's
+    expiry reminders permanently — on the one record type where a missed expiry
+    is the failure the system exists to prevent.
+    """
     contract = _get_contract(db, sr_no)
-    contract.reminders_acknowledged = True
-    log_action(db, "contract", contract.sr_no, "ACK_REMINDERS", user_id=user.id)
+    was = contract.reminders_acknowledged
+    contract.reminders_acknowledged = acknowledged
+    log_action(db, "contract", contract.sr_no,
+               "ACK_REMINDERS" if acknowledged else "RESUME_REMINDERS",
+               user_id=user.id, field="reminders_acknowledged",
+               old_value=str(was), new_value=str(acknowledged))
     db.commit()
     return contract_out(contract, detail=True)
 

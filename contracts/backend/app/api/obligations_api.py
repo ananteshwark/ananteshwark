@@ -20,7 +20,7 @@ def _out(m: ContractMilestone) -> dict:
     c = m.contract
     return {
         "id": m.id, "contract_id": m.contract_id,
-        "vendor_name": (c.signing_entity or c.vendor_name_raw) if c else None,
+        "vendor_name": c.counterparty_name if c else None,
         "contract_type": c.contract_type if c else None,
         "title": m.title, "obligation_type": m.obligation_type,
         "owner_party": m.owner_party, "owner_user_id": m.owner_user_id,

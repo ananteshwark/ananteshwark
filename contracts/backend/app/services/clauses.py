@@ -97,20 +97,107 @@ def classify_clause(text: str) -> str | None:
 
 _HEADING_RE = re.compile(r"(?m)^\s*(?:\d+[.)]\s+|[A-Z][A-Za-z /&]{2,40}:?\s*$)")
 
+# The start of a numbered or titled clause: "1.", "2.3", "4)", "Section 7",
+# "ARTICLE V", or an all-caps heading line.
+_CLAUSE_START_RE = re.compile(
+    r"(?m)^[ \t]*(?:"
+    r"\d+(?:\.\d+)*[.)][ \t]+(?=[A-Z\"'(])"
+    r"|(?:Section|Article|Clause|Schedule|Annexure|Annex|Appendix|Exhibit)[ \t]+"
+    r"(?:\d+(?:\.\d+)*|[IVXLCDM]+)\b"
+    r"|[A-Z][A-Z0-9 \t&/,'’-]{4,60}$"
+    r")",
+)
+
+# Past this, a "clause" is really a run of them, and anything derived from it —
+# a risk flag's span, a learned library entry — describes the wrong thing.
+_MAX_BLOCK_CHARS = 1200
+_TARGET_BLOCK_CHARS = 700
+_MIN_BLOCK_CHARS = 40
+
+
+def _split_on_clause_starts(block: str) -> list[str]:
+    starts = [m.start() for m in _CLAUSE_START_RE.finditer(block)]
+    if not starts:
+        return [block]
+    if starts[0] != 0:
+        starts.insert(0, 0)
+    bounds = starts + [len(block)]
+    return [block[bounds[i]:bounds[i + 1]] for i in range(len(bounds) - 1)]
+
+
+def _hard_wrap(text: str, limit: int) -> list[str]:
+    """Break `text` into pieces no longer than `limit`, at whitespace.
+
+    The floor under the sentence splitter. Breaking on sentence ends assumes
+    there are sentence ends: OCR of a table has none at all, and a single
+    period-free run of 5,000 characters came back as one block. Cutting
+    mid-token is a last resort for text with no whitespace either, which is
+    not language but is certainly something OCR produces.
+    """
+    out: list[str] = []
+    while len(text) > limit:
+        cut = text.rfind(" ", 0, limit + 1)
+        if cut <= 0:
+            cut = limit
+        out.append(text[:cut].strip())
+        text = text[cut:].lstrip()
+    if text.strip():
+        out.append(text.strip())
+    return [piece for piece in out if piece]
+
+
+def _split_long(block: str) -> list[str]:
+    """Last resort for prose with no numbering at all: break on sentence ends so
+    a block never spans the whole document.
+
+    Sentence ends are a preference, not a guarantee — a block with no "." or
+    ";" in it, or one whose single sentence is longer than the cap, survived
+    this untouched and broke the invariant the cap exists to enforce. Every
+    piece is therefore hard-wrapped on the way out.
+    """
+    if len(block) <= _MAX_BLOCK_CHARS:
+        return [block]
+    out, current = [], ""
+    for sentence in re.split(r"(?<=[.;])\s+", block):
+        if current and len(current) + len(sentence) + 1 > _TARGET_BLOCK_CHARS:
+            out.extend(_hard_wrap(current, _MAX_BLOCK_CHARS))
+            current = sentence
+        else:
+            current = f"{current} {sentence}".strip()
+    if current:
+        out.extend(_hard_wrap(current, _MAX_BLOCK_CHARS))
+    return out
+
 
 def segment_text(text: str) -> list[str]:
-    """Split a contract into candidate clause blocks. Splits on blank lines and
-    numbered/heading lines, keeping blocks of a meaningful length."""
+    """Split a contract into candidate clause blocks.
+
+    This used to split on blank lines only, which is fine for text typed into
+    the editor and wrong for the text this system actually works with: pypdf
+    and OCR emit one newline per printed line and no blank lines at all, so a
+    whole contract came back as a single block. Everything downstream then
+    described the entire document — one risk flag whose span covered every
+    page, so "highlight the risky clause" highlighted all of it, and the PDF
+    overlay had a thousand-character quote to locate and generally failed. The
+    docstring already promised splitting on numbered headings; only the blank
+    line half was ever implemented.
+
+    Blank lines still split when present. Each piece is then split at clause
+    starts ("1.", "2.3", "Section 7", an all-caps heading), and anything still
+    oversized is broken on sentence ends so no block can span a document.
+    """
     if not text:
         return []
-    # First split on blank lines; then further split very long blocks on numbering.
-    raw_blocks = re.split(r"\n\s*\n", text)
     blocks: list[str] = []
-    for b in raw_blocks:
-        b = b.strip()
-        if len(b) < 40:
+    for raw in re.split(r"\n\s*\n", text):
+        raw = raw.strip()
+        if not raw:
             continue
-        blocks.append(b)
+        for piece in _split_on_clause_starts(raw):
+            for chunk in _split_long(piece.strip()):
+                chunk = chunk.strip()
+                if len(chunk) >= _MIN_BLOCK_CHARS:
+                    blocks.append(chunk)
     return blocks
 
 

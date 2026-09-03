@@ -305,6 +305,33 @@ Production deployment runbook (Ubuntu VM + nginx + Postgres + TLS):
   Admin Settings and stored write-only — the API returns a mask, never the key,
   and it is never exposed to the frontend. Models, SMTP host/port/credentials
   and dry-run mode are also admin-configurable at runtime.
+- **Expiry reminders carry the contract**: the reminder email attaches the
+  contract's own document file, so the recipient can read what they are being
+  asked to act on without signing in. It replaces a "Contract document" link
+  that pointed at `contract_link` — an absolute path on the *server's*
+  filesystem, which is exactly the thing the reader cannot open; any such link
+  left in an admin-customised template is now unwrapped to plain text before
+  sending, since a root-relative or file path has nothing to resolve against
+  once it leaves the browser. Attaching is on by default
+  (`reminder_attach_document`) with a size ceiling (`reminder_attach_max_mb`,
+  default 10) because relays refuse large messages; when the file is missing,
+  too big, or switched off the reminder still sends and says so rather than
+  promising an attachment that is not there. The reminder log records whether
+  the document actually went with it.
+- **Per-business-unit letterheads**: each BU is its own legal entity with its
+  own stationery, so a contract prints on the paper of the business unit named
+  in its BU register field. An admin uploads a full-width banner (and an
+  optional footer) per BU under Admin Settings → Master data → Letterheads;
+  drafts whose BU has none fall back to the default letterhead. The artwork then
+  appears in the authoring editor, in the DOCX and PDF exports, in the redline
+  and tracked-changes exports, in the copy shared with the vendor, and on the
+  document sent for signature. Uploads are re-encoded to JPEG and their pixel
+  dimensions stored, so the writers scale the banner to the page without
+  decoding an image; a banner too tall to leave a usable page is refused at
+  upload. The images live on disk (`LETTERHEAD_DIR`), never in the document
+  JSON — an author cannot edit or delete the stationery out of a contract. In
+  Word the artwork is a header part with page-anchored images, which is what
+  makes it repeat on every page and reach the paper's edge.
 
 ## Tests
 

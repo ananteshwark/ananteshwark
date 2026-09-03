@@ -63,9 +63,12 @@ def build_digest(db: Session, today: date | None = None) -> dict:
     pending_total = pending_q.count()
     pending_rows = pending_q.order_by(Contract.sr_no.desc()).limit(MAX_ROWS).all()
 
+    # The same scope the reminder engine uses, so the digest and the emails
+    # cannot disagree about which contracts are being watched.
+    from .reminders import reminder_statuses
     expiring_q = (
         db.query(Contract)
-        .filter(Contract.status == ContractStatus.VALIDATED)
+        .filter(Contract.status.in_(reminder_statuses(db)))
         .filter(Contract.deleted_at.is_(None))
         .filter(Contract.lifecycle_status.in_([LifecycleStatus.ACTIVE, LifecycleStatus.EXPIRED]))
         .filter(Contract.end_date.isnot(None))

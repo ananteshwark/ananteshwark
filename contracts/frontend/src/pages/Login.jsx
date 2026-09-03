@@ -24,7 +24,7 @@ function loadGsi() {
 }
 
 export default function Login() {
-  const { login, loginWithGoogle, loginWithToken } = useAuth()
+  const { login, loginWithGoogle, adoptServerSession } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -44,16 +44,18 @@ export default function Login() {
     api.get('/version').then((v) => setVersion(v.version)).catch(() => {})
   }, [])
 
-  // Consume the token handed back by the OIDC redirect (?sso_token=…).
+  // The OIDC redirect now lands with the session cookie already set, so there
+  // is nothing to read out of the URL — a token in a query string ends up in
+  // history, referrers and access logs, and it only lived there because the
+  // client used to have to store it. `?sso=1` just says "a sign-in happened",
+  // so this page can hydrate the user instead of showing a login form.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const token = params.get('sso_token')
-    if (!token) return
-    loginWithToken(token).catch((e) => setError(e.message)).finally(() => {
-      // Strip the token from the address bar so it isn't bookmarked/shared.
+    if (!params.has('sso')) return
+    adoptServerSession().catch((e) => setError(e.message)).finally(() => {
       window.history.replaceState({}, '', window.location.pathname)
     })
-  }, [loginWithToken])
+  }, [adoptServerSession])
 
   async function startOidc() {
     setError(null)

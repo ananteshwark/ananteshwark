@@ -42,6 +42,42 @@ class TestAbstract:
         assert detail["ai_summary"] and detail["ai_indexed_at"]
         assert any(t["label"] == "Counterparty" for t in detail["ai_key_terms"])
 
+    def test_counterparty_is_the_other_side_not_our_own_entity(self, client, admin_headers):
+        """The abstract used to read `signing_entity or vendor_name_raw`, so on
+        every contract with an internal entity filled in it introduced us as our
+        own counterparty."""
+        from app.database import SessionLocal
+        from app.models import Contract
+        sr = _seed(vendor="Globex Health")
+        db = SessionLocal()
+        c = db.get(Contract, sr)
+        c.signing_entity = "IKS Health Pvt Ltd"
+        vendor_name = c.vendor_name_raw
+        db.commit(); db.close()
+
+        r = client.post(f"/api/repo-ai/contracts/{sr}/summarize", headers=admin_headers)
+        assert r.status_code == 200, r.text
+        terms = {t["label"]: t["value"] for t in r.json()["key_terms"]}
+        assert terms["Counterparty"] == vendor_name
+        assert terms["Internal entity"] == "IKS Health Pvt Ltd"
+        assert vendor_name in r.json()["summary"]
+
+    def test_master_vendor_record_wins_over_the_raw_name(self, client, admin_headers):
+        from app.database import SessionLocal
+        from app.models import Contract, Vendor
+        sr = _seed()
+        db = SessionLocal()
+        v = Vendor(name="Globex Health Systems", normalized_name="globex health systems")
+        db.add(v); db.flush()
+        c = db.get(Contract, sr)
+        c.vendor_id = v.id
+        c.signing_entity = "IKS Health Pvt Ltd"
+        db.commit(); db.close()
+
+        r = client.post(f"/api/repo-ai/contracts/{sr}/summarize", headers=admin_headers)
+        terms = {t["label"]: t["value"] for t in r.json()["key_terms"]}
+        assert terms["Counterparty"] == "Globex Health Systems"
+
 
 class TestSearchAndAsk:
     def test_semantic_search_ranks_relevant(self, client, admin_headers):

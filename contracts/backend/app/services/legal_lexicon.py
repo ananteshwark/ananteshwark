@@ -146,6 +146,14 @@ _GAPPY: list[tuple[str, str]] = [
     (r"pay\w*\s+(?:\w+\s+){0,6}(?:days|invoice|fees)", "concept_payment"),
     (r"maintain\s+(?:\w+\s+){0,4}insurance", "concept_insurance"),
     (r"renew\w*\s+(?:\w+\s+){0,6}term", "concept_renewal"),
+    # Assignment is asked about as a question far more often than it is named:
+    # "can the agreement be assigned", "may not be assigned without consent".
+    # Deliberately gappy rather than a bare `assign` stem — "assigns all right,
+    # title and interest" is IP ownership, not assignment, and a stem broad
+    # enough to catch "assigned" would relabel every IP clause in the corpus.
+    # Requiring the agreement nearby is what keeps the two apart.
+    (r"assign\w*\s+(?:\w+\s+){0,4}(?:agreement|contract)", "concept_assignment"),
+    (r"(?:agreement|contract)\s+(?:\w+\s+){0,4}assign\w*", "concept_assignment"),
 ]
 
 # Contract text inflects freely — "indemnifies", "terminated", "warrants",
@@ -162,7 +170,11 @@ _STEMS: list[tuple[str, str]] = [
     (r"terminat|cancel", "concept_termination"),
     (r"payment|payable|invoic|remitt?", "concept_payment"),
     (r"notic|notif", "concept_notice"),
-    (r"arbitrat|mediat|conciliat", "concept_dispute_resolution"),
+    # "disput" covers "dispute", "disputes", "disputed", "disputing". In
+    # contract language a dispute is essentially always about how it gets
+    # resolved, so the prefix is unambiguous here in the way the comment above
+    # requires — unlike a bare "assign", which is handled gappily instead.
+    (r"arbitrat|mediat|conciliat|disput", "concept_dispute_resolution"),
     (r"warrant", "concept_warranty"),
     (r"insur", "concept_insurance"),
     (r"audit", "concept_audit"),

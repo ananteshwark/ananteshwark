@@ -1,24 +1,39 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { confirmDialog } from '../confirm'
+import { StartContractModal } from '../components/StartContractOptions'
+
+// PDF.js is by far the largest thing on this page and only matters once
+// someone opens the original file, so it is fetched at that moment rather
+// than on every contract view.
+const PdfRiskOverlay = lazy(() => import('../components/PdfRiskOverlay'))
 
 // Split the document text into plain + highlighted segments for each flagged
-// (not-in-the-company's-favour) clause. Overlapping ranges are skipped.
+// (not-in-the-company's-favour) clause.
+//
+// Spans come from the server, which matches a quoted clause against the document
+// allowing for re-flowed whitespace. Searching for the text here instead missed
+// every AI-suggested risk, because a model does not echo the document's line
+// breaks — those clauses were listed but never highlighted.
+//
+// Where two risks overlap the later one is trimmed rather than dropped, so both
+// stay visible; dropping it was the second reason a listed risk could have no
+// highlight.
 function highlightSegments(text, flagged) {
-  const ranges = []
-  for (const f of flagged || []) {
-    const idx = (text || '').indexOf(f.text)
-    if (idx >= 0) ranges.push({ start: idx, end: idx + f.text.length, reasons: f.reasons, clause_type: f.clause_type })
-  }
-  ranges.sort((a, b) => a.start - b.start)
+  const ranges = (flagged || [])
+    .filter((f) => Number.isInteger(f.start) && Number.isInteger(f.end) && f.end > f.start)
+    .map((f) => ({ start: f.start, end: f.end, reasons: f.reasons, clause_type: f.clause_type }))
+    .sort((a, b) => a.start - b.start || b.end - a.end)
+
   const segs = []
   let pos = 0
   for (const r of ranges) {
-    if (r.start < pos) continue
-    if (r.start > pos) segs.push({ text: text.slice(pos, r.start) })
-    segs.push({ text: text.slice(r.start, r.end), flag: r })
+    const start = Math.max(r.start, pos)
+    if (start >= r.end) continue           // wholly inside a highlight already drawn
+    if (start > pos) segs.push({ text: text.slice(pos, start) })
+    segs.push({ text: text.slice(start, r.end), flag: r })
     pos = r.end
   }
   if (pos < (text || '').length) segs.push({ text: text.slice(pos) })
@@ -32,26 +47,95 @@ function ContractDocument({ srNo, contractLink }) {
   const [view, setView] = useState('risks')   // 'risks' | 'original'
   const [fileUrl, setFileUrl] = useState(null)
   const [tip, setTip] = useState(null)         // { reasons, clause_type, x, y }
+  const [activeRisk, setActiveRisk] = useState(null)
+  // Set when our own PDF renderer cannot start. Risk shading is the
+  // enhancement; showing the contract is the point, so we hand the file to
+  // the browser's viewer instead of leaving an error and no document.
+  const [pdfRenderFailed, setPdfRenderFailed] = useState(false)
+  const [fileError, setFileError] = useState(null)
+
+  const [reanalysing, setReanalysing] = useState(false)
 
   useEffect(() => {
     let alive = true
+    setPdfRenderFailed(false)
     api.get(`/contracts/${srNo}/clause-risk`).then((d) => { if (alive) setData(d) })
       .catch(() => { if (alive) setData({ text: '', flagged: [] }) })
     return () => { alive = false }
   }, [srNo])
 
+  // Word positions recorded at OCR time, for shading risks on a scanned
+  // contract. The viewer asks for this only after finding a page with no text
+  // layer of its own, so a digital PDF never fetches it — it can be hundreds of
+  // kilobytes on a long document.
+  const loadOcrLayout = useCallback(
+    () => api.get(`/contracts/${srNo}/ocr-layout`),
+    [srNo],
+  )
+
+  // The analysis is stored, so opening a contract costs nothing. Re-reading the
+  // document is an explicit action rather than a side effect of viewing.
+  async function reanalyse() {
+    setReanalysing(true)
+    try { setData(await api.get(`/contracts/${srNo}/clause-risk?refresh=true`)) }
+    catch { /* keep what is on screen */ }
+    finally { setReanalysing(false) }
+  }
+
   // Load the original file (with auth) only when the user switches to it.
+  //
+  // `fileUrl` must NOT be a dependency. It used to be, and the cleanup revokes
+  // the object URL: setting it re-ran the effect, whose cleanup then revoked
+  // the URL that had just been handed to the viewer, in the same tick. Whether
+  // the document appeared came down to whether the consumer had already started
+  // reading the blob. An <iframe src> usually won that race; PDF.js, which
+  // fetches only after its worker has started, reliably lost it — the file
+  // stopped opening at all.
   useEffect(() => {
-    let url = null
-    if (view === 'original' && contractLink && !fileUrl) {
-      api.blobUrl(`/contracts/${srNo}/file`).then(({ url: u }) => { url = u; setFileUrl(u) }).catch(() => {})
+    if (view !== 'original' || !contractLink) return undefined
+    let cancelled = false
+    let objectUrl = null
+    setFileError(null)
+    api.blobUrl(`/contracts/${srNo}/file`)
+      .then(({ url }) => {
+        if (cancelled) { URL.revokeObjectURL(url); return }
+        objectUrl = url
+        setFileUrl(url)
+      })
+      // Swallowing this left "Loading original file…" on screen forever when
+      // the document was genuinely missing from disk. The server says exactly
+      // what is wrong; show it.
+      .catch((e) => { if (!cancelled) setFileError(e?.message || 'Could not load the document') })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      setFileUrl(null)
     }
-    return () => { if (url) URL.revokeObjectURL(url) }
-  }, [view, contractLink, srNo, fileUrl])
+  }, [view, contractLink, srNo])
 
   const flagged = data?.flagged || []
   const segs = data ? highlightSegments(data.text || '', flagged) : []
   const showTip = (e, f) => setTip({ reasons: f.reasons, clause_type: f.clause_type, x: e.clientX, y: e.clientY })
+
+  const onPdfUnavailable = useCallback((message) => {
+    // Logged, not shown as an error: the reader gets the document either way,
+    // and the console line is what makes a deployment problem diagnosable.
+    console.warn('PDF renderer unavailable, using the browser viewer:', message)
+    setPdfRenderFailed(true)
+  }, [])
+
+  const isPdf = /\.pdf$/i.test(contractLink || '')
+  // The risk spans index the extracted text, which is not the text PDF.js reads
+  // off the page — so the overlay gets the quoted passage and finds it again.
+  // `id` is the index in `flagged`, not in this filtered list, so hovering an
+  // entry in the list below lights up the right box on the page.
+  const quotes = useMemo(() => flagged
+    .map((f, i) => ({
+      id: i, quote: (data?.text || '').slice(f.start, f.end),
+      clause_type: f.clause_type, reasons: f.reasons,
+      placeable: Number.isInteger(f.start) && Number.isInteger(f.end) && f.end > f.start,
+    }))
+    .filter((q) => q.placeable), [flagged, data])
 
   return (
     <div>
@@ -59,14 +143,67 @@ function ContractDocument({ srNo, contractLink }) {
         <h3 style={{ margin: 0 }}>Contract document</h3>
         <span className="spacer" />
         {flagged.length > 0 && <span className="badge REJECTED" title="Clauses not in the company's favour">⚠ {flagged.length} risk(s)</span>}
-        <button className={`secondary${view === 'risks' ? ' active' : ''}`} style={{ padding: '2px 8px' }} onClick={() => setView('risks')}>Risks</button>
+        {view === 'risks' && (
+          <button className="secondary" style={{ padding: '2px 8px' }} disabled={reanalysing} onClick={reanalyse}
+            title={data?.analyzed_at ? `Analysed ${new Date(data.analyzed_at).toLocaleString()} — stored, so opening this page does not re-run it` : 'Re-read the document for risky clauses'}>
+            {reanalysing ? 'Analysing…' : '↻ Re-analyse'}
+          </button>
+        )}
+        <button className={`secondary${view === 'risks' ? ' active' : ''}`} style={{ padding: '2px 8px' }} onClick={() => setView('risks')}>Extracted text</button>
         {contractLink && <button className={`secondary${view === 'original' ? ' active' : ''}`} style={{ padding: '2px 8px' }} onClick={() => setView('original')}>Original file</button>}
       </div>
 
       {view === 'original' && contractLink && (
-        fileUrl
-          ? <iframe src={fileUrl} title="Original document" style={{ width: '100%', height: '70vh', border: '1px solid #dde3e9', borderRadius: 6 }} />
-          : <p className="hint">Loading original file…</p>
+        fileError ? (
+          <div className="error">
+            {fileError}
+            <div className="hint" style={{ marginTop: 4 }}>
+              The register still has a path for this contract, but nothing is there. Re-upload the
+              document, or use “Extracted text” — the text and the risk flags are stored separately
+              and are unaffected.
+            </div>
+          </div>
+        )
+          : !fileUrl ? <p className="hint">Loading original file…</p>
+          // A PDF is rendered here rather than handed to the browser's viewer,
+          // which gives us no page to draw on. Anything else (a Word file, a
+          // scan) still goes to the viewer — the flags stay on the extracted
+          // text for those.
+          : isPdf && !pdfRenderFailed
+            ? <>
+                {quotes.length > 0 && (
+                  <p className="hint" style={{ marginTop: 0 }}>
+                    {quotes.length} flagged clause{quotes.length > 1 ? 's are' : ' is'} shaded on the pages below.
+                    Hover one for the reasons.
+                  </p>
+                )}
+                <Suspense fallback={<p className="hint">Loading document viewer…</p>}>
+                  <PdfRiskOverlay url={fileUrl} quotes={quotes} activeId={activeRisk}
+                    onUnavailable={onPdfUnavailable} loadLayout={loadOcrLayout} />
+                </Suspense>
+              </>
+            : <>
+                <p className="hint" style={{ marginTop: 0 }}>
+                  {pdfRenderFailed
+                    ? 'Showing the document in the browser’s viewer, which cannot be shaded. Use “Extracted text” to see the flagged clauses in place.'
+                    : 'Risk shading is drawn on PDFs. For this format, use “Extracted text” to see the flagged clauses in place.'}
+                </p>
+                <iframe src={fileUrl} title="Original document" style={{ width: '100%', height: '70vh', border: '1px solid #dde3e9', borderRadius: 6 }} />
+              </>
+      )}
+
+      {view === 'original' && flagged.length > 0 && (
+        <div className="card" style={{ background: 'var(--risk-bg)', marginTop: 10 }}>
+          <strong>Clauses not in the company&apos;s favour ({flagged.length})</strong>
+          <ul style={{ margin: '6px 0 0' }}>
+            {flagged.map((f, i) => (
+              <li key={i} className="hint"
+                  onMouseEnter={() => setActiveRisk(i)} onMouseLeave={() => setActiveRisk(null)}>
+                <b>{f.clause_type}</b>: {f.reasons.join('; ')}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {view === 'risks' && (
@@ -85,8 +222,23 @@ function ContractDocument({ srNo, contractLink }) {
             <div className="card" style={{ background: '#fff6f4', marginTop: 10 }}>
               <strong>Clauses not in the company's favour ({flagged.length})</strong>
               <ul style={{ margin: '6px 0 0' }}>
-                {flagged.map((f, i) => (<li key={i} className="hint"><b>{f.clause_type}</b>: {f.reasons.join('; ')}</li>))}
+                {flagged.map((f, i) => (
+                  <li key={i} className="hint">
+                    <b>{f.clause_type}</b>: {f.reasons.join('; ')}
+                    {f.start == null && (
+                      <span title="This clause could not be matched to a passage in the extracted text">
+                        {' '}· not highlighted above
+                      </span>
+                    )}
+                  </li>
+                ))}
               </ul>
+              {data.unlocatable > 0 && (
+                <p className="hint" style={{ margin: '6px 0 0' }}>
+                  {data.unlocatable} of these could not be located in the extracted text and so
+                  are listed without a highlight.
+                </p>
+              )}
             </div>
           )}
         </>
@@ -153,6 +305,7 @@ export default function ContractDetail() {
   const navigate = useNavigate()
   const { canValidate, user, isAdmin, isSuperAdmin, isLegal } = useAuth()
   const [c, setC] = useState(null)
+  const [starting, setStarting] = useState(null)   // four-option chooser
   const [audit, setAudit] = useState([])
   const [reminderLog, setReminderLog] = useState([])
   const [rules, setRules] = useState([])
@@ -294,9 +447,11 @@ export default function ContractDetail() {
     setPreview('loading')
     try {
       const { url, contentType } = await api.blobUrl(path)
-      const lower = (name || '').toLowerCase()
-      const kind = contentType.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/.test(lower) ? 'image'
-        : contentType.includes('pdf') || lower.endsWith('.pdf') ? 'pdf'
+      // Decide on the SERVER-declared content type only. Trusting the file
+      // name meant an upload merely named *.pdf reached the <iframe> whatever
+      // it actually contained.
+      const kind = contentType.startsWith('image/') ? 'image'
+        : contentType.includes('pdf') ? 'pdf'
           : 'other'
       if (kind === 'other') {
         URL.revokeObjectURL(url)
@@ -348,7 +503,7 @@ export default function ContractDetail() {
       const fd = new FormData()
       fd.append('file', attachFile)
       const res = await fetch(`/api/contracts/${srNo}/attachments?kind=${attachKind}`, {
-        method: 'POST', headers: api.authHeader(), body: fd,
+        method: 'POST', headers: api.uploadHeaders(), credentials: 'same-origin', body: fd,
       })
       if (!res.ok) throw new Error('Upload failed')
       setAttachFile(null)
@@ -374,11 +529,32 @@ export default function ContractDetail() {
     } catch (e) { setError(e.message) }
   }
 
-  async function renew() {
+  // Acknowledging stops this contract's expiry reminders. It used to be a bare
+  // `api.post(...).then(load)`: no confirmation, no error path, and the only
+  // trace of it was a line in the reminder panel further down the page — so a
+  // click looked like it had done nothing at all.
+  async function acknowledgeReminders(acknowledged) {
+    setError(null)
     try {
-      const draft = await api.post(`/contracts/${srNo}/renew`)
-      navigate(`/validation/${draft.sr_no}`)
+      await api.post(`/contracts/${srNo}/acknowledge-reminders?acknowledged=${acknowledged}`)
+      setMessage(acknowledged
+        ? 'Reminders acknowledged — no further expiry reminders will be sent for this contract.'
+        : 'Reminders resumed — this contract will be reminded about again.')
+      load()
     } catch (e) { setError(e.message) }
+  }
+
+  // Renewing sent you straight into a duplicate awaiting validation. The same
+  // four starting points are now offered, with duplicate pre-selected.
+  function renew() {
+    setStarting({
+      title: `Renew contract #${srNo}`,
+      context: {
+        sourceContract: { sr_no: Number(srNo), vendor_name: c?.vendor_name, contract_type: c?.contract_type },
+        linkAs: 'renewal',
+        contractType: c?.contract_type || '',
+      },
+    })
   }
 
   async function deleteContract() {
@@ -486,6 +662,14 @@ export default function ContractDetail() {
             }}>Score risk</button>
         )}
         {c.legal_hold && <span className="badge REJECTED" title={c.legal_hold_reason || 'Under legal hold'} style={{ marginLeft: 6 }}>🔒 Legal hold</span>}
+        {/* Beside the status, because "this contract will not remind you again"
+            is a fact about the record, not a detail of the reminder panel. */}
+        {c.reminders_acknowledged && (
+          <span className="badge warn" style={{ marginLeft: 6 }}
+                title="Expiry reminders are stopped for this contract because someone acknowledged them">
+            reminders acknowledged
+          </span>
+        )}
       </h2>
       {c.legal_hold && <div className="error" style={{ background: 'var(--warn-bg, #fff6e5)', color: 'inherit' }}>Under legal hold{c.legal_hold_reason ? `: ${c.legal_hold_reason}` : ''}. Editing and deletion are locked until released.</div>}
       {error && <div className="error">{error}</div>}
@@ -501,8 +685,14 @@ export default function ContractDetail() {
             <button onClick={renew}>Renew…</button>
             <button className="secondary" onClick={() => setLifecycle('RENEWED')}>Mark Renewed</button>
             <button className="danger" onClick={() => setLifecycle('TERMINATED')}>Mark Terminated</button>
-            <button className="secondary" onClick={() => api.post(`/contracts/${srNo}/acknowledge-reminders`).then(load)}>
-              Acknowledge reminders
+            {/* Reflects the current state rather than always offering the same
+                action: acknowledging a contract that is already acknowledged
+                is a no-op, and looked identical to the button being broken. */}
+            <button className="secondary" onClick={() => acknowledgeReminders(!c.reminders_acknowledged)}
+              title={c.reminders_acknowledged
+                ? 'Expiry reminders are stopped for this contract — start them again'
+                : 'Stop expiry reminders for this contract'}>
+              {c.reminders_acknowledged ? 'Resume reminders' : 'Acknowledge reminders'}
             </button>
           </>
         )}
@@ -572,7 +762,7 @@ export default function ContractDetail() {
           <table className="grid">
             <tbody>
               <F label="Signing entity" value={c.signing_entity} />
-              <F label="Vendor" value={c.vendor_id ? <Link to={`/vendors/${c.vendor_id}`}>{c.vendor_name}</Link> : c.vendor_name} />
+              <F label="Counterparty" value={c.vendor_id ? <Link to={`/vendors/${c.vendor_id}`}>{c.vendor_name}</Link> : c.vendor_name} />
               <F label="Vendor address" value={c.vendor_address} />
               <F label="Start date" value={c.start_date} />
               <F label="End date" value={c.end_date} />
@@ -893,7 +1083,15 @@ export default function ContractDetail() {
               <div style={{ marginTop: 12 }}>
                 <label style={{ marginBottom: 4 }}>Upcoming reminders {schedule.rule ? `(rule: ${schedule.rule})` : ''}</label>
                 {schedule.stopped ? (
-                  <p className="hint">Reminders stopped ({schedule.stopped_reason}).</p>
+                  <p className="hint">
+                    Reminders stopped ({schedule.stopped_reason}).
+                    {/* The panel that reports the stop is where someone looks
+                        to undo it, so the way out lives here too. */}
+                    {canValidate && schedule.stopped_reason === 'acknowledged' && (
+                      <button className="linklike" style={{ marginLeft: 6 }}
+                              onClick={() => acknowledgeReminders(false)}>Resume reminders</button>
+                    )}
+                  </p>
                 ) : (
                   <>
                     {schedule.snoozed_until && <p className="hint">Snoozed until {schedule.snoozed_until} — resumes after that date.</p>}
@@ -954,7 +1152,7 @@ export default function ContractDetail() {
         </p>
         <table className="grid">
           <thead>
-            <tr><th>Type</th><th>#</th><th>Vendor</th><th>Start</th><th>End</th><th>Status</th><th></th></tr>
+            <tr><th>Type</th><th>#</th><th>Counterparty</th><th>Start</th><th>End</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             {(group?.members || []).map((m) => (
@@ -1059,6 +1257,15 @@ export default function ContractDetail() {
           </tbody>
         </table>
       </div>
+
+      {starting && (
+        <StartContractModal
+          title={starting.title}
+          context={starting.context}
+          onClose={() => setStarting(null)}
+          onCreated={(d) => { setStarting(null); navigate(`/authoring/drafts/${d.id}`) }}
+        />
+      )}
     </div>
   )
 }
