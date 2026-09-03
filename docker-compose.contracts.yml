@@ -64,6 +64,9 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Used for reminder-email links and CORS; same-origin so CORS is moot.
       APP_BASE_URL: https://${CONTRACTS_DOMAIN:?set CONTRACTS_DOMAIN in .env}
+      # Business-unit letterhead artwork. Pinned explicitly (rather than left to
+      # the app default) so the mount below and the setting can never drift.
+      LETTERHEAD_DIR: /app/letterheads
       # No host folder-watcher in the container deploy by default.
       WATCH_ENABLED: ${CONTRACTS_WATCH_ENABLED:-false}
       EMAIL_DRY_RUN: ${CONTRACTS_EMAIL_DRY_RUN:-true}
@@ -77,6 +80,9 @@ services:
       - contracts_data:/app/data
       - contracts_uploads:/app/attachments
       - contracts_watched:/watched
+      # Uploaded per-BU letterheads. On a named volume because losing them is
+      # silent: an export just comes out on plain paper, naming no entity.
+      - contracts_letterheads:/app/letterheads
     healthcheck:
       # Python image has no curl; probe /api/health with urllib.
       test:
@@ -113,3 +119,4 @@ volumes:
   contracts_data:
   contracts_uploads:
   contracts_watched:
+  contracts_letterheads:

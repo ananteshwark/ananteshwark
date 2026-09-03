@@ -224,6 +224,24 @@ else
   ( crontab -l 2>/dev/null; echo "$CRON" ) | crontab -
   ok "nightly pg_dumpall at 02:00, 14 days retained, in /root/backups"
 fi
+# pg_dumpall covers every database on the shared instance — the ERP's and, when
+# the contracts overlay is deployed, the CMS's too. What it cannot cover is the
+# files: contract PDFs, attachments and business-unit letterheads live in Docker
+# volumes, not in Postgres, and the rows that reference them are useless without
+# them. Back the volumes up as well, but only the ones that exist, so this stays
+# a no-op on an ERP-only box. The filters are substring matches, so per-tenant
+# volumes (contracts_uploads_<slug>, …) are picked up automatically. Retention
+# is by age rather than file count for the same reason: the number of archives
+# per night grows with the number of tenants, so counting would start deleting
+# yesterday's backups the moment a second silo was added.
+VOLCRON='30 2 * * * for v in $(docker volume ls -q --filter name=contracts_uploads --filter name=contracts_letterheads --filter name=contracts_data); do docker run --rm -v "$v":/src:ro -v /root/backups:/dst alpine tar czf /dst/"$v"-$(date +\%F).tgz -C /src . ; done; find /root/backups -name "*contracts_*.tgz" -mtime +14 -delete'
+if crontab -l 2>/dev/null | grep -q 'contracts_uploads'; then
+  ok "nightly contracts volume backup already installed"
+else
+  ( crontab -l 2>/dev/null; echo "$VOLCRON" ) | crontab -
+  ok "nightly contracts volume backup at 02:30 (no-op until the overlay is deployed)"
+fi
+
 warn "Backups are ON THE SAME DISK. Copy them off-box (rclone to R2/B2) before"
 warn "you depend on them — a lost server loses the backups with it."
 

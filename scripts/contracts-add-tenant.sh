@@ -115,6 +115,7 @@ services:
     environment:
       ANTHROPIC_API_KEY: \${ANTHROPIC_API_KEY:-}
       APP_BASE_URL: https://$DOMAIN
+      LETTERHEAD_DIR: /app/letterheads
       WATCH_ENABLED: 'false'
       EMAIL_DRY_RUN: \${CONTRACTS_EMAIL_DRY_RUN:-true}
       SMTP_HOST: \${SMTP_HOST:-}
@@ -127,6 +128,9 @@ services:
       - contracts_data_$SLUG:/app/data
       - contracts_uploads_$SLUG:/app/attachments
       - contracts_watched_$SLUG:/watched
+      # Per-BU letterhead artwork: on a volume because a rebuild would
+      # otherwise put this tenant's entities back on blank paper, silently.
+      - contracts_letterheads_$SLUG:/app/letterheads
     healthcheck:
       test:
         [
@@ -158,6 +162,7 @@ volumes:
   contracts_data_$SLUG:
   contracts_uploads_$SLUG:
   contracts_watched_$SLUG:
+  contracts_letterheads_$SLUG:
 EOF
 
 echo ">> generated:"

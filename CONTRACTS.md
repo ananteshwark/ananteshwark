@@ -33,6 +33,31 @@ cms-upstream  ->  https://github.com/ananteshwark/cms.git
 The initial import was `git subtree add --prefix=contracts cms-upstream
 claude/contract-management-system-buhdr3 --squash`.
 
+### After a sync, read the upstream diff for operational steps
+
+A subtree pull brings code, not the actions that code assumes someone took.
+Skim the upstream changes for new required settings, new on-disk state, and
+one-off migrations before you rebuild — the compose files here only cover what
+was known at the time they were written.
+
+The sync of 2026-09-03 is the worked example:
+
+- **New on-disk state.** Per-business-unit letterheads are stored as files, not
+  rows. Both compose files now mount `/app/letterheads` on a named volume; the
+  nightly backup added by `scripts/provision-server.sh` archives it. Without the
+  volume a routine `up -d --build` would have discarded every business unit's
+  stationery, and the only symptom would be contracts quietly printing on blank
+  paper.
+- **Stricter start-up validation.** The CMS now refuses to boot on a missing,
+  placeholder, or under-32-character `JWT_SECRET`, or on a development
+  `APP_BASE_URL`. Both compose files already satisfy this — `CONTRACTS_JWT_SECRET`
+  is required via `:?` and generated with `openssl rand -hex 32` (64 chars), and
+  `APP_BASE_URL` is derived from the tenant's real domain.
+- **One-off actions after deploying it.** Everyone is signed out once, because
+  sessions moved from `localStorage` into an HttpOnly cookie. An admin must
+  re-index (Repository AI → index status) before semantic ranking is correct
+  again; search keeps working throughout.
+
 ## Running it for a single organisation (opt-in)
 
 The CMS is **not** part of the default stack. For a single-organisation
